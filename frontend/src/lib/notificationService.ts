@@ -47,9 +47,12 @@ export const sendMessageToUser = (
   botApiUrl: string,
   telegramId: number,
   message: string,
-  secret?: string
+  secret?: string,
+  imageUrl?: string,
+  btnText?: string,
+  btnUrl?: string
 ): Promise<NotifyResult> =>
-  postToApi(botApiUrl, '/notify/message', { telegramId, message }, secret);
+  postToApi(botApiUrl, '/notify/message', { telegramId, message, imageUrl, btnText, btnUrl }, secret);
 
 /**
  * Broadcast an announcement to all supplied Telegram IDs.
@@ -58,9 +61,12 @@ export const sendAnnouncement = (
   botApiUrl: string,
   message: string,
   telegramIds: number[],
-  secret?: string
+  secret?: string,
+  imageUrl?: string,
+  btnText?: string,
+  btnUrl?: string
 ): Promise<NotifyResult> =>
-  postToApi(botApiUrl, '/notify/announcement', { message, telegramIds }, secret);
+  postToApi(botApiUrl, '/notify/announcement', { message, telegramIds, imageUrl, btnText, btnUrl }, secret);
 
 /**
  * Notify a user about their withdrawal status (Approved / Rejected / Banned).

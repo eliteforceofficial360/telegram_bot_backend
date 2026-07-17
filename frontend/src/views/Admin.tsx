@@ -346,6 +346,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [notifUserId, setNotifUserId]       = useState('');
   const [notifSending, setNotifSending]     = useState(false);
   const [notifApiSecret, setNotifApiSecret] = useState('elite_force_secret_2024');
+  const [notifImageUrl, setNotifImageUrl]   = useState('');
+  const [notifBtnText, setNotifBtnText]     = useState('');
+  const [notifBtnUrl, setNotifBtnUrl]       = useState('');
 
   const handleSendNotification = async () => {
     if (!notifMessage.trim()) { showToast('Message cannot be empty.', 'warning'); return; }
@@ -354,20 +357,23 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     if (notifTarget === 'all') {
       const ids = usersList.map(u => u.telegramId).filter(Boolean);
       if (ids.length === 0) { showToast('No users loaded.', 'error'); setNotifSending(false); return; }
-      const res = await sendAnnouncement(settings.botApiUrl, notifMessage, ids, notifApiSecret);
+      const res = await sendAnnouncement(settings.botApiUrl, notifMessage, ids, notifApiSecret, notifImageUrl, notifBtnText, notifBtnUrl);
       res.ok
         ? showToast(`📢 Announcement sent to ${res.sent ?? ids.length} users!`, 'success')
         : showToast(res.error || 'Send failed.', 'error');
     } else {
       const id = parseInt(notifUserId);
       if (!id) { showToast('Enter a valid Telegram ID.', 'error'); setNotifSending(false); return; }
-      const res = await sendMessageToUser(settings.botApiUrl, id, notifMessage, notifApiSecret);
+      const res = await sendMessageToUser(settings.botApiUrl, id, notifMessage, notifApiSecret, notifImageUrl, notifBtnText, notifBtnUrl);
       res.ok
         ? showToast('✅ Message sent!', 'success')
         : showToast(res.error || 'Send failed.', 'error');
     }
     setNotifSending(false);
     setNotifMessage('');
+    setNotifImageUrl('');
+    setNotifBtnText('');
+    setNotifBtnUrl('');
   };
 
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
@@ -1114,7 +1120,47 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     />
                     <div className="flex justify-between text-[9px] text-slate-600">
                       <span>{notifMessage.length} chars</span>
-                      <span>Rendered as plain text in Telegram</span>
+                      <span>Rendered as HTML in Telegram</span>
+                    </div>
+                  </div>
+
+                  {/* Image URL (Optional) */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Image URL (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. https://example.com/banner.png"
+                      value={notifImageUrl}
+                      onChange={e => setNotifImageUrl(e.target.value)}
+                      className={inputCls}
+                      style={inputStyle}
+                    />
+                    <p className="text-[9px] text-slate-600">If set, Telegram will send this as a Photo with the message as caption</p>
+                  </div>
+
+                  {/* Inline Button (Optional) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Button Text (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 🎁 Claim Now"
+                        value={notifBtnText}
+                        onChange={e => setNotifBtnText(e.target.value)}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Button Link (Optional)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. https://t.me/EliteForceBot/app"
+                        value={notifBtnUrl}
+                        onChange={e => setNotifBtnUrl(e.target.value)}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
                     </div>
                   </div>
 

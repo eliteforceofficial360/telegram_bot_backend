@@ -25,14 +25,22 @@ function escapeHTML(text = '') {
     .replace(/>/g, '&gt;');
 }
 
-/** Send a Telegram HTML message to a specific user, silently fail on error. */
-async function sendToUser(telegramId, html, extra = {}) {
+/** Send a Telegram HTML message or Photo to a specific user, silently fail on error. */
+async function sendToUser(telegramId, html, extra = {}, imageUrl = null) {
   try {
-    await bot.telegram.sendMessage(telegramId, html, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...extra,
-    });
+    if (imageUrl && imageUrl.trim()) {
+      await bot.telegram.sendPhoto(telegramId, imageUrl, {
+        caption: html,
+        parse_mode: 'HTML',
+        ...extra,
+      });
+    } else {
+      await bot.telegram.sendMessage(telegramId, html, {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        ...extra,
+      });
+    }
     return true;
   } catch (err) {
     console.error(`[Bot] Failed to send to ${telegramId}:`, err.message);
@@ -40,11 +48,11 @@ async function sendToUser(telegramId, html, extra = {}) {
   }
 }
 
-/** Send a message to a list of Telegram IDs (announcement). */
-async function broadcast(ids, html, delayMs = 60) {
+/** Send a message/photo to a list of Telegram IDs (announcement). */
+async function broadcast(ids, html, extra = {}, imageUrl = null, delayMs = 60) {
   let sent = 0, failed = 0;
   for (const id of ids) {
-    const ok = await sendToUser(id, html);
+    const ok = await sendToUser(id, html, extra, imageUrl);
     ok ? sent++ : failed++;
     // Telegram rate limit — ~30 msgs/sec per bot allowed
     if (ids.length > 20) await new Promise(r => setTimeout(r, delayMs));
@@ -153,25 +161,35 @@ const server = http.createServer(async (req, res) => {
 
   // ── POST /notify/message — send custom message to one user ──────────────────
   if (req.method === 'POST' && url === '/notify/message') {
-    const { telegramId, message } = data;
+    const { telegramId, message, imageUrl, btnText, btnUrl } = data;
     if (!telegramId || !message) {
       res.writeHead(400); res.end(JSON.stringify({ error: 'telegramId and message required' })); return;
     }
+    const extra: any = {};
+    if (btnText && btnUrl) {
+      extra.reply_markup = Markup.inlineKeyboard([[Markup.button.url(btnText, btnUrl)]]).reply_markup;
+    }
     const ok = await sendToUser(
       telegramId,
-      `📩 <b>Message from Elite Force Admin</b>\n\n${escapeHTML(message)}`
+      `📩 <b>Message from Elite Force Admin</b>\n\n${escapeHTML(message)}`,
+      extra,
+      imageUrl
     );
     res.writeHead(200); res.end(JSON.stringify({ ok })); return;
   }
 
   // ── POST /notify/announcement — broadcast to all users ─────────────────────
   if (req.method === 'POST' && url === '/notify/announcement') {
-    const { message, telegramIds } = data;
+    const { message, telegramIds, imageUrl, btnText, btnUrl } = data;
     if (!message || !Array.isArray(telegramIds) || telegramIds.length === 0) {
       res.writeHead(400); res.end(JSON.stringify({ error: 'message and telegramIds[] required' })); return;
     }
+    const extra: any = {};
+    if (btnText && btnUrl) {
+      extra.reply_markup = Markup.inlineKeyboard([[Markup.button.url(btnText, btnUrl)]]).reply_markup;
+    }
     const html = `📢 <b>Elite Force Announcement</b>\n\n${escapeHTML(message)}\n\n<i>— Elite Force Team</i>`;
-    const result = await broadcast(telegramIds, html);
+    const result = await broadcast(telegramIds, html, extra, imageUrl);
     res.writeHead(200); res.end(JSON.stringify({ ok: true, ...result })); return;
   }
 
