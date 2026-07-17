@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Trophy, Flame, ChevronRight, Zap, Play, Square } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sparkles, Trophy, Flame, ChevronRight, Pickaxe } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
-import { recordDailyCheckin, startAutoMinerSession, endAutoMinerSession, subscribeToUser, markUserStarted, upsertUser, syncPointsToFirestore, updateUserDatabaseValues, type FirestoreUser } from '../lib/userService';
+import { recordDailyCheckin, startAutoMinerSession, endAutoMinerSession, subscribeToUser, markUserStarted, upsertUser, syncPointsToFirestore, type FirestoreUser } from '../lib/userService';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { showRewardedAd } from '../lib/monetag';
@@ -23,13 +23,6 @@ interface HomeProps {
   energyCooldownUntil: number;
 }
 
-interface FloatingText {
-  id: number;
-  x: number;
-  y: number;
-  value: number;
-}
-
 export const Home: React.FC<HomeProps> = ({
   efcBalance,
   setEfcBalance,
@@ -45,27 +38,24 @@ export const Home: React.FC<HomeProps> = ({
   energyCooldownUntil,
 }) => {
   void usdtBalance;
-  const [clicks, setClicks] = useState<FloatingText[]>([]);
-  const [nowTime, setNowTime] = useState(Date.now());
+  void energy;
+  void setEnergy;
+  void maxEnergy;
+  void energyCooldownUntil;
 
-  useEffect(() => {
-    const t = setInterval(() => setNowTime(Date.now()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // Combo system
-  const [combo, setCombo] = useState(0);
-  const [lastTapTime, setLastTapTime] = useState(0);
 
   // Daily Check-in (Firestore backed)
   const [dailyClaimed, setDailyClaimed] = useState(false);
   const [dailyStreak, setDailyStreak] = useState(0);
   const [claimingDaily, setClaimingDaily] = useState(false);
 
-  // Auto Miner state
+  // Passive Mining state
   const [autoMinerRunning, setAutoMinerRunning] = useState(false);
   const [autoMinerSeconds, setAutoMinerSeconds] = useState(0); // elapsed
   const [autoMinerCooldownLeft, setAutoMinerCooldownLeft] = useState(0); // seconds remaining in cooldown
+  const [isClaimable, setIsClaimable] = useState(false);
+  const [claimingMining, setClaimingMining] = useState(false);
+
   const autoMinerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const autoMinerCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -142,6 +132,7 @@ export const Home: React.FC<HomeProps> = ({
 
     clearAllIntervals();
 
+    // 1. Miner is currently Active/Running (or has completed but not claimed)
     if (dbUser.autoMinerActive && dbUser.autoMinerLastUsed) {
       const lastUsedTime = (dbUser.autoMinerLastUsed as any)?.toDate 
         ? (dbUser.autoMinerLastUsed as any).toDate().getTime() 
@@ -153,8 +144,11 @@ export const Home: React.FC<HomeProps> = ({
       const duration = settings.autoMinerDuration || 300;
 
       if (elapsed < duration) {
+        // Mining is still running
         setAutoMinerRunning(true);
+        setIsClaimable(false);
         setAutoMinerSeconds(elapsed);
+        setAutoMinerCooldownLeft(0);
 
         autoMinerIntervalRef.current = setInterval(() => {
           setAutoMinerSeconds(prev => {
@@ -166,43 +160,23 @@ export const Home: React.FC<HomeProps> = ({
                 autoMinerIntervalRef.current = null;
               }
               setAutoMinerRunning(false);
-              const reward = settingsRef.current.autoMinerReward;
-              setEfcBalance(p => p + reward);
-              if (telegramUserRef.current) {
-                endAutoMinerSession(telegramUserRef.current.id, reward).catch(() => {});
-              }
-              showToast(`⛏️ Mining complete! +${reward.toLocaleString()} EFC Points earned!`, 'success');
-              confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ['#FF8A00', '#FFD700'] });
-              
-              startCooldownCountdown(settingsRef.current.autoMinerCooldown);
+              setIsClaimable(true);
+              return currentDuration;
             }
             return newVal;
           });
         }, 1000);
       } else {
-        // Mining has completed while user was offline/away
+        // Mining has completed, waiting for manual claim
         setAutoMinerRunning(false);
-        setAutoMinerSeconds(0);
-
-        const reward = settings.autoMinerReward;
-        const completionTime = new Date(lastUsedTime + duration * 1000);
-        if (telegramUser) {
-          endAutoMinerSession(telegramUser.id, reward, completionTime).catch(() => {});
-        }
-        showToast(`⛏️ Mining complete! +${reward.toLocaleString()} EFC Points earned!`, 'success');
-        confetti({ particleCount: 60, spread: 55, origin: { y: 0.7 }, colors: ['#FF8A00', '#FFD700'] });
-
-        const cooldown = settings.autoMinerCooldown;
-        const remainingCooldown = Math.max(0, cooldown - (elapsed - duration));
-        if (remainingCooldown > 0) {
-          startCooldownCountdown(remainingCooldown);
-        } else {
-          setAutoMinerCooldownLeft(0);
-        }
+        setIsClaimable(true);
+        setAutoMinerSeconds(duration);
+        setAutoMinerCooldownLeft(0);
       }
     } else {
-      // Miner is not active in DB. Check for cooldown
+      // 2. Miner is Inactive (either not started, or completed and claimed, check cooldown)
       setAutoMinerRunning(false);
+      setIsClaimable(false);
       setAutoMinerSeconds(0);
       
       if (dbUser.autoMinerLastUsed) {
@@ -228,45 +202,17 @@ export const Home: React.FC<HomeProps> = ({
     return clearAllIntervals;
   }, [dbUser, settings]);
 
-  // Tap handler (Optimized for unlimited fast clicks)
-  const handleCoinClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const isLocked = Date.now() < energyCooldownUntil;
-    if (isLocked) {
-      const remainingSecs = Math.ceil((energyCooldownUntil - Date.now()) / 1000);
-      showToast(`Energy Locked! Please wait ${remainingSecs}s.`, 'warning');
-      return;
+  // Unified click handler for central coin
+  const handleMainCoinClick = () => {
+    if (isClaimable) {
+      handleClaimMining();
+    } else if (autoMinerCooldownLeft > 0) {
+      const hrs = Math.floor(autoMinerCooldownLeft / 3600);
+      const mins = Math.floor((autoMinerCooldownLeft % 3600) / 60);
+      showToast(`Mining Cooldown: ${hrs}h ${mins}m remaining.`, 'warning');
+    } else if (!autoMinerRunning) {
+      handleStartAutoMiner();
     }
-
-    if (energy <= 0) {
-      showToast('No energy! Wait for regeneration.', 'warning');
-      return;
-    }
-
-    const now = Date.now();
-    let nextCombo = 1;
-    if (now - lastTapTime < 800) {
-      nextCombo = Math.min(combo + 1, 10);
-    }
-    setCombo(nextCombo);
-    setLastTapTime(now);
-
-    let tapMultiplier = settings.tapReward || 1;
-    if (nextCombo >= 10) {
-      tapMultiplier = (settings.tapReward || 1) * Math.min(settings.comboReward || 3, 10);
-    } else if (nextCombo > 5) {
-      tapMultiplier = (settings.tapReward || 1) * 2;
-    }
-
-    setEfcBalance(prev => prev + tapMultiplier);
-    setEnergy(prev => Math.max(prev - 1, 0));
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const clickId = Math.random(); // Use random for unique IDs during rapid clicks
-    setClicks(prev => [...prev, { id: clickId, x, y, value: tapMultiplier }]);
-
-    setTimeout(() => setClicks(prev => prev.filter(c => c.id !== clickId)), 800);
   };
 
   // Daily Check-in (Firestore + localStorage)
@@ -344,7 +290,7 @@ export const Home: React.FC<HomeProps> = ({
     }
   };
 
-  // Auto Miner
+  // Passive Mining Start
   const handleStartAutoMiner = async () => {
     if (autoMinerCooldownLeft > 0) {
       const hrs = Math.floor(autoMinerCooldownLeft / 3600);
@@ -352,10 +298,10 @@ export const Home: React.FC<HomeProps> = ({
       showToast(`Cooldown: ${hrs}h ${mins}m remaining.`, 'warning');
       return;
     }
-    if (autoMinerRunning) return;
+    if (autoMinerRunning || isClaimable) return;
 
     if (settings.autoMinerPremiumOnly && !telegramUser?.isPremium) {
-      showToast('Auto Miner is for Telegram Premium users only.', 'warning');
+      showToast('Mining is for Telegram Premium users only.', 'warning');
       return;
     }
 
@@ -373,27 +319,32 @@ export const Home: React.FC<HomeProps> = ({
     if (telegramUser) {
       const result = await startAutoMinerSession(telegramUser.id, settings.autoMinerCooldown);
       if (!result.success) {
-        showToast(result.reason || 'Cannot start miner.', 'warning');
+        showToast(result.reason || 'Cannot start mining.', 'warning');
         return;
       }
       // Mark user as started in Firestore (first real interaction = counted in admin)
       markUserStarted(telegramUser.id).catch(() => {});
     }
 
-    showToast('⛏️ Auto Miner started! Mining for ' + (settings.autoMinerDuration / 60).toFixed(0) + ' minutes...', 'success');
+    showToast('⛏️ Mining started! Session active for ' + (settings.autoMinerDuration / 60).toFixed(0) + ' minutes...', 'success');
   };
 
-  const handleStopAutoMiner = async () => {
-    if (autoMinerIntervalRef.current) {
-      clearInterval(autoMinerIntervalRef.current);
-      autoMinerIntervalRef.current = null;
-    }
-    setAutoMinerRunning(false);
-    setAutoMinerSeconds(0);
+  // Passive Mining Claim
+  const handleClaimMining = async () => {
+    if (claimingMining || !isClaimable) return;
+    setClaimingMining(true);
+    
+    const reward = settings.autoMinerReward;
+    setEfcBalance(p => p + reward);
+    
     if (telegramUser) {
-      await updateUserDatabaseValues(telegramUser.id, { autoMinerActive: false }).catch(() => {});
+      await endAutoMinerSession(telegramUser.id, reward).catch(() => {});
     }
-    showToast('Auto Miner stopped.', 'info');
+    
+    setIsClaimable(false);
+    setClaimingMining(false);
+    showToast(`⛏️ Mining claimed! +${reward.toLocaleString()} EFC Points!`, 'success');
+    confetti({ particleCount: 85, spread: 65, origin: { y: 0.6 }, colors: ['#FF8A00', '#FFD700', '#00E5FF'] });
   };
 
   const handleWatchAdClick = async () => {
@@ -445,16 +396,19 @@ export const Home: React.FC<HomeProps> = ({
     ? (autoMinerSeconds / settings.autoMinerDuration) * 100
     : 0;
 
+  const minedPoints = autoMinerRunning
+    ? Math.floor((autoMinerSeconds / settings.autoMinerDuration) * settings.autoMinerReward)
+    : 0;
+
   const formatCountdown = (secs: number) => {
     const h = Math.floor(secs / 3600);
     const m = Math.floor((secs % 3600) / 60);
     const s = secs % 60;
-    if (h > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
     if (m > 0) return `${m}m ${s}s`;
     return `${s}s`;
   };
 
-  const energyPercent = Math.min((energy / maxEnergy) * 100, 100);
   const displayName = telegramUser ? getDisplayName(telegramUser) : 'EForce Miner';
   const withdrawMinReferrals = settings.withdrawMinReferrals;
   const referralProgress = Math.min((referralsCount / withdrawMinReferrals) * 100, 100);
@@ -496,48 +450,35 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </div>
 
-      {/* Main Coin Tap Area */}
-      <div className="relative flex flex-col items-center gap-4">
-        {/* Energy Bar */}
-        <div className="w-full flex items-center gap-2">
-          <Zap size={12} className={nowTime < energyCooldownUntil ? 'text-slate-500 animate-pulse shrink-0' : 'text-[#FF8A00] shrink-0'} />
-          <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
-            <motion.div
-              className={`h-full rounded-full ${
-                nowTime < energyCooldownUntil
-                  ? 'bg-gradient-to-r from-red-500 to-red-400 opacity-60'
-                  : 'bg-gradient-to-r from-[#FF8A00] to-[#FFD700]'
-              }`}
-              animate={{ width: `${energyPercent}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </div>
-          <span className="text-[9px] font-bold shrink-0 text-slate-500">
-            {nowTime < energyCooldownUntil ? (
-              <span className="text-red-400 font-extrabold uppercase tracking-wide">
-                Locked ({Math.max(0, Math.ceil((energyCooldownUntil - nowTime) / 1000))}s)
-              </span>
-            ) : (
-              `${energy}/${maxEnergy}`
-            )}
-          </span>
-        </div>
-
-        {/* Coin Tap */}
+      {/* Main Mining Area */}
+      <div className="relative flex flex-col items-center gap-5 my-2">
+        {/* Coin Wrapper */}
         <div
-          onClick={handleCoinClick}
+          onClick={handleMainCoinClick}
           onContextMenu={(e) => e.preventDefault()}
           className="relative w-64 h-64 cursor-pointer select-none flex items-center justify-center coin-tap-container active:scale-95 transition-transform duration-75 ease-out"
           style={{ perspective: 900 }}
         >
           {/* Multi-layer ambient glow rings */}
-          <div className="absolute inset-[-16px] rounded-full bg-[#FFD700]/10 blur-3xl animate-pulse" />
-          <div className="absolute inset-[-4px] rounded-full bg-[#FF8A00]/20 blur-xl animate-pulse" style={{ animationDelay: '0.5s' }} />
+          <div className={`absolute inset-[-16px] rounded-full blur-3xl transition-all duration-700 ${
+            isClaimable 
+              ? 'bg-accent-cyan/15 animate-pulse' 
+              : autoMinerRunning 
+              ? 'bg-[#FF8A00]/15 animate-pulse' 
+              : 'bg-[#FFD700]/5'
+          }`} />
+          <div className={`absolute inset-[-4px] rounded-full blur-xl transition-all duration-700 ${
+            isClaimable 
+              ? 'bg-accent-blue/20' 
+              : autoMinerRunning 
+              ? 'bg-[#FF8A00]/25' 
+              : 'bg-[#FFD700]/10'
+          }`} />
 
           {/* Rotating orbit ring */}
           <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}
+            animate={autoMinerRunning ? { rotate: 360 } : { rotate: 0 }}
+            transition={autoMinerRunning ? { repeat: Infinity, duration: 8, ease: 'linear' } : { duration: 0.5 }}
             className="absolute inset-0 rounded-full border border-dashed border-[#FFD700]/15"
           />
 
@@ -550,43 +491,84 @@ export const Home: React.FC<HomeProps> = ({
             }}
           />
 
-          {/* Coin image — transparent background, full size */}
-          <img
+          {/* Coin image */}
+          <motion.img
             src="/coin.png"
             alt="EF Coin"
             draggable={false}
-            className="relative z-10 w-full h-full object-contain select-none drop-shadow-[0_0_28px_rgba(255,215,0,0.35)] coin-image"
+            animate={autoMinerRunning ? { rotate: 360 } : isClaimable ? { scale: [1, 1.05, 1] } : {}}
+            transition={autoMinerRunning ? { repeat: Infinity, duration: 15, ease: 'linear' } : isClaimable ? { repeat: Infinity, duration: 2, ease: 'easeInOut' } : {}}
+            className={`relative z-10 w-full h-full object-contain select-none drop-shadow-[0_0_28px_rgba(255,215,0,0.35)] coin-image transition-all duration-500 ${
+              isClaimable ? 'drop-shadow-[0_0_35px_rgba(0,229,255,0.65)]' : ''
+            }`}
           />
-
-          {/* Floating click texts */}
-          <AnimatePresence>
-            {clicks.map((click) => (
-              <motion.div
-                key={click.id}
-                initial={{ opacity: 1, y: 0, x: click.x - 128 }}
-                animate={{ opacity: 0, y: -65 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.85 }}
-                className="absolute pointer-events-none font-black text-[#FFD700] text-base drop-shadow-[0_2px_8px_rgba(255,215,0,0.6)] z-20"
-                style={{ top: click.y - 16, left: 0 }}
-              >
-                +{click.value}
-              </motion.div>
-            ))}
-          </AnimatePresence>
         </div>
 
-        {/* Combo indicator */}
-        {combo > 5 && (
-          <motion.div
-            initial={{ scale: 0.5, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="flex items-center gap-1 bg-[#FF8A00]/15 border border-[#FF8A00]/25 px-3 py-1 rounded-full"
+        {/* Mining Status Details */}
+        <div className="flex flex-col items-center gap-3.5 w-full">
+          {/* Progress Bar & Info (Only when running) */}
+          {autoMinerRunning && (
+            <div className="w-full max-w-sm flex flex-col gap-1.5 px-4">
+              <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                <span className="flex items-center gap-1">
+                  <Pickaxe size={11} className="text-[#FF8A00] animate-bounce" />
+                  Mined: <span className="text-[#FF8A00]">{minedPoints}</span> / {settings.autoMinerReward} EFC
+                </span>
+                <span>{formatCountdown(settings.autoMinerDuration - autoMinerSeconds)} left</span>
+              </div>
+              <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/[0.03]">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-[#FF8A00] to-[#FFD700] rounded-full"
+                  animate={{ width: `${miningProgress}%` }}
+                  transition={{ duration: 0.8 }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Claim Info (When claimable) */}
+          {isClaimable && (
+            <div className="text-center animate-bounce">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Mining session completed!</span>
+              <span className="text-sm font-black text-accent-cyan mt-1 block">+{settings.autoMinerReward} EFC Ready to Claim</span>
+            </div>
+          )}
+
+          {/* Cooldown Info (When in cooldown) */}
+          {autoMinerCooldownLeft > 0 && !autoMinerRunning && !isClaimable && (
+            <div className="text-center">
+              <span className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest block">Next mining session in:</span>
+              <span className="text-sm font-bold text-slate-400 mt-1 block">{formatCountdown(autoMinerCooldownLeft)}</span>
+            </div>
+          )}
+
+          {/* Action Button */}
+          <button
+            onClick={handleMainCoinClick}
+            disabled={claimingMining || (autoMinerCooldownLeft > 0 && !isClaimable && !autoMinerRunning)}
+            className={`w-full max-w-xs h-12 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer border ${
+              isClaimable
+                ? 'bg-gradient-to-r from-accent-cyan to-accent-blue border-accent-cyan/30 text-white shadow-[0_0_18px_rgba(0,229,255,0.3)]'
+                : autoMinerRunning
+                ? 'bg-white/5 border-white/10 text-slate-400 cursor-not-allowed'
+                : autoMinerCooldownLeft > 0
+                ? 'bg-white/[0.02] border-white/5 text-slate-600 cursor-not-allowed'
+                : 'bg-gradient-to-r from-[#FF8A00] to-[#FF5500] border-[#FF8A00]/20 text-white shadow-[0_0_16px_rgba(255,138,0,0.3)] hover:brightness-110'
+            }`}
           >
-            <Flame size={10} className="text-[#FF8A00]" />
-            <span className="text-[10px] font-black text-[#FF8A00]">x{combo} COMBO</span>
-          </motion.div>
-        )}
+            {claimingMining ? (
+              <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />
+            ) : isClaimable ? (
+              <>🎁 Claim Reward</>
+            ) : autoMinerRunning ? (
+              <>⛏️ Mining...</>
+            ) : autoMinerCooldownLeft > 0 ? (
+              <>⏳ Cooldown</>
+            ) : (
+              <>⛏️ Start Mining</>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Daily Check-in */}
@@ -678,46 +660,6 @@ export const Home: React.FC<HomeProps> = ({
           </div>
         </div>
       )}
-
-      {/* Auto Miner */}
-      <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Auto Miner</span>
-            <p className="text-[10px] text-slate-400 mt-0.5">
-              {autoMinerRunning
-                ? `Mining... ${formatCountdown(settings.autoMinerDuration - autoMinerSeconds)} left`
-                : autoMinerCooldownLeft > 0
-                ? `Cooldown: ${formatCountdown(autoMinerCooldownLeft)}`
-                : `Earn +${settings.autoMinerReward.toLocaleString()} EFC Points in ${settings.autoMinerDuration / 60}min`}
-            </p>
-          </div>
-          <button
-            onClick={autoMinerRunning ? handleStopAutoMiner : handleStartAutoMiner}
-            disabled={autoMinerCooldownLeft > 0 && !autoMinerRunning}
-            className={`h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer ${
-              autoMinerRunning
-                ? 'bg-accent-danger/15 border border-accent-danger/25 text-accent-danger'
-                : autoMinerCooldownLeft > 0
-                ? 'bg-white/5 border border-white/10 text-slate-500 cursor-not-allowed'
-                : 'bg-gradient-to-r from-[#FF8A00] to-[#FF5500] text-white shadow-[0_0_14px_rgba(255,138,0,0.25)]'
-            }`}
-          >
-            {autoMinerRunning ? <><Square size={10} /> Stop</> : <><Play size={10} /> Start</>}
-          </button>
-        </div>
-
-        {/* Mining progress bar */}
-        {autoMinerRunning && (
-          <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-[#FF8A00] to-[#FFD700] rounded-full"
-              animate={{ width: `${miningProgress}%` }}
-              transition={{ duration: 0.8 }}
-            />
-          </div>
-        )}
-      </div>
 
       {/* Referral Progress */}
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
