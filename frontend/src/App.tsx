@@ -598,8 +598,8 @@ export default function App() {
     }
 
     // Default Main User Route "/"
-    // 1. Telegram webview checks
-    if (!isTelegramWebview && !bypassTelegramCheck) {
+    // 1. Telegram webview checks (Disabled to allow website access)
+    if (false) {
       return (
         <div className="flex flex-col items-center justify-center p-8 text-center min-h-[60vh] select-none">
           <ShieldAlert size={46} className="text-accent-danger mb-4 animate-pulse" />

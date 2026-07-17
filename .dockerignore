@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+frontend/dist
+frontend/node_modules
+.git
+.gitignore
+README.md
+.vercel
+.firebase
+.agents
