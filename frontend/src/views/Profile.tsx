@@ -112,7 +112,7 @@ export const Profile = ({ efcBalance, dbUser, showToast, telegramUser }: Profile
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 mb-1">
             <h2 className="text-base font-bold text-white tracking-tight truncate">{getDisplayName(telegramUser)}</h2>
-            <VerifiedBadge size={14} className="shrink-0" />
+            {dbUser?.isVerified && <VerifiedBadge size={14} className="shrink-0" />}
             {telegramUser?.isPremium && (
               <span className="text-[8px] font-black uppercase text-accent-gold flex items-center gap-0.5 bg-accent-gold/10 border border-accent-gold/15 px-1.5 py-0.5 rounded">
                 👑 Premium

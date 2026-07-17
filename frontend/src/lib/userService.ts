@@ -84,6 +84,7 @@ export interface FirestoreUser {
   totalDailyPoints: number;
   leaderboardPinned?: boolean;
   leaderboardHidden?: boolean;
+  isVerified?: boolean;
 }
 
 const USERS_COLLECTION = 'users';
@@ -202,6 +203,7 @@ export const upsertUser = async (
       ipHistory: clientIp !== 'Unknown' ? [clientIp] : [],
       device: deviceInfo,
       totalDailyPoints: 0,
+      isVerified: false,
     });
 
     // Record referral if present
@@ -607,6 +609,7 @@ export const updateUserDatabaseValues = async (
     autoMinerActive?: boolean;
     leaderboardPinned?: boolean;
     leaderboardHidden?: boolean;
+    isVerified?: boolean;
   }
 ): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;

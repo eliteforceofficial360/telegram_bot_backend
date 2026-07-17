@@ -435,7 +435,7 @@ export const Home: React.FC<HomeProps> = ({
         <div>
           <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">
             Hey, {displayName.split(' ')[0]}
-            <VerifiedBadge size={14} className="shrink-0" />
+            {dbUser?.isVerified && <VerifiedBadge size={14} className="shrink-0" />}
             👋
           </h1>
           <p className="text-[10px] text-slate-500 mt-0.5 font-semibold uppercase tracking-widest">

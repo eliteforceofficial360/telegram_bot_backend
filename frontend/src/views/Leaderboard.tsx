@@ -155,7 +155,7 @@ export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser }: Lea
                     <span className={`text-xs font-bold truncate max-w-[120px] ${isMe ? 'text-[#FF8A00]' : 'text-white'}`}>
                       {u.firstName} {u.lastName}
                     </span>
-                    <VerifiedBadge size={10} className="shrink-0" />
+                    {u.isVerified && <VerifiedBadge size={10} className="shrink-0" />}
                     {u.isTelegramPremium && <Star size={10} className="text-[#00E5FF] fill-current shrink-0" />}
                     {u.leaderboardPinned && (
                       <span className="text-[7px] font-black text-[#FF8A00] bg-[#FF8A00]/15 border border-[#FF8A00]/25 px-1.5 py-0.5 rounded uppercase shrink-0">

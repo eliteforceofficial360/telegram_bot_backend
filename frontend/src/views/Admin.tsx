@@ -138,6 +138,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editBanDuration, setEditBanDuration] = useState<number>(24);
   const [editLeaderboardPinned, setEditLeaderboardPinned] = useState(false);
   const [editLeaderboardHidden, setEditLeaderboardHidden] = useState(false);
+  const [editIsVerified, setEditIsVerified] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingUser, setSavingUser] = useState(false);
   const [showAddUserForm, setShowAddUserForm] = useState(false);
@@ -156,6 +157,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setEditRiskLevel(u.riskLevel ?? 'safe'); setEditBanStatus(u.banStatus ?? 'none');
     setEditLeaderboardPinned(u.leaderboardPinned ?? false);
     setEditLeaderboardHidden(u.leaderboardHidden ?? false);
+    setEditIsVerified(u.isVerified ?? false);
     if (u.banStatus === 'temp' && u.banUntil) {
       const until = u.banUntil instanceof Timestamp ? u.banUntil.toDate() : new Date(u.banUntil as string);
       const diffHrs = Math.max(1, Math.round((until.getTime() - Date.now()) / 3600000));
@@ -171,6 +173,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       points: editPoints, tokens: editTokens, wallet: editWallet, referrals: editReferrals,
       riskLevel: editRiskLevel, banStatus: editBanStatus, banUntil,
       leaderboardPinned: editLeaderboardPinned, leaderboardHidden: editLeaderboardHidden,
+      isVerified: editIsVerified,
     });
     if (ok) {
       const sessionStr = localStorage.getItem('admin_session');
@@ -185,6 +188,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       if (editingUser.banStatus !== editBanStatus) changes.push(`Ban: ${editingUser.banStatus} -> ${editBanStatus}`);
       if ((editingUser.leaderboardPinned ?? false) !== editLeaderboardPinned) changes.push(`Pinned: ${editingUser.leaderboardPinned ?? false} -> ${editLeaderboardPinned}`);
       if ((editingUser.leaderboardHidden ?? false) !== editLeaderboardHidden) changes.push(`Hidden: ${editingUser.leaderboardHidden ?? false} -> ${editLeaderboardHidden}`);
+      if ((editingUser.isVerified ?? false) !== editIsVerified) changes.push(`Verified: ${editingUser.isVerified ?? false} -> ${editIsVerified}`);
       if (changes.length > 0) await logAdminAction(typeof adminId === 'number' ? adminId : 0, adminUsername, 'Edit User Profile & Leaderboard', editingUser.telegramId, changes.join(', ')).catch(() => {});
       showToast(`✅ ${editingUser.firstName} updated.`, 'success'); fetchUsers(); setEditingUser(null);
     } else { showToast('Error updating user.', 'error'); }
@@ -664,7 +668,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
                                 <span className="text-xs font-bold text-white truncate max-w-[130px]">{u.firstName} {u.lastName}</span>
-                                <VerifiedBadge size={10} />
+                                {u.isVerified && <VerifiedBadge size={10} />}
                                 {u.isTelegramPremium && <Star size={10} className="text-[#00E5FF] fill-current shrink-0" />}
                                 {(u.banStatus ?? 'none') !== 'none' && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase" style={{ color: '#F87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)' }}>Banned</span>}
                                 {u.flagCount > 0 && <span className="text-[7px] font-black px-1.5 py-0.5 rounded" style={{ color: '#FBBF24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)' }}>🚩{u.flagCount}</span>}
@@ -782,6 +786,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">LB Pin</label>
                                       <select value={editLeaderboardPinned ? 'true' : 'false'} onChange={e => setEditLeaderboardPinned(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
                                         <option value="false">Unpinned</option><option value="true">Pinned</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Verified Badge</label>
+                                      <select value={editIsVerified ? 'true' : 'false'} onChange={e => setEditIsVerified(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
+                                        <option value="false">Unverified</option><option value="true">Verified</option>
                                       </select>
                                     </div>
                                   </div>

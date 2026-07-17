@@ -264,7 +264,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-semibold text-white truncate">{u.firstName}</span>
-                    <VerifiedBadge size={9} />
+                    {u.isVerified && <VerifiedBadge size={9} />}
                   </div>
                   <span className="text-[8px] text-slate-500">@{u.username || 'no_username'}</span>
                 </div>
