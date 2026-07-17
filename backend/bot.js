@@ -165,7 +165,7 @@ const server = http.createServer(async (req, res) => {
     if (!telegramId || !message) {
       res.writeHead(400); res.end(JSON.stringify({ error: 'telegramId and message required' })); return;
     }
-    const extra: any = {};
+    const extra = {};
     if (btnText && btnUrl) {
       extra.reply_markup = Markup.inlineKeyboard([[Markup.button.url(btnText, btnUrl)]]).reply_markup;
     }
@@ -182,9 +182,9 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && url === '/notify/announcement') {
     const { message, telegramIds, imageUrl, btnText, btnUrl } = data;
     if (!message || !Array.isArray(telegramIds) || telegramIds.length === 0) {
-      res.writeHead(400); res.end(JSON.stringify({ error: 'message and telegramIds[] required' })); return;
+       res.writeHead(400); res.end(JSON.stringify({ error: 'message and telegramIds[] required' })); return;
     }
-    const extra: any = {};
+    const extra = {};
     if (btnText && btnUrl) {
       extra.reply_markup = Markup.inlineKeyboard([[Markup.button.url(btnText, btnUrl)]]).reply_markup;
     }
