@@ -83,9 +83,9 @@ export const Wallet: React.FC<WalletProps> = ({
     }
   };
 
-  const handleWithdrawClick = () => {
+  const handleWithdrawClick = (asset: 'usdt' | 'token') => {
     if (!settings.withdrawOpen) {
-      showToast('USDT Withdrawals are currently closed by administrators.', 'error');
+      showToast('Withdrawals are currently closed by administrators.', 'error');
       return;
     }
     const minRefs = settings.withdrawMinReferrals;
@@ -101,6 +101,8 @@ export const Wallet: React.FC<WalletProps> = ({
       return;
     }
 
+    setWithdrawAsset(asset);
+    setWithdrawAmount(asset === 'usdt' ? usdtBalance.toFixed(2) : eforceTokens.toFixed(3));
     setShowWithdrawModal(true);
     setPin('');
     setIsVerifying(false);
@@ -386,12 +388,12 @@ export const Wallet: React.FC<WalletProps> = ({
         {/* Divider */}
         <div className="h-[1px] bg-white/5 w-full" />
 
-        {/* USDT Withdrawal Section */}
+        {/* Dual Withdraw Portal Section */}
         <div className="flex flex-col gap-3">
           <div className="flex justify-between items-center">
             <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Withdraw Portal</span>
             <div className="flex items-center gap-1.5">
-              <span className="text-[9px] text-slate-400">Withdrawal Status:</span>
+              <span className="text-[9px] text-slate-400">Status:</span>
               <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded border ${
                 settings.withdrawOpen 
                   ? 'bg-accent-success/15 border-accent-success/20 text-accent-success' 
@@ -404,35 +406,53 @@ export const Wallet: React.FC<WalletProps> = ({
 
           {settings.withdrawOpen ? (
             <div className="flex flex-col gap-3">
-              <div className="flex justify-between items-center bg-white/[0.02] border border-white/5 rounded-xl px-3.5 py-2.5">
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-[9px] text-slate-500 uppercase font-semibold">Withdrawable Balance</span>
-                  <span className="text-sm font-extrabold text-accent-success font-mono">${usdtBalance.toFixed(2)} USDT</span>
+              {/* Balances Display */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex flex-col gap-0.5">
+                  <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable USDT</span>
+                  <span className="text-xs font-extrabold text-accent-success font-mono">${usdtBalance.toFixed(2)} USDT</span>
+                  <span className="text-[8px] text-slate-500 font-medium">Min: ${settings.withdrawMinAmount}</span>
                 </div>
-                <div className="text-right flex flex-col gap-0.5">
-                  <span className="text-[9px] text-slate-500 uppercase font-semibold">Requirement</span>
-                  <span className={`text-[10px] font-bold ${settings.withdrawRequireReferrals ? 'text-slate-300' : 'text-accent-success'}`}>
-                    {settings.withdrawRequireReferrals ? `${currentRefs}/${withdrawMinReferrals} Affiliates` : 'None'}
-                  </span>
+                <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex flex-col gap-0.5">
+                  <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable EF</span>
+                  <span className="text-xs font-extrabold text-accent-purple font-mono">{eforceTokens.toFixed(3)} EF</span>
+                  <span className="text-[8px] text-slate-500 font-medium">Min: {(settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05)).toFixed(0)} EF</span>
                 </div>
               </div>
+
+              {/* Requirement Alert Banner */}
+              <div className="flex justify-between items-center bg-white/[0.015] border border-white/5 rounded-xl px-3.5 py-2">
+                <span className="text-[9px] text-slate-400 uppercase font-semibold">Requirement</span>
+                <span className={`text-[9px] font-bold ${settings.withdrawRequireReferrals && currentRefs < withdrawMinReferrals ? 'text-accent-danger' : 'text-accent-success'}`}>
+                  {settings.withdrawRequireReferrals ? `Affiliates: ${currentRefs}/${withdrawMinReferrals}` : 'No Referral Requirements'}
+                </span>
+              </div>
               
-              <p className="text-[11px] text-slate-400 leading-relaxed font-normal">
-                Withdraw your earned USDT commissions to your saved BEP-20 address. Minimum withdrawal amount is <span className="text-accent-cyan font-bold">${settings.withdrawMinAmount} USDT</span>.{settings.withdrawRequireReferrals && <> Requires <span className="text-accent-purple font-bold">{withdrawMinReferrals} valid affiliates</span>.</>}
+              <p className="text-[10px] text-slate-400 leading-relaxed font-normal">
+                Withdraw commissions to your BEP-20 address. {settings.withdrawRequireReferrals && <>Requires <span className="text-accent-purple font-bold">{withdrawMinReferrals} valid affiliates</span> to unlock.</>}
               </p>
               
-              <button
-                onClick={handleWithdrawClick}
-                className="h-10 rounded-xl bg-gradient-to-r from-[#FF8A00] to-[#E52E71] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
-              >
-                Withdraw USDT
-              </button>
+              {/* Dual Action Buttons */}
+              <div className="grid grid-cols-2 gap-2 mt-1">
+                <button
+                  onClick={() => handleWithdrawClick('usdt')}
+                  className="h-10 rounded-xl bg-gradient-to-r from-[#FF8A00] to-[#E52E71] text-white text-[11px] font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                >
+                  Withdraw USDT
+                </button>
+                <button
+                  onClick={() => handleWithdrawClick('token')}
+                  className="h-10 rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue text-white text-[11px] font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                >
+                  Withdraw EF Token
+                </button>
+              </div>
             </div>
           ) : (
             <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5 text-center flex flex-col gap-1.5">
               <Lock className="text-slate-500 mx-auto" size={16} />
               <span className="text-xs font-bold text-slate-400">Withdrawals Locked</span>
-              <p className="text-[10px] text-slate-500">USDT withdrawals are temporarily locked by ecosystem administrators.</p>
+              <p className="text-[10px] text-slate-500">USDT and Token withdrawals are temporarily locked by ecosystem administrators.</p>
             </div>
           )}
         </div>

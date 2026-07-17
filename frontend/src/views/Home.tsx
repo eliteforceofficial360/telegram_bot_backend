@@ -332,6 +332,21 @@ export const Home: React.FC<HomeProps> = ({
   // Passive Mining Claim
   const handleClaimMining = async () => {
     if (claimingMining || !isClaimable) return;
+
+    if (settings.adEnabled) {
+      try {
+        showToast('Loading sponsored video to claim mining...', 'info');
+        const completed = await showRewardedAd(settings.monetagZoneId);
+        if (!completed) {
+          showToast('Ad dismissed. Complete the ad to claim your reward!', 'error');
+          return;
+        }
+      } catch (err: any) {
+        showToast(err.message || 'Ad dismissed. Complete the ad to claim your reward!', 'error');
+        return;
+      }
+    }
+
     setClaimingMining(true);
     
     const reward = settings.autoMinerReward;
