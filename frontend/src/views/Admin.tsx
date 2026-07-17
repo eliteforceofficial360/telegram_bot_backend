@@ -27,6 +27,9 @@ import {
 import {
   subscribeToAdminSettings, saveAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings,
 } from '../lib/adminSettingsService';
+import {
+  sendMessageToUser, sendAnnouncement, sendWithdrawNotification,
+} from '../lib/notificationService';
 
 interface AdminProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -300,12 +303,55 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [withdrawFilter, setWithdrawFilter] = useState<'all' | 'Pending' | 'Approved' | 'Rejected' | 'Banned'>('Pending');
   useEffect(() => { const unsub = subscribeToWithdrawRequests(setWithdrawals); return unsub; }, []);
-  const handleWithdrawAction = async (id: string, status: 'Approved' | 'Rejected' | 'Banned') => {
+  const handleWithdrawAction = async (id: string, status: 'Approved' | 'Rejected' | 'Banned', req?: any) => {
     const ok = await updateWithdrawRequest(id, status);
-    ok ? showToast(`Request ${status}.`, status === 'Approved' ? 'success' : 'warning') : showToast('Update failed.', 'error');
+    if (ok) {
+      showToast(`Request ${status}.`, status === 'Approved' ? 'success' : 'warning');
+      // Auto-notify user via Telegram bot
+      if (req?.telegramId && settings.botApiUrl) {
+        sendWithdrawNotification(
+          settings.botApiUrl,
+          req.telegramId,
+          status,
+          req.amount ?? 0,
+          req.type ?? 'usdt',
+          req.adminNote ?? ''
+        ).catch(() => {});
+      }
+    } else {
+      showToast('Update failed.', 'error');
+    }
+  };
+  // --- Notifications tab ---
+  const [notifMessage, setNotifMessage]     = useState('');
+  const [notifTarget, setNotifTarget]       = useState<'all' | 'user'>('all');
+  const [notifUserId, setNotifUserId]       = useState('');
+  const [notifSending, setNotifSending]     = useState(false);
+  const [notifApiSecret, setNotifApiSecret] = useState('elite_force_secret_2024');
+
+  const handleSendNotification = async () => {
+    if (!notifMessage.trim()) { showToast('Message cannot be empty.', 'warning'); return; }
+    if (!settings.botApiUrl) { showToast('Bot API URL not set in Settings.', 'error'); return; }
+    setNotifSending(true);
+    if (notifTarget === 'all') {
+      const ids = usersList.map(u => u.telegramId).filter(Boolean);
+      if (ids.length === 0) { showToast('No users loaded.', 'error'); setNotifSending(false); return; }
+      const res = await sendAnnouncement(settings.botApiUrl, notifMessage, ids, notifApiSecret);
+      res.ok
+        ? showToast(`📢 Announcement sent to ${res.sent ?? ids.length} users!`, 'success')
+        : showToast(res.error || 'Send failed.', 'error');
+    } else {
+      const id = parseInt(notifUserId);
+      if (!id) { showToast('Enter a valid Telegram ID.', 'error'); setNotifSending(false); return; }
+      const res = await sendMessageToUser(settings.botApiUrl, id, notifMessage, notifApiSecret);
+      res.ok
+        ? showToast('✅ Message sent!', 'success')
+        : showToast(res.error || 'Send failed.', 'error');
+    }
+    setNotifSending(false);
+    setNotifMessage('');
   };
 
-  // --- Settings ---
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
   const [savingSettings, setSavingSettings] = useState(false);
   useEffect(() => { const unsub = subscribeToAdminSettings(setSettings); return unsub; }, []);
@@ -946,7 +992,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     </div>
                     <div>
                       <span className="text-sm font-black text-white">{req.amount || '?'}</span>
-                      <span className="text-[9px] text-slate-500 ml-1">USDT</span>
+                      <span className="text-[9px] text-slate-500 ml-1">{req.type === 'token' ? 'EF Token' : 'USDT'}</span>
                     </div>
                     <span className="text-[9px] font-bold text-slate-400">BEP-20</span>
                     <span className={`text-[9px] font-black px-2.5 py-1 rounded-full inline-block ${req.status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/25' : req.status === 'Approved' ? 'text-green-400 bg-green-400/10 border border-green-400/25' : 'text-red-400 bg-red-400/10 border border-red-400/25'}`}>
@@ -954,14 +1000,160 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     </span>
                     {req.status === 'Pending' ? (
                       <div className="flex gap-1.5 justify-end">
-                        <button onClick={() => handleWithdrawAction(req.id, 'Approved')} title="Approve" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.success}><Check size={11} /> OK</button>
-                        <button onClick={() => handleWithdrawAction(req.id, 'Rejected')} title="Reject" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.ghost}><X size={11} /></button>
-                        <button onClick={() => handleWithdrawAction(req.id, 'Banned')} title="Ban user" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.danger}><Ban size={11} /></button>
+                        <button onClick={() => handleWithdrawAction(req.id, 'Approved', req)} title="Approve" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.success}><Check size={11} /> OK</button>
+                        <button onClick={() => handleWithdrawAction(req.id, 'Rejected', req)} title="Reject" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.ghost}><X size={11} /></button>
+                        <button onClick={() => handleWithdrawAction(req.id, 'Banned', req)} title="Ban user" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.danger}><Ban size={11} /></button>
                       </div>
                     ) : <div />}
                   </motion.div>
                 ))}
               </SectionCard>
+            </div>
+          )}
+
+          {/* ════════════════════ NOTIFICATIONS ════════════════════ */}
+          {activeTab === 'notifications' && (
+            <div className="flex flex-col gap-5">
+
+              {/* Stats strip */}
+              <div className="grid grid-cols-3 gap-4">
+                {[
+                  { label: 'Total Users',   value: usersList.length,           color: '#C084FC', bg: 'rgba(192,132,252,0.08)', border: 'rgba(192,132,252,0.22)' },
+                  { label: 'Pending Alerts', value: withdrawals.filter(w => w.status === 'Pending').length, color: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.22)' },
+                  { label: 'Bot Connected', value: settings.botApiUrl ? '✓' : '✗', color: settings.botApiUrl ? '#4ADE80' : '#F87171', bg: settings.botApiUrl ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)', border: settings.botApiUrl ? 'rgba(74,222,128,0.22)' : 'rgba(248,113,113,0.22)' },
+                ].map(s => (
+                  <div key={s.label} className="rounded-[22px] p-5" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
+                    <div className="text-2xl font-black leading-none" style={{ color: s.color }}>{s.value}</div>
+                    <div className="text-[9px] uppercase tracking-[0.18em] text-slate-500 mt-1.5">{s.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Message Composer */}
+              <SectionCard accentColor="#C084FC88">
+                <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg" style={{ background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.25)' }}>📢</div>
+                    <div>
+                      <div className="text-sm font-black text-white">Send Notification</div>
+                      <div className="text-[9px] text-slate-500 mt-0.5">Send Telegram bot messages directly to users</div>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-5 flex flex-col gap-4">
+
+                  {/* Target selector */}
+                  <div className="flex gap-2">
+                    {(['all', 'user'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setNotifTarget(t)}
+                        className="flex-1 h-10 rounded-xl text-xs font-bold border transition-all cursor-pointer"
+                        style={notifTarget === t
+                          ? { background: 'rgba(192,132,252,0.15)', border: '1px solid rgba(192,132,252,0.5)', color: '#C084FC' }
+                          : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#64748b' }
+                        }
+                      >
+                        {t === 'all' ? '📢 All Users (Broadcast)' : '👤 Specific User'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* User ID input (conditional) */}
+                  {notifTarget === 'user' && (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Telegram User ID</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 123456789"
+                        value={notifUserId}
+                        onChange={e => setNotifUserId(e.target.value)}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                      <p className="text-[9px] text-slate-600">Find ID in the Users tab → Telegram ID column</p>
+                    </div>
+                  )}
+
+                  {/* Message textarea */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
+                      Message {notifTarget === 'all' ? `(will reach ${usersList.length} users)` : ''}
+                    </label>
+                    <textarea
+                      rows={5}
+                      placeholder="Type your announcement or custom message here..."
+                      value={notifMessage}
+                      onChange={e => setNotifMessage(e.target.value)}
+                      className="w-full rounded-xl px-3 py-2.5 text-xs text-white outline-none resize-none focus:ring-1 focus:ring-[#C084FC]/40"
+                      style={{ ...inputStyle, minHeight: 110 }}
+                    />
+                    <div className="flex justify-between text-[9px] text-slate-600">
+                      <span>{notifMessage.length} chars</span>
+                      <span>Rendered as plain text in Telegram</span>
+                    </div>
+                  </div>
+
+                  {/* API Secret (collapsible) */}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">API Secret (from backend .env)</label>
+                    <input
+                      type="password"
+                      value={notifApiSecret}
+                      onChange={e => setNotifApiSecret(e.target.value)}
+                      className={inputCls}
+                      style={inputStyle}
+                    />
+                  </div>
+
+                  {/* Send button */}
+                  <button
+                    onClick={handleSendNotification}
+                    disabled={notifSending || !notifMessage.trim()}
+                    className={`${Btn.primary} w-full h-12 rounded-2xl text-sm font-black`}
+                    style={{ ...btnStyle.primary, background: 'linear-gradient(135deg, #C084FC, #818CF8)', boxShadow: '0 0 30px rgba(192,132,252,0.35)' }}
+                  >
+                    {notifSending ? <RefreshCw size={16} className="animate-spin" /> : '🚀'}
+                    {notifSending
+                      ? (notifTarget === 'all' ? `Sending to ${usersList.length} users...` : 'Sending...')
+                      : (notifTarget === 'all' ? `Broadcast to All ${usersList.length} Users` : 'Send to User')}
+                  </button>
+
+                  {!settings.botApiUrl && (
+                    <div className="rounded-xl px-4 py-3 text-xs text-yellow-400 font-semibold"
+                      style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
+                      ⚠️ Bot API URL not set. Go to <strong>Settings</strong> and add your bot server URL to enable notifications.
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+
+              {/* Quick actions: per-user message from Users list */}
+              <SectionCard accentColor="#C084FC44">
+                <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <div className="text-sm font-black text-white">📋 Notification Types Reference</div>
+                  <div className="text-[9px] text-slate-500 mt-0.5">These are sent automatically by the system</div>
+                </div>
+                <div className="p-4 flex flex-col gap-3">
+                  {[
+                    { icon: '✅', label: 'Withdrawal Approved', desc: 'Auto-sent when you approve a withdrawal in the Withdrawals tab', color: '#4ADE80' },
+                    { icon: '❌', label: 'Withdrawal Rejected', desc: 'Auto-sent when you reject a withdrawal request', color: '#F87171' },
+                    { icon: '🚫', label: 'Account Banned',      desc: 'Auto-sent when you ban a user from a withdrawal', color: '#FB923C' },
+                    { icon: '🎉', label: 'Referral Notification', desc: 'Auto-sent by bot when a new user joins via referral link', color: '#C084FC' },
+                    { icon: '📢', label: 'Custom Announcement', desc: 'Manual broadcast using the form above', color: '#60A5FA' },
+                    { icon: '📩', label: 'Custom User Message',  desc: 'Direct message to a specific user using the form above', color: '#34D399' },
+                  ].map(n => (
+                    <div key={n.label} className="flex items-start gap-3 py-2.5 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                      <div className="text-lg w-7 shrink-0">{n.icon}</div>
+                      <div className="flex-1">
+                        <div className="text-xs font-bold" style={{ color: n.color }}>{n.label}</div>
+                        <div className="text-[9px] text-slate-500 mt-0.5">{n.desc}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+
             </div>
           )}
 
@@ -1099,6 +1291,13 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     <div className="flex items-center justify-between py-3">
                       <label className="text-xs text-slate-400">Bot Username (Ref Links)</label>
                       <input type="text" value={settings.botUsername} onChange={e => setSettings(prev => ({ ...prev, botUsername: e.target.value }))} className="w-36 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                    </div>
+                    <div className="flex items-center justify-between py-3 gap-4">
+                      <div>
+                        <label className="text-xs text-slate-400 block">Bot API URL</label>
+                        <span className="text-[9px] text-slate-600">Your running backend URL (for notifications)</span>
+                      </div>
+                      <input type="text" placeholder="http://your-server:4000" value={settings.botApiUrl || ''} onChange={e => setSettings(prev => ({ ...prev, botApiUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
                     </div>
                   </div>
                 </SectionCard>

@@ -1,4 +1,5 @@
 // Monetag SDK helper for Elite Force Telegram Mini App
+// Zone ID: 11271101 · SDK: libtl.com/sdk.js
 
 declare global {
   interface Window {
@@ -7,44 +8,39 @@ declare global {
 }
 
 /**
- * Dynamically injects and loads the Monetag SDK.
- * @param zoneId The Monetag Zone ID.
+ * Dynamically injects and loads the Monetag SDK from libtl.com.
+ * @param zoneId The Monetag Zone ID (e.g. '11271101').
  */
 export function initMonetag(zoneId: string): Promise<boolean> {
   return new Promise((resolve) => {
-    if (!zoneId || zoneId === '123456') {
-      console.warn("Monetag: Default or empty Zone ID configured.");
+    const placeholder = !zoneId || zoneId === '123456';
+    if (placeholder) {
+      console.warn('Monetag: No real Zone ID set — using simulation mode.');
       resolve(false);
       return;
     }
 
     const scriptId = `monetag-sdk-${zoneId}`;
+    // Already injected — resolve immediately
     if (document.getElementById(scriptId)) {
       resolve(true);
       return;
     }
 
-    // Determine domain (usually sdk.js or similar from Monetag dashboard)
-    // Monetag custom scripts typically look like: https://alwingulla.com/act/files/micro.tag.js
-    // Or we use their dynamic loader. Monetag provides unique script URL or tag code.
-    // For general integration, the standard Monetag script tag is used:
-    // <script src="https://alwingulla.com/act/files/micro.tag.js" data-zone="ZONE_ID" data-sdk="show_ZONE_ID"></script>
-    
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = 'https://alwingulla.com/act/files/micro.tag.js';
+    script.src = `//libtl.com/sdk.js`;          // official Monetag CDN
     script.setAttribute('data-zone', zoneId);
     script.setAttribute('data-sdk', `show_${zoneId}`);
     script.async = true;
 
     script.onload = () => {
-      console.log(`Monetag SDK loaded successfully for Zone ${zoneId}`);
+      console.log(`[Monetag] SDK loaded for zone ${zoneId}`);
       resolve(true);
     };
-
-    script.onerror = (err) => {
-      console.error(`Failed to load Monetag SDK for Zone ${zoneId}`, err);
-      resolve(false);
+    script.onerror = () => {
+      console.warn(`[Monetag] SDK failed to load (ad-blocker?), using simulation.`);
+      resolve(false); // Don't reject — fall back to simulation
     };
 
     document.head.appendChild(script);
@@ -52,36 +48,55 @@ export function initMonetag(zoneId: string): Promise<boolean> {
 }
 
 /**
- * Triggers a Rewarded Ad session.
- * @param zoneId The Monetag Zone ID.
- * @returns A Promise resolving when the user watches/completes the ad.
+ * Triggers a Rewarded Popup ad (best format for mini-apps).
+ * Resolves true when the user watches/closes, rejects if an error occurs.
+ * Falls back to a 3-second simulation if the SDK is unavailable.
+ *
+ * @param zoneId  Monetag Zone ID ('11271101')
  */
 export async function showRewardedAd(zoneId: string): Promise<boolean> {
-  // Ensure the SDK is injected
-  await initMonetag(zoneId);
+  const loaded = await initMonetag(zoneId);
 
-  const adFunctionName = `show_${zoneId}`;
-  const adFunction = window[adFunctionName];
+  const fn = window[`show_${zoneId}`];
 
-  if (typeof adFunction !== 'function') {
-    // Simulate reward fallback if script is blocked or in development/test mode
-    console.info("Monetag: Running simulated ad fallback (3 seconds)...");
+  if (!loaded || typeof fn !== 'function') {
+    // ── Simulation fallback (ad-blocker / dev / no zone ID) ──
+    console.info('[Monetag] Simulation mode — 3 s delay');
     await new Promise(resolve => setTimeout(resolve, 3000));
     return true;
   }
 
   try {
-    // Monetag's show_xxxx function returns a Promise or handles callbacks
-    // Standard execution signature is show_xxxx({ type: 'reward' or similar })
-    const result = await adFunction({
-      type: 'end', // show after task/action or end
-      requestVar: 'eforce_reward',
-    });
-    
-    console.log("Monetag Ad Result:", result);
-    return true; // Resolved means success/watched
+    // Rewarded Popup: show_XXXXXX('pop')
+    // Resolves after user watches ad or dismisses the interstitial.
+    await fn('pop');
+    console.log('[Monetag] Ad completed ✓');
+    return true;
   } catch (err) {
-    console.error("Monetag Ad dismissed or failed:", err);
-    throw new Error("You must watch the advertisement completely to claim the reward.");
+    console.error('[Monetag] Ad error:', err);
+    throw new Error('Watch the complete ad to earn your reward.');
   }
+}
+
+/**
+ * Shows an In-App Interstitial (no reward required — background ads).
+ * Call this on page mount / navigation events.
+ *
+ * @param zoneId  Monetag Zone ID
+ */
+export async function showInAppInterstitial(zoneId: string): Promise<void> {
+  const loaded = await initMonetag(zoneId);
+  const fn = window[`show_${zoneId}`];
+  if (!loaded || typeof fn !== 'function') return;
+
+  fn({
+    type: 'inApp',
+    inAppSettings: {
+      frequency: 2,
+      capping: 0.1,
+      interval: 30,
+      timeout: 5,
+      everyPage: false,
+    },
+  }).catch(() => {/* silently ignore */});
 }

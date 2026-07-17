@@ -36,13 +36,16 @@ export interface AdminSettings {
   adEnabled: boolean;
   adDailyLimit: number;
   adRewardAmount: number;   // EForce per ad watch
-  monetagZoneId: string;    // Monetag Zone ID
+  monetagZoneId: string;    // Monetag Zone ID (e.g. '11271101')
   adRequireDailyClaim: boolean;
   adRequireTasks: boolean;
   adRequireAutoMiner: boolean;
   adTokenReward: number;         // Tokens reward per ad watch task
   adDailyLimitNormal: number;    // Ad watch limit normal
   adDailyLimitPremium: number;   // Ad watch limit premium
+
+  // Bot Notifications
+  botApiUrl: string;             // Backend bot API URL for push notifications
 
   // Token Sale
   tokenSaleActive: boolean;
@@ -78,10 +81,10 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   referralRewardToken: 10,
   withdrawMinReferrals: 10,
   withdrawMinAmount: 0.20,
-  adEnabled: false,
+  adEnabled: true,
   adDailyLimit: 5,
   adRewardAmount: 100,
-  monetagZoneId: '123456',
+  monetagZoneId: '11271101',
   adRequireDailyClaim: false,
   adRequireTasks: false,
   adRequireAutoMiner: false,
@@ -100,6 +103,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   humanVerificationOpen: false,
   botUsername: 'EliteForceBot',
   adminUsername: '',
+  botApiUrl: '',
 };
 
 const SETTINGS_DOC = 'adminSettings/config';
