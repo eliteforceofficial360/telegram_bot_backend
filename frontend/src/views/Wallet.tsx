@@ -462,7 +462,7 @@ export const Wallet: React.FC<WalletProps> = ({
       {/* EForce Swap Modal */}
       <AnimatePresence>
         {showSwapModal && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/85 backdrop-blur-lg">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -510,7 +510,7 @@ export const Wallet: React.FC<WalletProps> = ({
       {/* Withdrawal Blocked Warning Modal */}
       <AnimatePresence>
         {showWarningModal && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/85 backdrop-blur-lg">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -542,7 +542,7 @@ export const Wallet: React.FC<WalletProps> = ({
       {/* PIN Withdrawal Modal */}
       <AnimatePresence>
         {showWithdrawModal && (
-          <div className="absolute inset-0 z-50 flex items-end bg-black/65 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-end bg-[#040810]/90 backdrop-blur-xl">
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
