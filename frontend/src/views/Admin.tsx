@@ -240,7 +240,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     switch (userFilter) {
       case 'premium': list = list.filter(u => u.isTelegramPremium); break;
       case 'flagged': list = list.filter(u => u.flagCount > 0); break;
-      case 'banned':  list = list.filter(u => u.banStatus !== 'none'); break;
+      case 'banned':  list = list.filter(u => (u.banStatus ?? 'none') !== 'none'); break;
       case 'online':  list = list.filter(u => u.isOnline); break;
     }
     list.sort((a, b) => {
@@ -260,7 +260,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     online: usersList.filter(u => u.isOnline).length,
     premium: usersList.filter(u => u.isTelegramPremium).length,
     flagged: usersList.filter(u => u.flagCount > 0).length,
-    banned: usersList.filter(u => u.banStatus !== 'none').length,
+    banned: usersList.filter(u => (u.banStatus ?? 'none') !== 'none').length,
   };
 
   // --- Tasks ---
@@ -652,7 +652,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 <span className="text-xs font-bold text-white truncate max-w-[130px]">{u.firstName} {u.lastName}</span>
                                 <VerifiedBadge size={10} />
                                 {u.isTelegramPremium && <Star size={10} className="text-[#00E5FF] fill-current shrink-0" />}
-                                {u.banStatus !== 'none' && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase" style={{ color: '#F87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)' }}>Banned</span>}
+                                {(u.banStatus ?? 'none') !== 'none' && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase" style={{ color: '#F87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)' }}>Banned</span>}
                                 {u.flagCount > 0 && <span className="text-[7px] font-black px-1.5 py-0.5 rounded" style={{ color: '#FBBF24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)' }}>🚩{u.flagCount}</span>}
                               </div>
                               <span className="text-[9px] text-slate-600">@{u.username || 'no_username'} · {u.telegramId}</span>
@@ -678,7 +678,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                             {/* Status badge */}
                             <div>
-                              {u.banStatus !== 'none' ? (
+                              {(u.banStatus ?? 'none') !== 'none' ? (
                                 <span className="text-[9px] font-bold px-2.5 py-1 rounded-full" style={{ color: '#F87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)' }}>🚫 Banned</span>
                               ) : u.isOnline ? (
                                 <span className="text-[9px] font-bold px-2.5 py-1 rounded-full" style={{ color: '#4ADE80', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)' }}>● Live</span>
@@ -704,7 +704,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 🚩
                               </button>
                               {/* Ban / Unban */}
-                              {u.banStatus !== 'none' ? (
+                              {(u.banStatus ?? 'none') !== 'none' ? (
                                 <button onClick={() => handleUnbanUser(u)} title="Unban user" className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ADE80' }}>
                                   <Check size={12} />
                                 </button>

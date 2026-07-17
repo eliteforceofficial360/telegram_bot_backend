@@ -427,11 +427,16 @@ export const adminSetBan = async (
   if (!isFirebaseConfigured()) return false;
   const userRef = doc(db, USERS_COLLECTION, String(telegramId));
   try {
-    let banUntil = null;
+    let banUntil: any = null; // always clear banUntil by default
     if (banStatus === 'temp' && durationHours) {
       banUntil = Timestamp.fromDate(new Date(Date.now() + durationHours * 3600 * 1000));
     }
-    await updateDoc(userRef, { banStatus, banUntil });
+    // When unbanning: set banStatus to 'none', clear banUntil, clear flagCount
+    const updateData: Record<string, any> = { banStatus, banUntil };
+    if (banStatus === 'none') {
+      updateData.banUntil = null;
+    }
+    await updateDoc(userRef, updateData);
     return true;
   } catch {
     return false;
