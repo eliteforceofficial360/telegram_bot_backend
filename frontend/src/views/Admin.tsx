@@ -200,8 +200,22 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     catch { showToast('Failed to ban user.', 'error'); }
   };
   const handleUnbanUser = async (u: FirestoreUser) => {
-    try { const ok = await adminSetBan(u.telegramId, 'none'); ok ? (showToast(`✅ ${u.firstName} unbanned.`, 'success'), fetchUsers()) : showToast('Failed to unban user.', 'error'); }
-    catch { showToast('Failed to unban user.', 'error'); }
+    try {
+      const ok = await adminSetBan(u.telegramId, 'none');
+      if (ok) {
+        // Also clear flags + risk level so user is fully reset
+        await updateUserDatabaseValues(u.telegramId, {
+          banStatus: 'none',
+          banUntil: null,
+          flagCount: 0,
+          riskLevel: 'safe',
+        } as any);
+        showToast(`✅ ${u.firstName} unbanned & flags cleared.`, 'success');
+        fetchUsers();
+      } else {
+        showToast('Failed to unban user.', 'error');
+      }
+    } catch { showToast('Failed to unban user.', 'error'); }
   };
   const handlePinUser = async (u: FirestoreUser) => {
     try { await adminPinUser(u.telegramId, !u.leaderboardPinned); showToast(u.leaderboardPinned ? `📌 ${u.firstName} unpinned.` : `📌 ${u.firstName} pinned.`, 'success'); fetchUsers(); }
