@@ -101,6 +101,43 @@ const btnStyle = {
   } as React.CSSProperties,
 };
 
+// ── Sort button (module-scoped so it's not recreated on every render) ─────────
+const SortBtn = ({ field, label, sortField, sortDir, handleSort }: { field: SortField; label: string; sortField: SortField; sortDir: SortDir; handleSort: (f: SortField) => void }) => (
+  <button onClick={() => handleSort(field)} className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-white transition-all cursor-pointer group">
+    {label}
+    {sortField === field
+      ? (sortDir === 'asc' ? <ChevronUp size={10} className="text-[#FF8A00]" /> : <ChevronDown size={10} className="text-[#FF8A00]" />)
+      : <ArrowUpDown size={9} className="opacity-25 group-hover:opacity-60" />}
+  </button>
+);
+
+// ── Toggle Switch (module-scoped) ─────────────────────────────────────────────
+const Toggle = ({ on, onToggle, accentColor = '#4ADE80' }: { on: boolean; onToggle: () => void; accentColor?: string }) => (
+  <button
+    onClick={onToggle}
+    className="relative w-11 h-6 rounded-full transition-all cursor-pointer shrink-0"
+    style={{ background: on ? accentColor : 'rgba(255,255,255,0.1)', boxShadow: on ? `0 0 10px ${accentColor}50` : 'none' }}
+  >
+    <div
+      className="absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow-md transition-all duration-200"
+      style={{ left: on ? 23 : 3 }}
+    />
+  </button>
+);
+
+// ── Section card wrapper (module-scoped) ─────────────────────────────────────
+const SectionCard = ({ children, accentColor = 'rgba(255,138,0,0.5)' }: { children: React.ReactNode; accentColor?: string }) => (
+  <div
+    className="rounded-[22px] overflow-hidden relative"
+    style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
+  >
+    {/* Colored top accent line */}
+    <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-[22px]"
+      style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }} />
+    {children}
+  </div>
+);
+
 export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -386,43 +423,6 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     ok ? showToast('⚙️ Settings saved.', 'success') : showToast('Failed.', 'error');
   };
 
-  // ── Sort button ──────────────────────────────────────────────────────────
-  const SortBtn = ({ field, label }: { field: SortField; label: string }) => (
-    <button onClick={() => handleSort(field)} className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-white transition-all cursor-pointer group">
-      {label}
-      {sortField === field
-        ? (sortDir === 'asc' ? <ChevronUp size={10} className="text-[#FF8A00]" /> : <ChevronDown size={10} className="text-[#FF8A00]" />)
-        : <ArrowUpDown size={9} className="opacity-25 group-hover:opacity-60" />}
-    </button>
-  );
-
-  // ── Toggle Switch ─────────────────────────────────────────────────────────
-  const Toggle = ({ on, onToggle, accentColor = '#4ADE80' }: { on: boolean; onToggle: () => void; accentColor?: string }) => (
-    <button
-      onClick={onToggle}
-      className="relative w-11 h-6 rounded-full transition-all cursor-pointer shrink-0"
-      style={{ background: on ? accentColor : 'rgba(255,255,255,0.1)', boxShadow: on ? `0 0 10px ${accentColor}50` : 'none' }}
-    >
-      <div
-        className="absolute top-[3px] w-[18px] h-[18px] bg-white rounded-full shadow-md transition-all duration-200"
-        style={{ left: on ? 23 : 3 }}
-      />
-    </button>
-  );
-
-  // ── Section card wrapper ─────────────────────────────────────────────────
-  const SectionCard = ({ children, accentColor = 'rgba(255,138,0,0.5)' }: { children: React.ReactNode; accentColor?: string }) => (
-    <div
-      className="rounded-[22px] overflow-hidden relative"
-      style={{ background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.07)' }}
-    >
-      {/* Colored top accent line */}
-      <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-[22px]"
-        style={{ background: `linear-gradient(90deg, transparent, ${accentColor}, transparent)` }} />
-      {children}
-    </div>
-  );
-
   // Task type color map
   const TASK_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
     channel: { bg: 'rgba(0,229,255,0.1)',   text: '#00E5FF', border: 'rgba(0,229,255,0.25)' },
@@ -629,10 +629,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 <div className="grid items-center gap-2 px-5 py-3 border-b sticky top-0 z-10 backdrop-blur"
                   style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(4,8,16,0.92)', gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}>
                   <div />
-                  <SortBtn field="firstName" label="User" />
-                  <SortBtn field="points"    label="Points" />
-                  <SortBtn field="tokens"    label="Tokens" />
-                  <SortBtn field="referrals" label="Refs" />
+                  <SortBtn field="firstName" label="User"   sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
+                  <SortBtn field="points"    label="Points" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
+                  <SortBtn field="tokens"    label="Tokens" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
+                  <SortBtn field="referrals" label="Refs"   sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <span className="text-[9px] font-black uppercase tracking-wider text-slate-600">Status</span>
                   <span className="text-[9px] font-black uppercase tracking-wider text-slate-600 text-right">Actions</span>
                 </div>

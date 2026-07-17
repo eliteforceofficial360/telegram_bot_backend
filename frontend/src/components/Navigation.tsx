@@ -79,7 +79,7 @@ const tabs = [
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
   return (
-    <div className="absolute bottom-4 left-3 right-3 z-40">
+    <div className="absolute bottom-4 left-3 right-3 z-40" style={{ willChange: 'transform', transform: 'translateZ(0)' }}>
       {/* Pill Container */}
       <div
         className="relative flex items-center justify-around px-2 py-2 rounded-[28px] overflow-hidden"
@@ -89,6 +89,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
           WebkitBackdropFilter: 'blur(24px)',
           border: '1px solid rgba(255,255,255,0.07)',
           boxShadow: '0 20px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06)',
+          willChange: 'transform',
         }}
       >
         {/* Subtle inner shimmer line */}
@@ -115,8 +116,9 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
                     background: 'rgba(255,138,0,0.12)',
                     border: '1px solid rgba(255,138,0,0.22)',
                     boxShadow: '0 0 18px rgba(255,138,0,0.15)',
+                    willChange: 'transform',
                   }}
-                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
                 />
               )}
 
@@ -126,15 +128,16 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
                   scale: isActive ? 1.18 : 1,
                   y: isActive ? -1 : 0,
                 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+                transition={{ type: 'spring', stiffness: 480, damping: 30 }}
                 className="relative z-10 w-6 h-6 flex items-center justify-center"
+                style={{ willChange: 'transform' }}
               >
                 <Icon color={iconColor} />
               </motion.div>
 
               {/* Label */}
               <span
-                className={`relative z-10 text-[9px] font-semibold tracking-wide transition-all duration-200 ${
+                className={`relative z-10 text-[9px] font-semibold tracking-wide transition-colors duration-150 ${
                   isActive ? 'text-[#FF8A00]' : 'text-slate-600 group-hover:text-slate-400'
                 }`}
               >
@@ -146,7 +149,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
                 <motion.div
                   layoutId="nav-dot"
                   className="absolute -bottom-1 w-1 h-1 rounded-full bg-[#FF8A00] shadow-[0_0_6px_rgba(255,138,0,0.8)]"
-                  transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+                  transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                  style={{ willChange: 'transform' }}
                 />
               )}
             </button>
