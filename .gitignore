@@ -32,3 +32,6 @@ npm-debug.log*
 backend/*.json
 *firebase-adminsdk*.json
 serviceAccountKey.json
+
+.vercel
+.env*
