@@ -40,5 +40,15 @@ service cloud.firestore {
     match /withdrawRequests/{document=**} {
       allow read, write: if true;
     }
+
+    // 7. Audit logs
+    match /auditLogs/{document=**} {
+      allow read, write: if true;
+    }
+
+    // 8. Security events
+    match /securityEvents/{document=**} {
+      allow read, write: if true;
+    }
   }
 }

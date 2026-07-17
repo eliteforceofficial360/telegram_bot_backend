@@ -13,6 +13,7 @@ import { AdminLogin } from './views/AdminLogin';
 import { getTelegramWebAppData, type TelegramUser } from './lib/telegramUser';
 import { upsertUser, setUserOffline, syncPointsToFirestore, getOnlineUserCount, subscribeToUser, checkUserBan, updateUserDatabaseValues, type FirestoreUser } from './lib/userService';
 import { subscribeToAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings } from './lib/adminSettingsService';
+import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 
 interface Toast {
@@ -120,6 +121,25 @@ export default function App() {
     setCaptchaInput('');
   };
 
+  // Listen to Firebase Auth state for admin session persistence
+  useEffect(() => {
+    if (!isFirebaseConfigured()) return;
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setIsAdminAuthenticated(true);
+        localStorage.setItem('isAdminAuthenticated', 'true');
+      } else {
+        // If Firebase Auth says no user, verify if local session still active
+        const session = localStorage.getItem('admin_session');
+        if (!session) {
+          setIsAdminAuthenticated(false);
+          localStorage.removeItem('isAdminAuthenticated');
+        }
+      }
+    });
+    return unsub;
+  }, []);
+
   useEffect(() => {
     if (adminSettings.humanVerificationOpen) {
       generateCaptcha();
@@ -162,6 +182,40 @@ export default function App() {
         }
       } catch { /* noop */ }
 
+      // Generate lightweight device fingerprint
+      let deviceFingerprint = '';
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.textBaseline = 'top';
+          ctx.font = '14px Arial';
+          ctx.fillStyle = '#f60';
+          ctx.fillRect(125, 1, 62, 20);
+          ctx.fillStyle = '#069';
+          ctx.fillText('EForce fp 🛡', 2, 15);
+          ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+          ctx.fillText('EForce fp 🛡', 4, 17);
+        }
+        const canvasData = canvas.toDataURL();
+        const raw = [
+          canvasData.slice(-50),
+          navigator.userAgent,
+          navigator.language,
+          screen.width,
+          screen.height,
+          screen.colorDepth,
+          navigator.hardwareConcurrency,
+          Intl.DateTimeFormat().resolvedOptions().timeZone,
+        ].join('|');
+        // Simple djb2 hash
+        let hash = 5381;
+        for (let i = 0; i < raw.length; i++) {
+          hash = ((hash << 5) + hash) ^ raw.charCodeAt(i);
+        }
+        deviceFingerprint = (hash >>> 0).toString(16);
+      } catch { /* noop */ }
+
       if (webAppData.user) {
         setTelegramUser(webAppData.user);
         telegramIdRef.current = webAppData.user.id;
@@ -179,7 +233,7 @@ export default function App() {
               timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
             },
             efcBalance,
-            '',
+            deviceFingerprint,
             clientIp
           ).catch(() => {});
         }
@@ -466,7 +520,6 @@ export default function App() {
             telegramUser={telegramUser} 
             efcBalance={efcBalance} 
             showToast={showToast} 
-            swapRate={adminSettings.swapRate} 
             dbUser={dbUser}
           />
         );

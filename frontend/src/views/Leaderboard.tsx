@@ -8,11 +8,10 @@ interface LeaderboardProps {
   telegramUser: { id: number; username?: string; firstName?: string; lastName?: string; photoUrl?: string } | null;
   efcBalance: number;
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
-  swapRate: number;
   dbUser?: FirestoreUser | null;
 }
 
-export const Leaderboard = ({ telegramUser, efcBalance, showToast, swapRate, dbUser }: LeaderboardProps) => {
+export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser }: LeaderboardProps) => {
   const [topMiners, setTopMiners] = useState<FirestoreUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,7 +79,7 @@ export const Leaderboard = ({ telegramUser, efcBalance, showToast, swapRate, dbU
           </div>
           <div className="text-right">
             <span className="text-sm font-black text-[#FF8A00] block">{efcBalance.toLocaleString()} EFC</span>
-            <span className="text-[9px] text-slate-500 font-semibold block">≈ {(efcBalance / (swapRate || 1000)).toFixed(2)} EForce Token</span>
+            <span className="text-[9px] text-slate-500 font-semibold block">EFC Points</span>
           </div>
         </motion.div>
       )}

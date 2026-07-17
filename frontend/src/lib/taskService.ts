@@ -73,8 +73,8 @@ export const subscribeToTasks = (
   return onSnapshot(q, (snap) => {
     const tasks: EForceTask[] = [];
     snap.forEach((d) => tasks.push({ id: d.id, ...d.data() } as EForceTask));
-    callback(tasks.length > 0 ? tasks : getDefaultTasks());
-  }, () => callback(getDefaultTasks()));
+    callback(tasks);
+  }, () => callback([]));
 };
 
 /**

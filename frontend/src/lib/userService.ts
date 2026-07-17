@@ -6,6 +6,7 @@ import {
   getDoc,
   setDoc,
   updateDoc,
+  deleteDoc,
   serverTimestamp,
   onSnapshot,
   collection,
@@ -102,8 +103,31 @@ export const upsertUser = async (
   const userRef = doc(db, USERS_COLLECTION, String(telegramUser.id));
   const snap = await getDoc(userRef);
 
-  // Check if this IP is already used by another account (Multi-account detection)
+  // Check if this device fingerprint is already used by another account (Multi-account detection)
   let isMultiAccount = false;
+  if (deviceFingerprint) {
+    try {
+      const q = query(
+        collection(db, USERS_COLLECTION),
+        where('deviceFingerprint', '==', deviceFingerprint)
+      );
+      const fpQuerySnap = await getDocs(q);
+      const matches = fpQuerySnap.docs.filter(d => d.id !== String(telegramUser.id));
+      if (matches.length > 0) {
+        isMultiAccount = true;
+        // Write security event for audit log
+        await setDoc(doc(db, 'securityEvents', `${telegramUser.id}_fp_overlap_${Date.now()}`), {
+          telegramId: telegramUser.id,
+          type: 'fingerprint_overlap',
+          reason: `Device Fingerprint Overlap detected on ${deviceFingerprint} with account(s): ${matches.map(m => m.id).join(', ')}`,
+          severity: 'high',
+          createdAt: serverTimestamp(),
+        }).catch(() => {});
+      }
+    } catch { /* ignore query errors if rules block it, fallback to safe */ }
+  }
+
+  // Check if this IP is already used by another account (Log only, no auto-ban)
   if (clientIp !== 'Unknown') {
     try {
       const q = query(
@@ -113,17 +137,16 @@ export const upsertUser = async (
       const ipQuerySnap = await getDocs(q);
       const matches = ipQuerySnap.docs.filter(d => d.id !== String(telegramUser.id));
       if (matches.length > 0) {
-        isMultiAccount = true;
-        // Write security event for audit log
+        // Just log the IP overlap, no isMultiAccount flag setting
         await setDoc(doc(db, 'securityEvents', `${telegramUser.id}_ip_overlap_${Date.now()}`), {
           telegramId: telegramUser.id,
           type: 'ip_overlap',
           reason: `IP Overlap detected on ${clientIp} with account(s): ${matches.map(m => m.id).join(', ')}`,
-          severity: 'high',
+          severity: 'low',
           createdAt: serverTimestamp(),
         }).catch(() => {});
       }
-    } catch { /* ignore query errors if rules block it, fallback to safe */ }
+    } catch { /* ignore */ }
   }
 
   if (!snap.exists()) {
@@ -183,7 +206,14 @@ export const upsertUser = async (
 
     // Record referral if present
     if (referredBy) {
-      await recordReferral(referredBy, telegramUser.id, deviceFingerprint).catch(() => {});
+      let referrerFp = '';
+      try {
+        const referrerSnap = await getDoc(doc(db, USERS_COLLECTION, String(referredBy)));
+        if (referrerSnap.exists()) {
+          referrerFp = referrerSnap.data().deviceFingerprint || '';
+        }
+      } catch { /* noop */ }
+      await recordReferral(referredBy, telegramUser.id, deviceFingerprint, referrerFp).catch(() => {});
     }
   } else {
     const user = snap.data() as FirestoreUser;
@@ -699,7 +729,8 @@ export const startAutoMinerSession = async (
  */
 export const endAutoMinerSession = async (
   telegramId: number,
-  reward: number
+  reward: number,
+  completionTime?: Date
 ): Promise<void> => {
   if (!isFirebaseConfigured()) return;
   const userRef = doc(db, USERS_COLLECTION, String(telegramId));
@@ -710,6 +741,7 @@ export const endAutoMinerSession = async (
     if (!user.autoMinerActive) return; // Prevent duplicate payouts
     await updateDoc(userRef, {
       autoMinerActive: false,
+      autoMinerLastUsed: completionTime ? Timestamp.fromDate(completionTime) : serverTimestamp(),
       points: (user.points || 0) + reward,
     });
   } catch { /* noop */ }
@@ -881,3 +913,137 @@ export const logAdminAction = async (
     return false;
   }
 };
+
+/**
+ * Writes an audit log entry, reading admin session from localStorage automatically.
+ */
+export const writeAuditLog = async (
+  actionType: string,
+  targetTelegramId: number,
+  details: string
+): Promise<void> => {
+  try {
+    const sessionRaw = localStorage.getItem('admin_session');
+    let adminId = 0;
+    let adminUser = 'admin';
+    if (sessionRaw) {
+      const session = JSON.parse(sessionRaw);
+      adminId = session.telegramId || session.id || 0;
+      adminUser = session.username || session.adminUsername || 'admin';
+    }
+    await logAdminAction(adminId, adminUser, actionType, targetTelegramId, details);
+  } catch { /* noop */ }
+};
+
+/**
+ * Pin or unpin a user on the leaderboard.
+ */
+export const adminPinUser = async (
+  telegramId: number,
+  pinned: boolean
+): Promise<void> => {
+  if (!isFirebaseConfigured()) return;
+  const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+  await updateDoc(userRef, { leaderboardPinned: pinned });
+  await writeAuditLog(
+    pinned ? 'LEADERBOARD_PIN' : 'LEADERBOARD_UNPIN',
+    telegramId,
+    `User ${telegramId} ${pinned ? 'pinned' : 'unpinned'} on leaderboard`
+  );
+};
+
+/**
+ * Hide or unhide a user from the leaderboard.
+ */
+export const adminHideUser = async (
+  telegramId: number,
+  hidden: boolean
+): Promise<void> => {
+  if (!isFirebaseConfigured()) return;
+  const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+  await updateDoc(userRef, { leaderboardHidden: hidden });
+  await writeAuditLog(
+    hidden ? 'LEADERBOARD_HIDE' : 'LEADERBOARD_UNHIDE',
+    telegramId,
+    `User ${telegramId} ${hidden ? 'hidden from' : 'restored to'} leaderboard`
+  );
+};
+
+/**
+ * Permanently remove a user account from Firestore.
+ */
+export const adminRemoveUser = async (
+  telegramId: number
+): Promise<void> => {
+  if (!isFirebaseConfigured()) return;
+  await writeAuditLog('USER_DELETE', telegramId, `User ${telegramId} deleted by admin`);
+  const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+  await deleteDoc(userRef);
+};
+
+/**
+ * Manually add a stub user entry (for admin-created accounts).
+ */
+export const adminAddUser = async (
+  telegramId: number,
+  username: string,
+  firstName: string,
+  points = 0
+): Promise<void> => {
+  if (!isFirebaseConfigured()) return;
+  const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+  const existing = await getDoc(userRef);
+  if (existing.exists()) throw new Error('User already exists');
+  await setDoc(userRef, {
+    telegramId,
+    username,
+    firstName,
+    lastName: '',
+    points,
+    tokens: 0,
+    wallet: 0,
+    referredBy: 0,
+    referralCount: 0,
+    hasUnlockedWithdrawal: false,
+    walletAddress: '',
+    isPremium: false,
+    isVerified: false,
+    isBanned: false,
+    banStatus: 'none',
+    banUntil: null,
+    flagCount: 0,
+    riskLevel: 'safe',
+    deviceFingerprint: '',
+    ipHistory: [],
+    autoMinerActive: false,
+    autoMinerLastUsed: null,
+    dailyStreak: 0,
+    lastDailyClaim: null,
+    totalDailyPoints: 0,
+    leaderboardPinned: false,
+    leaderboardHidden: false,
+    createdAt: serverTimestamp(),
+    lastActive: serverTimestamp(),
+    device: { platform: 'manual', browser: 'manual', os: 'manual', resolution: 'manual', language: 'en', timezone: 'UTC' },
+  });
+  await writeAuditLog('USER_ADD', telegramId, `User ${telegramId} (@${username}) manually added by admin`);
+};
+
+/**
+ * Reset all users' leaderboard points to 0.
+ */
+export const adminResetLeaderboard = async (): Promise<number> => {
+  if (!isFirebaseConfigured()) return 0;
+  const q = query(collection(db, USERS_COLLECTION), orderBy('points', 'desc'), limit(500));
+  const snap = await getDocs(q);
+  let count = 0;
+  const batch: Promise<void>[] = [];
+  snap.forEach((docSnap) => {
+    batch.push(updateDoc(docSnap.ref, { points: 0, totalDailyPoints: 0 }));
+    count++;
+  });
+  await Promise.all(batch);
+  await writeAuditLog('LEADERBOARD_RESET', 0, `Leaderboard reset — ${count} users cleared`);
+  return count;
+};
+

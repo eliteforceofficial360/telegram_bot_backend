@@ -142,7 +142,7 @@ export const Wallet: React.FC<WalletProps> = ({
           if (eforceTokens < amountNum) {
             setIsVerifying(false);
             setPin('');
-            showToast('Insufficient EForce tokens balance.', 'error');
+            showToast('Insufficient EForce Token balance.', 'error');
             return;
           }
         }
@@ -156,12 +156,11 @@ export const Wallet: React.FC<WalletProps> = ({
 
         // Daily limit validation
         const todayWithdrawn = await getUserTodayWithdrawalAmount(telegramUser.id);
-        const addedValue = withdrawAsset === 'usdt' ? amountNum : amountNum * (settings.eforceTokenValue || 0.05);
-        const dailyLimit = settings.dailyWithdrawLimit || 50.00;
-        if (todayWithdrawn + addedValue > dailyLimit) {
+        const requestedWithdrawalAmount = withdrawAsset === 'usdt' ? amountNum : amountNum * (settings.eforceTokenValue || 0.05);
+        if (todayWithdrawn + requestedWithdrawalAmount > settings.dailyWithdrawLimit) {
           setIsVerifying(false);
           setPin('');
-          showToast(`Exceeds daily withdrawal limit of $${dailyLimit} USDT. Remaining: $${Math.max(0, dailyLimit - todayWithdrawn).toFixed(2)} USDT`, 'error');
+          showToast(`Exceeds daily withdrawal limit of $${settings.dailyWithdrawLimit.toFixed(2)} USDT. Remaining: $${Math.max(0, settings.dailyWithdrawLimit - todayWithdrawn).toFixed(2)} USDT`, 'warning');
           return;
         }
 
@@ -186,7 +185,7 @@ export const Wallet: React.FC<WalletProps> = ({
             const newTokenBalance = Math.max(0, eforceTokens - amountNum);
             setEforceTokens(newTokenBalance);
             updateUserDatabaseValues(telegramUser.id, { tokens: newTokenBalance }).catch(() => {});
-            showToast(`Withdrawal request of ${amountNum.toFixed(3)} EForce Tokens submitted!`, 'success');
+            showToast(`Withdrawal request of ${amountNum.toFixed(3)} EForce Token submitted!`, 'success');
           }
           
           confetti({
@@ -220,7 +219,7 @@ export const Wallet: React.FC<WalletProps> = ({
       return;
     }
     if (efcBalance < pointsNum) {
-      showToast('Insufficient EForce points balance.', 'error');
+      showToast('Insufficient EFC Points balance.', 'error');
       return;
     }
 
@@ -238,7 +237,7 @@ export const Wallet: React.FC<WalletProps> = ({
       }).catch(() => {});
     }
 
-    showToast(`Swapped ${pointsNum} Points for ${tokensToReceive} EForce Tokens!`, 'success');
+    showToast(`Swapped ${pointsNum} EFC Points for ${tokensToReceive} EForce Token!`, 'success');
     setShowSwapModal(false);
 
     confetti({
@@ -284,7 +283,7 @@ export const Wallet: React.FC<WalletProps> = ({
             <span className="text-[9px] text-slate-500 uppercase tracking-wider block font-semibold mb-0.5">EFC Points</span>
             <span className="text-sm font-extrabold text-white font-display">{efcBalance.toLocaleString()}</span>
             <span className="text-[8px] text-slate-500 block mt-0.5 font-bold">
-              ≈ {(efcBalance / swapRate).toFixed(2)} EForce Token
+              {swapRate} Points = 1 EForce Token
             </span>
           </div>
           <div>
@@ -451,7 +450,7 @@ export const Wallet: React.FC<WalletProps> = ({
               className="glass-panel p-6 rounded-[28px] border-white/8 w-full max-w-[340px] shadow-[0_20px_60px_rgba(0,0,0,0.6)]"
             >
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-sm font-bold text-white">Perform EForce Token Swap</h3>
+                <h3 className="text-sm font-bold text-white">EFC Points → EForce Token Swap</h3>
                 <button onClick={() => setShowSwapModal(false)} className="text-slate-400 hover:text-white cursor-pointer"><X size={16} /></button>
               </div>
 
@@ -572,7 +571,7 @@ export const Wallet: React.FC<WalletProps> = ({
                         : 'bg-white/5 border-white/8 text-slate-400'
                     }`}
                   >
-                    EForce ({eforceTokens.toFixed(3)})
+                    EForce Token ({eforceTokens.toFixed(3)})
                   </button>
                 </div>
 

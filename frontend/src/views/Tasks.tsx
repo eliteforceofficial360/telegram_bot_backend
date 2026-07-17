@@ -364,6 +364,9 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
               const done = isCompleted(task);
               const expired = isExpired(task);
               const limitHit = isLimitReached(task);
+              const isForceJoin = task.type === 'channel' || task.type === 'group';
+              const startStep = (isForceJoin && adminSettings.adEnabled) ? 1 : 2;
+              const currentStep = taskSteps[task.id] || startStep;
 
               return (
                 <motion.div
@@ -371,103 +374,147 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  className={`glass-panel p-4 rounded-[20px] border-white/6 flex items-center gap-3.5 transition-all ${
+                  className={`glass-panel rounded-[20px] border-white/6 transition-all overflow-hidden ${
                     done ? 'opacity-60' : expired || limitHit ? 'opacity-40' : ''
                   }`}
                 >
-                  {/* Icon */}
-                  <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border ${taskTypeColor(task.type)}`}>
-                    {taskTypeIcon(task.type)}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className="text-[11px] font-bold text-white truncate">{task.title}</span>
-                      {task.url && !done && (
-                        <ExternalLink size={10} className="text-slate-500 shrink-0" />
-                      )}
+                  {/* Main task row */}
+                  <div className="p-4 flex items-center gap-3.5">
+                    {/* Icon */}
+                    <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border ${taskTypeColor(task.type)}`}>
+                      {taskTypeIcon(task.type)}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[9px] font-bold uppercase tracking-wider border rounded-full px-1.5 py-0.5 ${taskTypeColor(task.type)}`}>
-                        {taskTypeLabel(task.type)}
-                      </span>
-                      <span className="text-[10px] font-black text-[#FF8A00]">+{task.reward.toLocaleString()}</span>
-                    </div>
-                    {expired && <span className="text-[9px] text-accent-danger mt-0.5 block">Expired</span>}
-                    {limitHit && !expired && <span className="text-[9px] text-slate-500 mt-0.5 block">Limit reached</span>}
-                  </div>
 
-                  {/* Action */}
-                  {(() => {
-                    if (done) {
-                      return (
-                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25">
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 mb-0.5">
+                        <span className="text-[11px] font-bold text-white truncate">{task.title}</span>
+                        {task.url && !done && (
+                          <ExternalLink size={10} className="text-slate-500 shrink-0" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[9px] font-bold uppercase tracking-wider border rounded-full px-1.5 py-0.5 ${taskTypeColor(task.type)}`}>
+                          {taskTypeLabel(task.type)}
+                        </span>
+                        <span className="text-[10px] font-black text-[#FF8A00]">+{task.reward.toLocaleString()}</span>
+                      </div>
+                      {expired && <span className="text-[9px] text-accent-danger mt-0.5 block">Expired</span>}
+                      {limitHit && !expired && <span className="text-[9px] text-slate-500 mt-0.5 block">Limit reached</span>}
+                    </div>
+
+                    {/* Action button (non-force-join) */}
+                    {!isForceJoin && (() => {
+                      if (done) return (
+                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25">
                           <Check size={12} /> Done
                         </button>
                       );
-                    }
-                    if (expired || limitHit) {
-                      return (
-                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed">
+                      if (expired || limitHit) return (
+                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed">
                           <Lock size={11} /> Closed
                         </button>
                       );
-                    }
-                    if (status === 'verifying') {
-                      return (
-                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 bg-white/5 text-slate-400 border border-white/10 cursor-wait">
+                      if (status === 'verifying') return (
+                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-400 border border-white/10 cursor-wait">
                           <Loader2 size={12} className="animate-spin" /> Check
                         </button>
                       );
-                    }
-
-                    // Step-based layout for channel/group tasks (Force Join)
-                    const isForceJoin = task.type === 'channel' || task.type === 'group';
-                    if (isForceJoin) {
-                      const startStep = adminSettings.adEnabled ? 1 : 2;
-                      const currentStep = taskSteps[task.id] || startStep;
-
-                      if (currentStep === 1) {
-                        return (
-                          <button
-                            onClick={() => handleWatchAdStep(task)}
-                            className="shrink-0 w-22 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-0.5 bg-accent-purple hover:bg-accent-purple/90 text-white shadow-[0_0_12px_rgba(179,136,255,0.25)] cursor-pointer"
-                          >
-                            1. Watch Ad
-                          </button>
-                        );
-                      }
-                      if (currentStep === 2) {
-                        return (
-                          <button
-                            onClick={() => handleJoinLinkStep(task)}
-                            className="shrink-0 w-22 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-0.5 bg-accent-cyan hover:bg-accent-cyan/90 text-[#050816] shadow-[0_0_12px_rgba(0,229,255,0.25)] cursor-pointer"
-                          >
-                            2. Open Link
-                          </button>
-                        );
-                      }
                       return (
                         <button
-                          onClick={() => handleVerifyStep(task)}
-                          className="shrink-0 w-22 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-0.5 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer"
+                          onClick={() => handleTaskClick(task)}
+                          className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer"
                         >
-                          3. Verify
+                          Go
                         </button>
                       );
-                    }
+                    })()}
 
-                    // Standard task button
-                    return (
-                      <button
-                        onClick={() => handleTaskClick(task)}
-                        className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer"
-                      >
-                        Go
-                      </button>
-                    );
-                  })()}
+                    {/* Force Join: show step badge */}
+                    {isForceJoin && (
+                      done ? (
+                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25">
+                          <Check size={12} /> Done
+                        </button>
+                      ) : expired || limitHit ? (
+                        <button disabled className="shrink-0 w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed">
+                          <Lock size={11} /> Closed
+                        </button>
+                      ) : (
+                        <div className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-xl border border-white/10 bg-white/5">
+                          {[1, 2, 3].filter(s => adminSettings.adEnabled || s > 1).map(s => (
+                            <div key={s} className={`w-1.5 h-1.5 rounded-full transition-all ${currentStep > s ? 'bg-accent-success' : currentStep === s ? 'bg-[#FF8A00] animate-pulse' : 'bg-white/20'}`} />
+                          ))}
+                          <span className="text-[8px] text-slate-400 font-bold ml-1">Step {currentStep - (adminSettings.adEnabled ? 0 : 1)}</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  {/* Force Join inline step panel */}
+                  {isForceJoin && !done && !expired && !limitHit && (
+                    <div className="border-t border-white/5 px-4 py-3 flex flex-col gap-2.5" style={{ background: 'rgba(255,138,0,0.03)' }}>
+                      <div className="flex items-center gap-2 flex-wrap">
+
+                        {/* Step 1: Watch Ad */}
+                        {adminSettings.adEnabled && (
+                          <button
+                            onClick={() => handleWatchAdStep(task)}
+                            disabled={currentStep !== 1}
+                            className={`flex-1 h-9 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                              currentStep === 1
+                                ? 'bg-accent-purple/20 border-accent-purple/40 text-accent-purple hover:bg-accent-purple/30'
+                                : currentStep > 1
+                                ? 'bg-accent-success/10 border-accent-success/20 text-accent-success cursor-default'
+                                : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                            }`}
+                          >
+                            {currentStep > 1 ? <Check size={10} /> : <Play size={10} />}
+                            1. Watch Ad
+                          </button>
+                        )}
+
+                        {/* Step 2: Join Channel */}
+                        <button
+                          onClick={() => handleJoinLinkStep(task)}
+                          disabled={currentStep !== 2}
+                          className={`flex-1 h-9 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                            currentStep === 2
+                              ? 'bg-accent-cyan/15 border-accent-cyan/35 text-accent-cyan hover:bg-accent-cyan/25'
+                              : currentStep > 2
+                              ? 'bg-accent-success/10 border-accent-success/20 text-accent-success cursor-default'
+                              : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                          }`}
+                        >
+                          {currentStep > 2 ? <Check size={10} /> : <Send size={10} />}
+                          {adminSettings.adEnabled ? '2.' : '1.'} Join Channel
+                        </button>
+
+                        {/* Step 3: Verify */}
+                        <button
+                          onClick={() => handleVerifyStep(task)}
+                          disabled={currentStep !== 3 || status === 'verifying'}
+                          className={`flex-1 h-9 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer border ${
+                            status === 'verifying'
+                              ? 'bg-[#FF8A00]/15 border-[#FF8A00]/30 text-[#FF8A00] cursor-wait'
+                              : currentStep === 3
+                              ? 'bg-[#FF8A00]/15 border-[#FF8A00]/30 text-[#FF8A00] hover:bg-[#FF8A00]/25'
+                              : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                          }`}
+                        >
+                          {status === 'verifying' ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                          {adminSettings.adEnabled ? '3.' : '2.'} Verify
+                        </button>
+                      </div>
+
+                      <p className="text-[9px] text-slate-500 text-center">
+                        {currentStep === 1 ? '👁 Watch the sponsored ad to unlock the channel link' :
+                         currentStep === 2 ? '📲 Open the channel and join, then come back to verify' :
+                         status === 'verifying' ? '⏳ Checking your membership...' :
+                         '✅ Click Verify to confirm and claim your reward'}
+                      </p>
+                    </div>
+                  )}
                 </motion.div>
               );
             })}
@@ -477,3 +524,4 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     </div>
   );
 };
+

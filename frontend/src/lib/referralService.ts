@@ -53,6 +53,8 @@ export const parseReferralFromStartParam = (): number | null => {
   return null;
 };
 
+import { getAdminSettings } from './adminSettingsService';
+
 /**
  * Records a referral relationship in Firestore after multi-signal validation.
  */
@@ -80,6 +82,9 @@ export const recordReferral = async (
     return { recorded: false, valid: false, reason: 'User already has a referrer.' };
   }
 
+  // Fetch admin settings for dynamic rewards
+  const settings = await getAdminSettings();
+
   // Check device fingerprint match (suspicious if same)
   const deviceMatch = !!(referrerDeviceFingerprint && deviceFingerprint === referrerDeviceFingerprint);
 
@@ -87,28 +92,41 @@ export const recordReferral = async (
   // (legitimate family members may share a device)
   const isValid = !deviceMatch; // Auto-invalid only on exact device match
 
+  const rewardUsdt = isValid ? settings.referralRewardUsdt : 0;
+  const rewardTokens = isValid ? settings.referralRewardToken : 0;
+
   await setDoc(ref, {
     referrerId,
     referredId,
     createdAt: serverTimestamp(),
     isValid,
-    rewardPaid: false,
+    rewardPaid: isValid,
     deviceMatch,
     networkSuspicion: false,
-    rewardUsdt: isValid ? 0.05 : 0,
-    rewardTokens: isValid ? 10 : 0,
+    rewardUsdt,
+    rewardTokens,
   } satisfies Omit<ReferralRecord, 'id'>);
 
-  // Update referrer's referral count in users collection
+  // Update referrer's referral count, wallet, and tokens in users collection
   if (isValid) {
     try {
       const userRef = doc(db, 'users', String(referrerId));
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
-        const current = (userSnap.data().referrals as number) || 0;
-        await updateDoc(userRef, { referrals: current + 1 });
+        const data = userSnap.data();
+        const currentReferrals = (data.referrals as number) || 0;
+        const currentWallet = (data.wallet as number) || 0;
+        const currentTokens = (data.tokens as number) || 0;
+
+        await updateDoc(userRef, {
+          referrals: currentReferrals + 1,
+          wallet: currentWallet + rewardUsdt,
+          tokens: currentTokens + rewardTokens,
+        });
       }
-    } catch { /* noop */ }
+    } catch (err) {
+      console.error("Error updating referrer rewards:", err);
+    }
   }
 
   return { recorded: true, valid: isValid };

@@ -17,7 +17,9 @@ import {
   getTodayNewUsersCount, getFlaggedUsersCount, getBannedUsersCount,
   getPremiumUsersCount, getAutoMinerUsersCount, getOnlineUserCount,
   updateWithdrawRequest, subscribeToWithdrawRequests,
-  flagUser, adminSetBan, logAdminAction, type FirestoreUser,
+  flagUser, adminSetBan, logAdminAction,
+  adminPinUser, adminHideUser, adminRemoveUser, adminAddUser, adminResetLeaderboard,
+  type FirestoreUser,
 } from '../lib/userService';
 import {
   subscribeToTasks, createTask, updateTask, deleteTask, type EForceTask, type TaskType,
@@ -155,11 +157,103 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setSavingUser(false);
   };
 
-  const handleFlagUser = async (u: FirestoreUser) => { await flagUser(u.telegramId, 'Manual flag by admin'); showToast(`🚩 ${u.firstName} flagged.`, 'warning'); fetchUsers(); };
-  const handleBanUser = async (u: FirestoreUser) => { await adminSetBan(u.telegramId, 'permanent'); showToast(`🚫 ${u.firstName} banned.`, 'error'); fetchUsers(); };
-  const handleUnbanUser = async (u: FirestoreUser) => { await adminSetBan(u.telegramId, 'none'); showToast(`✅ ${u.firstName} unbanned.`, 'success'); fetchUsers(); };
+  const handleFlagUser = async (u: FirestoreUser) => {
+    try {
+      await flagUser(u.telegramId, 'Manual flag by admin');
+      showToast(`🚩 ${u.firstName} flagged.`, 'warning');
+      fetchUsers();
+    } catch {
+      showToast('Failed to flag user.', 'error');
+    }
+  };
+  const handleBanUser = async (u: FirestoreUser) => {
+    try {
+      const ok = await adminSetBan(u.telegramId, 'permanent');
+      if (ok) {
+        showToast(`🚫 ${u.firstName} banned.`, 'error');
+        fetchUsers();
+      } else {
+        showToast('Failed to ban user.', 'error');
+      }
+    } catch {
+      showToast('Failed to ban user.', 'error');
+    }
+  };
+  const handleUnbanUser = async (u: FirestoreUser) => {
+    try {
+      const ok = await adminSetBan(u.telegramId, 'none');
+      if (ok) {
+        showToast(`✅ ${u.firstName} unbanned.`, 'success');
+        fetchUsers();
+      } else {
+        showToast('Failed to unban user.', 'error');
+      }
+    } catch {
+      showToast('Failed to unban user.', 'error');
+    }
+  };
+  const handlePinUser = async (u: FirestoreUser) => {
+    try {
+      await adminPinUser(u.telegramId, !u.leaderboardPinned);
+      showToast(u.leaderboardPinned ? `📌 ${u.firstName} unpinned.` : `📌 ${u.firstName} pinned to leaderboard.`, 'success');
+      fetchUsers();
+    } catch {
+      showToast('Failed to toggle pin state.', 'error');
+    }
+  };
+  const handleHideUser = async (u: FirestoreUser) => {
+    try {
+      await adminHideUser(u.telegramId, !u.leaderboardHidden);
+      showToast(u.leaderboardHidden ? `👁 ${u.firstName} restored to leaderboard.` : `🙈 ${u.firstName} hidden from leaderboard.`, 'info');
+      fetchUsers();
+    } catch {
+      showToast('Failed to toggle hide state.', 'error');
+    }
+  };
+  const handleDeleteUser = async (u: FirestoreUser) => {
+    if (!confirm(`Delete user ${u.firstName} (${u.telegramId}) permanently?`)) return;
+    try {
+      await adminRemoveUser(u.telegramId);
+      showToast(`🗑 ${u.firstName} deleted.`, 'error');
+      fetchUsers();
+    } catch {
+      showToast('Failed to delete user.', 'error');
+    }
+  };
+  const handleResetLeaderboard = async () => {
+    if (!confirm('Reset ALL users\' points to 0? This cannot be undone.')) return;
+    try {
+      const count = await adminResetLeaderboard();
+      showToast(`🔄 Leaderboard reset — ${count} users cleared.`, 'warning');
+      fetchUsers();
+    } catch {
+      showToast('Failed to reset leaderboard.', 'error');
+    }
+  };
+  
+  // Add User form state
+  const [showAddUserForm, setShowAddUserForm] = useState(false);
+  const [addUserId, setAddUserId] = useState('');
+  const [addUserName, setAddUserName] = useState('');
+  const [addFirstName, setAddFirstName] = useState('');
+  const [addPoints, setAddPoints] = useState('0');
+  const [addingUser, setAddingUser] = useState(false);
+  const handleAddUser = async () => {
+    const id = parseInt(addUserId);
+    if (!id || !addFirstName.trim()) { showToast('Telegram ID and First Name are required.', 'error'); return; }
+    setAddingUser(true);
+    try {
+      await adminAddUser(id, addUserName.trim(), addFirstName.trim(), parseInt(addPoints) || 0);
+      showToast(`✅ User @${addUserName || id} added successfully.`, 'success');
+      setShowAddUserForm(false); setAddUserId(''); setAddUserName(''); setAddFirstName(''); setAddPoints('0');
+      fetchUsers();
+    } catch (err: any) {
+      showToast(err.message || 'Error adding user.', 'error');
+    }
+    setAddingUser(false);
+  };
 
-  // Sort and filter logic
+
   const handleSort = (field: SortField) => { if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortField(field); setSortDir('desc'); } setPage(1); };
 
   const processedUsers = useMemo(() => {
@@ -193,13 +287,75 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   useEffect(() => { const unsub = subscribeToTasks(setTasks); return unsub; }, []);
   const handleSaveTask = async () => {
     const d = { ...taskForm, expiryDate: taskForm.expiryDate || null };
-    editingTask ? (await updateTask(editingTask.id, d) ? showToast('Task updated.', 'success') : showToast('Failed.', 'error'))
-      : (await createTask(d) ? showToast('Task created.', 'success') : showToast('Failed.', 'error'));
-    setShowTaskForm(false); setEditingTask(null); setTaskForm(blankTask);
+    if (!d.title.trim()) {
+      showToast('Task title is required.', 'warning');
+      return;
+    }
+    try {
+      if (editingTask) {
+        const ok = await updateTask(editingTask.id, d);
+        if (ok) {
+          showToast('Task updated successfully.', 'success');
+        } else {
+          showToast('Failed to update task. Check database permissions.', 'error');
+        }
+      } else {
+        const docId = await createTask(d);
+        if (docId) {
+          showToast('Task created successfully.', 'success');
+        } else {
+          showToast('Failed to create task. Check database permissions.', 'error');
+        }
+      }
+      setShowTaskForm(false);
+      setEditingTask(null);
+      setTaskForm(blankTask);
+    } catch {
+      showToast('An unexpected error occurred while saving the task.', 'error');
+    }
   };
-  const handleDeleteTask = async (t: EForceTask) => { await deleteTask(t.id) ? showToast('Deleted.', 'success') : showToast('Failed.', 'error'); };
-  const handleToggleTask = async (t: EForceTask) => { await updateTask(t.id, { isEnabled: !t.isEnabled }); showToast(`Task ${t.isEnabled ? 'disabled' : 'enabled'}.`, 'info'); };
-  const startEditTask = (t: EForceTask) => { setEditingTask(t); setTaskForm({ title: t.title, description: t.description, type: t.type, reward: t.reward, tokenReward: t.tokenReward, url: t.url, dailyLimit: t.dailyLimit, totalCompletionLimit: t.totalCompletionLimit, expiryDate: t.expiryDate || '', isEnabled: t.isEnabled, autoApprove: t.autoApprove }); setShowTaskForm(true); };
+  const handleDeleteTask = async (t: EForceTask) => {
+    if (!window.confirm(`Are you sure you want to permanently delete the task "${t.title}"?`)) return;
+    try {
+      const ok = await deleteTask(t.id);
+      if (ok) {
+        showToast('Task deleted successfully.', 'success');
+      } else {
+        showToast('Failed to delete task. Make sure you are authorized.', 'error');
+      }
+    } catch {
+      showToast('An error occurred while deleting the task.', 'error');
+    }
+  };
+  const handleToggleTask = async (t: EForceTask) => {
+    try {
+      const ok = await updateTask(t.id, { isEnabled: !t.isEnabled });
+      if (ok) {
+        showToast(`Task "${t.title}" ${t.isEnabled ? 'disabled' : 'enabled'} successfully.`, 'info');
+      } else {
+        showToast('Failed to toggle task state.', 'error');
+      }
+    } catch {
+      showToast('Error toggling task state.', 'error');
+    }
+  };
+  const startEditTask = (t: EForceTask) => {
+    setEditingTask(t);
+    setTaskForm({
+      title: t.title,
+      description: t.description,
+      type: t.type,
+      reward: t.reward,
+      tokenReward: t.tokenReward,
+      url: t.url,
+      dailyLimit: t.dailyLimit,
+      totalCompletionLimit: t.totalCompletionLimit,
+      expiryDate: t.expiryDate || '',
+      isEnabled: t.isEnabled,
+      autoApprove: t.autoApprove
+    });
+    setShowTaskForm(true);
+  };
 
   // --- Withdrawals ---
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -310,15 +466,54 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       </button>
                     )}
                   </div>
-                  <button
-                    onClick={fetchUsers}
-                    className="h-11 px-5 rounded-2xl text-xs font-bold text-white flex items-center gap-2 shrink-0 transition-all hover:opacity-90"
-                    style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-                  >
-                    <RefreshCw size={12} className={loadingUsers ? 'animate-spin' : ''} />
-                    Refresh
-                  </button>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => setShowAddUserForm(v => !v)}
+                      className="h-11 px-4 rounded-2xl text-xs font-bold text-white flex items-center gap-2 transition-all hover:opacity-90"
+                      style={{ background: 'rgba(255,138,0,0.15)', border: '1px solid rgba(255,138,0,0.3)' }}
+                    >
+                      <Plus size={12} /> Add User
+                    </button>
+                    <button
+                      onClick={handleResetLeaderboard}
+                      className="h-11 px-4 rounded-2xl text-xs font-bold text-accent-danger flex items-center gap-2 transition-all hover:opacity-90"
+                      style={{ background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.25)' }}
+                      title="Reset all users' points to 0"
+                    >
+                      <RefreshCw size={12} /> Reset LB
+                    </button>
+                    <button
+                      onClick={fetchUsers}
+                      className="h-11 px-4 rounded-2xl text-xs font-bold text-white flex items-center gap-2 transition-all hover:opacity-90"
+                      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+                    >
+                      <RefreshCw size={12} className={loadingUsers ? 'animate-spin' : ''} />
+                      Refresh
+                    </button>
+                  </div>
                 </div>
+
+                {/* Add User Form */}
+                {showAddUserForm && (
+                  <div className="rounded-[18px] p-4 flex flex-col gap-3" style={{ background: 'rgba(255,138,0,0.06)', border: '1px solid rgba(255,138,0,0.2)' }}>
+                    <span className="text-[10px] font-bold text-[#FF8A00] uppercase tracking-widest">Add User Manually</span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input value={addUserId} onChange={e => setAddUserId(e.target.value)} placeholder="Telegram ID *" type="number" className={inputCls} style={inputStyle} />
+                      <input value={addFirstName} onChange={e => setAddFirstName(e.target.value)} placeholder="First Name *" className={inputCls} style={inputStyle} />
+                      <input value={addUserName} onChange={e => setAddUserName(e.target.value)} placeholder="Username (optional)" className={inputCls} style={inputStyle} />
+                      <input value={addPoints} onChange={e => setAddPoints(e.target.value)} placeholder="Starting Points" type="number" className={inputCls} style={inputStyle} />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={handleAddUser} disabled={addingUser} className="h-9 px-5 rounded-xl text-xs font-bold text-white flex items-center gap-2 cursor-pointer" style={{ background: 'linear-gradient(135deg,#FF8A00,#FFB347)' }}>
+                        {addingUser ? <RefreshCw size={11} className="animate-spin" /> : <Plus size={11} />} Create Account
+                      </button>
+                      <button onClick={() => setShowAddUserForm(false)} className="h-9 px-4 rounded-xl text-xs font-bold text-slate-400 hover:text-white cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+
 
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex gap-2 flex-wrap">
@@ -437,9 +632,15 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               </span>
                             </div>
 
-                            <div className="flex items-center justify-end gap-1.5">
+                            <div className="flex items-center justify-end gap-1.5 flex-wrap">
                               <button onClick={() => startEditUser(u)} title="Edit" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 transition-all cursor-pointer">
                                 <Edit3 size={11} />
+                              </button>
+                              <button onClick={() => handlePinUser(u)} title={u.leaderboardPinned ? 'Unpin from leaderboard' : 'Pin to leaderboard top'} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer text-[11px] ${u.leaderboardPinned ? 'text-[#FF8A00] bg-[#FF8A00]/15' : 'text-slate-500 hover:text-[#FF8A00] hover:bg-[#FF8A00]/10'}`}>
+                                📌
+                              </button>
+                              <button onClick={() => handleHideUser(u)} title={u.leaderboardHidden ? 'Restore to leaderboard' : 'Hide from leaderboard'} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer text-[11px] ${u.leaderboardHidden ? 'text-slate-400 bg-white/10' : 'text-slate-500 hover:text-slate-300 hover:bg-white/8'}`}>
+                                {u.leaderboardHidden ? '🙈' : '👁'}
                               </button>
                               <button onClick={() => handleFlagUser(u)} title="Flag" className="w-7 h-7 rounded-lg flex items-center justify-center text-yellow-500 hover:bg-yellow-400/10 transition-all cursor-pointer text-[11px]">
                                 🚩
@@ -453,6 +654,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                   <Ban size={11} />
                                 </button>
                               )}
+                              <button onClick={() => handleDeleteUser(u)} title="Delete account permanently" className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-500/15 transition-all cursor-pointer">
+                                <Trash2 size={11} />
+                              </button>
                             </div>
                           </motion.div>
 
@@ -600,7 +804,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         ))}
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <div><label className="text-[8px] text-slate-500 font-bold uppercase block mb-1">Type</label><select value={taskForm.type} onChange={e => setTaskForm(p => ({ ...p, type: e.target.value as TaskType }))} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0D1117' }}><option value="channel">Channel</option><option value="youtube">YouTube</option><option value="twitter">Twitter</option><option value="website">Website</option><option value="daily">Daily</option></select></div>
+                        <div><label className="text-[8px] text-slate-500 font-bold uppercase block mb-1">Type</label><select value={taskForm.type} onChange={e => setTaskForm(p => ({ ...p, type: e.target.value as TaskType }))} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0D1117' }}><option value="channel">Telegram Channel</option><option value="group">Telegram Group</option><option value="x">Follow on X</option><option value="website">Visit Website</option><option value="video">Watch Video</option><option value="daily">Daily Mission</option><option value="ad">Reward Ad</option></select></div>
                         <div><label className="text-[8px] text-slate-500 font-bold uppercase block mb-1">Expiry Date</label><input type="date" value={taskForm.expiryDate} onChange={e => setTaskForm(p => ({ ...p, expiryDate: e.target.value }))} className={inputCls} style={inputStyle} /></div>
                         <div className="flex gap-4 items-center pt-4">
                           <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer"><input type="checkbox" checked={taskForm.isEnabled} onChange={e => setTaskForm(p => ({ ...p, isEnabled: e.target.checked }))} className="accent-[#FF8A00]" />Enabled</label>
@@ -616,33 +820,82 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 )}
               </AnimatePresence>
 
-              <div className="rounded-[20px] overflow-hidden" style={panelStyle}>
-                <div className="grid gap-2 px-4 py-3 border-b text-[9px] font-bold uppercase tracking-wider text-slate-500" style={{ borderColor: 'rgba(255,255,255,0.06)', gridTemplateColumns: '1.5rem 1fr auto auto 7rem' }}>
-                  <div /><div>Task</div><div className="hidden md:block">Reward</div><div className="hidden md:block">Type</div><div className="text-right">Actions</div>
+              {tasks.length === 0 ? (
+                <div className="rounded-[20px] py-16 text-center flex flex-col items-center gap-3" style={panelStyle}>
+                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl" style={{ background: 'rgba(255,138,0,0.08)', border: '1px solid rgba(255,138,0,0.2)' }}>📋</div>
+                  <div>
+                    <p className="text-sm font-bold text-white">No tasks yet</p>
+                    <p className="text-xs text-slate-500 mt-1">Create your first earning task to get started.</p>
+                  </div>
                 </div>
-                {tasks.length === 0 ? (
-                  <div className="text-center py-12 text-slate-500 text-xs">No tasks yet. Create the first one!</div>
-                ) : tasks.map((task, idx) => (
-                  <motion.div key={task.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
-                    className="grid gap-2 items-center px-4 py-3.5 border-b hover:bg-white/[0.015] transition-all"
-                    style={{ borderColor: 'rgba(255,255,255,0.04)', gridTemplateColumns: '1.5rem 1fr auto auto 7rem' }}>
-                    <div className={`w-2 h-2 rounded-full ${task.isEnabled ? 'bg-green-400 shadow-[0_0_5px_rgba(74,222,128,0.8)]' : 'bg-slate-600'}`} />
-                    <div>
-                      <span className="text-xs font-bold text-white block">{task.title}</span>
-                      <span className="text-[9px] text-slate-500">{task.description?.slice(0, 50)}{task.description?.length > 50 ? '...' : ''}</span>
-                    </div>
-                    <span className="text-[10px] font-black text-[#FF8A00] hidden md:block">{task.reward} EF {task.tokenReward > 0 ? `+ ${task.tokenReward}t` : ''}</span>
-                    <span className="text-[9px] font-bold text-slate-400 capitalize hidden md:block bg-white/5 px-2 py-0.5 rounded-lg">{task.type}</span>
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button onClick={() => handleToggleTask(task)} className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        {task.isEnabled ? <ToggleRight size={13} className="text-green-400" /> : <ToggleLeft size={13} className="text-slate-500" />}
-                      </button>
-                      <button onClick={() => startEditTask(task)} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}><Edit3 size={11} /></button>
-                      <button onClick={() => handleDeleteTask(task)} className="w-7 h-7 rounded-lg flex items-center justify-center text-red-400 hover:bg-red-400/10 transition-all cursor-pointer" style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)' }}><Trash2 size={11} /></button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                  {tasks.map((task, idx) => {
+                    const typeColors: Record<string, { bg: string; text: string; border: string }> = {
+                      channel: { bg: 'rgba(0,229,255,0.08)', text: '#00E5FF', border: 'rgba(0,229,255,0.2)' },
+                      group: { bg: 'rgba(0,229,255,0.06)', text: '#38BDF8', border: 'rgba(56,189,248,0.2)' },
+                      x: { bg: 'rgba(255,255,255,0.06)', text: '#ffffff', border: 'rgba(255,255,255,0.15)' },
+                      website: { bg: 'rgba(163,230,53,0.06)', text: '#A3E635', border: 'rgba(163,230,53,0.2)' },
+                      video: { bg: 'rgba(248,113,113,0.06)', text: '#F87171', border: 'rgba(248,113,113,0.2)' },
+                      daily: { bg: 'rgba(255,138,0,0.08)', text: '#FF8A00', border: 'rgba(255,138,0,0.25)' },
+                      ad: { bg: 'rgba(179,136,255,0.08)', text: '#B388FF', border: 'rgba(179,136,255,0.2)' },
+                    };
+                    const tc = typeColors[task.type] ?? typeColors['website'];
+                    return (
+                      <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.04 }}
+                        className="rounded-[20px] p-4 flex flex-col gap-3 group transition-all hover:shadow-[0_0_24px_rgba(255,138,0,0.08)]"
+                        style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${task.isEnabled ? 'rgba(255,138,0,0.15)' : 'rgba(255,255,255,0.06)'}` }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className={`w-2 h-2 rounded-full shrink-0 mt-1 ${task.isEnabled ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]' : 'bg-slate-600'}`} />
+                            <span className="text-sm font-bold text-white truncate">{task.title}</span>
+                          </div>
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full capitalize shrink-0" style={{ background: tc.bg, color: tc.text, border: `1px solid ${tc.border}` }}>{task.type}</span>
+                        </div>
+                        {task.description && (
+                          <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">{task.description}</p>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 rounded-xl px-3 py-2" style={{ background: 'rgba(255,138,0,0.06)', border: '1px solid rgba(255,138,0,0.12)' }}>
+                            <div className="text-[8px] text-slate-500 uppercase tracking-wider">Reward</div>
+                            <div className="text-sm font-black text-[#FF8A00]">{task.reward.toLocaleString()} EF</div>
+                          </div>
+                          {task.tokenReward > 0 && (
+                            <div className="flex-1 rounded-xl px-3 py-2" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.12)' }}>
+                              <div className="text-[8px] text-slate-500 uppercase tracking-wider">Token</div>
+                              <div className="text-sm font-black text-[#B388FF]">+{task.tokenReward}</div>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 pt-1 border-t border-white/[0.04]">
+                          <button
+                            onClick={() => handleToggleTask(task)}
+                            className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-[10px] font-bold transition-all cursor-pointer flex-1 justify-center"
+                            style={task.isEnabled
+                              ? { background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', color: '#4ADE80' }
+                              : { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b' }
+                            }
+                          >
+                            {task.isEnabled ? <ToggleRight size={13} /> : <ToggleLeft size={13} />}
+                            {task.isEnabled ? 'Active' : 'Disabled'}
+                          </button>
+                          <button onClick={() => startEditTask(task)} className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }} title="Edit task">
+                            <Edit3 size={12} />
+                          </button>
+                          <button onClick={() => handleDeleteTask(task)} className="w-8 h-8 rounded-xl flex items-center justify-center text-red-400 hover:text-red-300 transition-all cursor-pointer" style={{ background: 'rgba(248,113,113,0.06)', border: '1px solid rgba(248,113,113,0.15)' }} title="Delete task permanently">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

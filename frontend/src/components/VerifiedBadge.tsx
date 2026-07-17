@@ -6,7 +6,7 @@ interface VerifiedBadgeProps {
   className?: string;
 }
 
-export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({ size = 16, className = "" }) => {
+export const VerifiedBadge: React.FC<VerifiedBadgeProps> = ({ size = 20, className = "" }) => {
   const id = React.useId().replace(/:/g, '');
 
   return (
