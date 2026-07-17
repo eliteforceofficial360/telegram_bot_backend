@@ -59,9 +59,28 @@ bot.start(async (ctx) => {
   const payload  = ctx.startPayload || '';
   const finalUrl = payload ? `${webAppUrl}?tgWebAppStartParam=${payload}` : webAppUrl;
 
+  const welcomeMsg =
+`🔥 <b>ELITE FORCE — EForce Token</b> 🔥
+
+👋 Welcome, <b>${escapeHTML(username)}</b>!
+
+You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Force rewards you for every action.
+
+━━━━━━━━━━━━━━━━━━━━
+⛏️  <b>Mine</b> EForce tokens passively
+✅  <b>Complete missions</b> & earn rewards
+🏆  <b>Climb</b> the global leaderboard
+👥  <b>Refer friends</b> and earn commissions
+💸  <b>Withdraw</b> USDT to your BEP-20 wallet
+━━━━━━━━━━━━━━━━━━━━
+
+🚀 Tap the button below to launch your dashboard!`;
+
   await ctx.replyWithHTML(
-    `🛸 <b>Welcome to Elite Force (EForce), ${escapeHTML(username)}!</b> 🛸\n\nElite Force is a next-generation premium Web3 ecosystem.\n\nTap the button below to launch the Mini App and access your luxury dashboard!`,
-    Markup.inlineKeyboard([[Markup.button.webApp('🚀 Launch Elite Force App', finalUrl)]])
+    welcomeMsg,
+    Markup.inlineKeyboard([
+      [Markup.button.webApp('🔥  Launch Elite Force App  🔥', finalUrl)],
+    ])
   ).catch(err => console.error('Error replying start welcome:', err));
 
   // Handle referral notification if payload is a referral link
