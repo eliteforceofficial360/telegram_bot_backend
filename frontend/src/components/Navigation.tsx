@@ -1,6 +1,5 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, CheckSquare, Gift, Wallet, User, Trophy } from 'lucide-react';
 
 export type ActiveTab = 'home' | 'tasks' | 'referral' | 'wallet' | 'profile' | 'leaderboard' | 'admin';
 
@@ -11,13 +10,15 @@ interface NavigationProps {
 }
 
 const tabs = [
-  { id: 'home' as ActiveTab,    label: 'Home',    icon: Home },
-  { id: 'tasks' as ActiveTab,   label: 'Tasks',   icon: CheckSquare },
-  { id: 'referral' as ActiveTab,label: 'Invite',  icon: Gift },
-  { id: 'wallet' as ActiveTab,  label: 'Wallet',  icon: Wallet },
-  { id: 'profile' as ActiveTab, label: 'Profile', icon: User },
-  { id: 'leaderboard' as ActiveTab, label: 'Miners', icon: Trophy },
+  { id: 'home' as ActiveTab,    label: 'Home',    lordiconSrc: 'https://cdn.lordicon.com/epietrpn.json' },
+  { id: 'tasks' as ActiveTab,   label: 'Tasks',   lordiconSrc: 'https://cdn.lordicon.com/vhycpxun.json' },
+  { id: 'referral' as ActiveTab,label: 'Invite',  lordiconSrc: 'https://cdn.lordicon.com/nocovwne.json' },
+  { id: 'wallet' as ActiveTab,  label: 'Wallet',  lordiconSrc: 'https://cdn.lordicon.com/vyqvtrvq.json' },
+  { id: 'profile' as ActiveTab, label: 'Profile', lordiconSrc: 'https://cdn.lordicon.com/kdduutuz.json' },
+  { id: 'leaderboard' as ActiveTab, label: 'Miners', lordiconSrc: 'https://cdn.lordicon.com/lzwkimbp.json' },
 ];
+
+const LordIcon = 'lord-icon' as any;
 
 export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab }) => {
   return (
@@ -37,14 +38,13 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
         <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent pointer-events-none" />
 
         {tabs.map((tab) => {
-          const Icon = tab.icon;
           const isActive = activeTab === tab.id;
 
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className="relative flex flex-col items-center justify-center gap-0.5 py-1.5 px-3 cursor-pointer transition-all duration-200 group focus:outline-none"
+              className="relative flex flex-col items-center justify-center gap-0.5 py-1 px-2.5 cursor-pointer transition-all duration-200 group focus:outline-none"
               style={{ minWidth: 44 }}
             >
               {/* Active pill glow background */}
@@ -61,23 +61,24 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
                 />
               )}
 
-              {/* Icon */}
+              {/* Icon Container */}
               <motion.div
                 animate={{
-                  scale: isActive ? 1.18 : 1,
+                  scale: isActive ? 1.15 : 1,
                   y: isActive ? -1 : 0,
                 }}
                 transition={{ type: 'spring', stiffness: 380, damping: 26 }}
-                className="relative z-10"
+                className="relative z-10 w-6 h-6 flex items-center justify-center"
               >
-                <Icon
-                  size={19}
-                  className={
+                <LordIcon
+                  src={tab.lordiconSrc}
+                  trigger="hover"
+                  colors={
                     isActive
-                      ? 'text-[#FF8A00] drop-shadow-[0_0_8px_rgba(255,138,0,0.55)]'
-                      : 'text-slate-500 group-hover:text-slate-300 transition-colors'
+                      ? 'primary:#ffffff,secondary:#ff8a00'
+                      : 'primary:#64748b,secondary:#334155'
                   }
-                  strokeWidth={isActive ? 2.2 : 1.8}
+                  style={{ width: '22px', height: '22px' }}
                 />
               </motion.div>
 
