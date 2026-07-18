@@ -22,7 +22,7 @@ interface Toast {
   type: 'success' | 'error' | 'warning' | 'info';
 }
 
-const inputStyle = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' };
+
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -107,18 +107,33 @@ export default function App() {
   const [adminSettings, setAdminSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
   const maxEnergy = adminSettings.energyMax || 1000;
 
-  // Human CAPTCHA states
   const [captchaVerified, setCaptchaVerified] = useState(false);
-  const [captchaQuestion, setCaptchaQuestion] = useState('');
-  const [captchaAnswer, setCaptchaAnswer] = useState(0);
-  const [captchaInput, setCaptchaInput] = useState('');
 
-  const generateCaptcha = () => {
-    const num1 = Math.floor(Math.random() * 9) + 2;
-    const num2 = Math.floor(Math.random() * 9) + 2;
-    setCaptchaQuestion(`What is ${num1} + ${num2}?`);
-    setCaptchaAnswer(num1 + num2);
-    setCaptchaInput('');
+  const [isVerifyingCaptcha, setIsVerifyingCaptcha] = useState(false);
+
+  const handleReCaptchaVerify = () => {
+    const grecaptcha = (window as any).grecaptcha;
+    if (!grecaptcha?.enterprise) {
+      showToast("reCAPTCHA is loading, please try again in a moment.", "warning");
+      return;
+    }
+    
+    setIsVerifyingCaptcha(true);
+    grecaptcha.enterprise.ready(async () => {
+      try {
+        const token = await grecaptcha.enterprise.execute('6Lc7s1ktAAAAAItxOhjl2fLpLkM1ldYk-AVupikV', { action: 'verification' });
+        if (token) {
+          setCaptchaVerified(true);
+          showToast("Human status verified successfully!", "success");
+        } else {
+          showToast("reCAPTCHA verification failed. Please try again.", "error");
+        }
+      } catch (err) {
+        showToast("Verification error. Please retry.", "error");
+      } finally {
+        setIsVerifyingCaptcha(false);
+      }
+    });
   };
 
   // Listen to Firebase Auth state for admin session persistence
@@ -140,11 +155,7 @@ export default function App() {
     return unsub;
   }, []);
 
-  useEffect(() => {
-    if (adminSettings.humanVerificationOpen) {
-      generateCaptcha();
-    }
-  }, [adminSettings.humanVerificationOpen]);
+
 
   // Device & Telegram signature checks
   useEffect(() => {
@@ -670,43 +681,39 @@ export default function App() {
       return (
         <div className="flex flex-col items-center justify-center p-8 text-center min-h-[60vh] select-none w-full max-w-md mx-auto">
           <div className="glass-panel p-6 rounded-[28px] border-white/8 w-full shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-            <div className="w-12 h-12 rounded-full bg-[#FF8A00]/15 border border-[#FF8A00]/25 text-[#FF8A00] flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(255,138,0,0.15)]">
-              <ShieldCheck size={22} className="animate-pulse" />
+            <div className="w-12 h-12 rounded-full bg-[#00E5FF]/15 border border-[#00E5FF]/25 text-[#00E5FF] flex items-center justify-center mx-auto mb-4 shadow-[0_0_20px_rgba(0,229,255,0.15)] animate-pulse">
+              <ShieldCheck size={22} />
             </div>
 
-            <h3 className="text-base font-bold text-white mb-2">Human Verification</h3>
+            <h3 className="text-base font-bold text-white mb-2">Security Verification</h3>
             <p className="text-xs text-slate-400 leading-relaxed mb-6">
-              Ecosystem protection is active. Please solve the security puzzle to verify you are a human miner.
+              Ecosystem protection is active. Please complete the reCAPTCHA challenge below to verify you are a human miner.
             </p>
 
-            <div className="bg-white/[0.03] border border-white/5 rounded-2xl p-4 mb-4 text-center">
-              <span className="text-xs text-slate-500 uppercase tracking-widest font-black block mb-1">Security Puzzle</span>
-              <span className="text-lg font-black text-white">{captchaQuestion}</span>
-            </div>
-
-            <input
-              type="number"
-              placeholder="Enter answer..."
-              value={captchaInput}
-              onChange={(e) => setCaptchaInput(e.target.value)}
-              className="w-full h-11 bg-[#0A0D1C] border border-white/8 text-center text-white text-sm font-black rounded-xl focus:border-[#FF8A00] outline-none mb-4"
-              style={inputStyle}
-            />
-
             <button
-              onClick={() => {
-                if (parseInt(captchaInput) === captchaAnswer) {
-                  setCaptchaVerified(true);
-                  showToast("Human status verified successfully!", "success");
-                } else {
-                  showToast("Incorrect answer. Try again!", "error");
-                  generateCaptcha();
-                }
+              onClick={handleReCaptchaVerify}
+              disabled={isVerifyingCaptcha}
+              className="w-full h-12 rounded-xl text-white text-xs font-bold cursor-pointer shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2"
+              style={{
+                background: 'linear-gradient(135deg, #00E5FF 0%, #0088FF 100%)',
+                boxShadow: '0 0 20px rgba(0, 229, 255, 0.25)',
               }}
-              className="w-full h-11 bg-gradient-to-r from-[#FF8A00] to-[#E52E71] text-white text-xs font-bold rounded-xl cursor-pointer shadow-md hover:shadow-lg transition-all"
             >
-              Verify Puzzle
+              {isVerifyingCaptcha ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-t-transparent border-white rounded-full animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                <>🚀 Click to Verify</>
+              )}
             </button>
+
+            <p className="text-[10px] text-slate-500 mt-4 leading-relaxed">
+              This site is protected by reCAPTCHA Enterprise and the Google{' '}
+              <a href="https://policies.google.com/privacy" target="_blank" rel="noreferrer" className="text-[#00E5FF] hover:underline">Privacy Policy</a> and{' '}
+              <a href="https://policies.google.com/terms" target="_blank" rel="noreferrer" className="text-[#00E5FF] hover:underline">Terms of Service</a> apply.
+            </p>
           </div>
         </div>
       );
