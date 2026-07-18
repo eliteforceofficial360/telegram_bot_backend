@@ -5,7 +5,8 @@ import http from 'http';
 dotenv.config();
 
 const token     = process.env.BOT_TOKEN;
-const webAppUrl = process.env.MINI_APP_URL || 'http://localhost:5173';
+let webAppUrlRaw = process.env.MINI_APP_URL || 'http://localhost:5173';
+const webAppUrl = webAppUrlRaw.endsWith('/') ? webAppUrlRaw : `${webAppUrlRaw}/`;
 const API_PORT  = process.env.API_PORT || 4000;
 const API_SECRET = process.env.API_SECRET || 'elite_force_secret_2024';
 
