@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAlert, X, Edit3, Save } from 'lucide-react';
+import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAlert, X, Edit3, Save, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { submitWithdrawRequest, updateWalletAddress, subscribeToUser, updateUserDatabaseValues, getUserTodayWithdrawalAmount, type FirestoreUser } from '../lib/userService';
@@ -40,7 +40,6 @@ export const Wallet: React.FC<WalletProps> = ({
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
 
-  const [pin, setPin] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('0.20');
@@ -104,32 +103,24 @@ export const Wallet: React.FC<WalletProps> = ({
     setWithdrawAsset(asset);
     setWithdrawAmount(asset === 'usdt' ? usdtBalance.toFixed(2) : eforceTokens.toFixed(3));
     setShowWithdrawModal(true);
-    setPin('');
     setIsVerifying(false);
     setIsSuccess(false);
   };
 
-  const handlePinPress = (num: string) => {
-    if (pin.length >= 4) return;
-    const nextPin = pin + num;
-    setPin(nextPin);
-
-    if (nextPin.length === 4) {
-      setIsVerifying(true);
-      setTimeout(async () => {
+  const handleConfirmWithdraw = async () => {
+    setIsVerifying(true);
+    try {
         const amountNum = parseFloat(withdrawAmount);
         const minWithdrawUsdt = settings.withdrawMinAmount;
 
         if (withdrawAsset === 'usdt') {
           if (isNaN(amountNum) || amountNum < minWithdrawUsdt) {
             setIsVerifying(false);
-            setPin('');
             showToast(`Minimum withdrawal is $${minWithdrawUsdt} USDT.`, 'error');
             return;
           }
           if (usdtBalance < amountNum) {
             setIsVerifying(false);
-            setPin('');
             showToast('Insufficient USDT balance.', 'error');
             return;
           }
@@ -137,13 +128,11 @@ export const Wallet: React.FC<WalletProps> = ({
           const minWithdrawTokens = minWithdrawUsdt / (settings.eforceTokenValue || 0.05);
           if (isNaN(amountNum) || amountNum < minWithdrawTokens) {
             setIsVerifying(false);
-            setPin('');
             showToast(`Minimum withdrawal is ${minWithdrawTokens.toFixed(3)} EF.`, 'error');
             return;
           }
           if (eforceTokens < amountNum) {
             setIsVerifying(false);
-            setPin('');
             showToast('Insufficient EForce Token balance.', 'error');
             return;
           }
@@ -151,7 +140,6 @@ export const Wallet: React.FC<WalletProps> = ({
 
         if (!telegramUser || !dbUser) {
           setIsVerifying(false);
-          setPin('');
           showToast('User state not verified.', 'error');
           return;
         }
@@ -161,7 +149,6 @@ export const Wallet: React.FC<WalletProps> = ({
         const requestedWithdrawalAmount = withdrawAsset === 'usdt' ? amountNum : amountNum * (settings.eforceTokenValue || 0.05);
         if (todayWithdrawn + requestedWithdrawalAmount > settings.dailyWithdrawLimit) {
           setIsVerifying(false);
-          setPin('');
           showToast(`Exceeds daily withdrawal limit of $${settings.dailyWithdrawLimit.toFixed(2)} USDT. Remaining: $${Math.max(0, settings.dailyWithdrawLimit - todayWithdrawn).toFixed(2)} USDT`, 'warning');
           return;
         }
@@ -189,27 +176,15 @@ export const Wallet: React.FC<WalletProps> = ({
             updateUserDatabaseValues(telegramUser.id, { tokens: newTokenBalance }).catch(() => {});
             showToast(`Withdrawal request of ${amountNum.toFixed(3)} EForce Token submitted!`, 'success');
           }
-          
-          confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#00FF88', '#00E5FF', '#ffffff'],
-          });
-
-          setTimeout(() => {
-            setShowWithdrawModal(false);
-          }, 2200);
+          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ['#00FF88', '#00E5FF', '#ffffff'] });
+          setTimeout(() => { setShowWithdrawModal(false); }, 2200);
         } else {
-          setPin('');
           showToast(res.reason || 'Failed to submit withdrawal.', 'error');
         }
-      }, 1500);
-    }
-  };
-
-  const handleBackspace = () => {
-    setPin(prev => prev.slice(0, -1));
+      } catch {
+        setIsVerifying(false);
+        showToast('Network error. Please try again.', 'error');
+      }
   };
 
   // EForce Swap Handler
@@ -641,113 +616,49 @@ export const Wallet: React.FC<WalletProps> = ({
                 </div>
               </div>
 
-              <div className="flex flex-col items-center gap-6 my-2">
-                <div className="relative w-28 h-28 flex items-center justify-center">
-                  <div className={`absolute inset-0 rounded-full filter blur-xl opacity-30 transition-colors duration-500 ${
-                    isSuccess ? 'bg-accent-success' : isVerifying ? 'bg-accent-cyan animate-pulse' : 'bg-accent-purple'
-                  }`}></div>
-
-                  <svg width="84" height="84" viewBox="0 0 100 100" className="relative z-10">
-                    <defs>
-                      <linearGradient id="safeMetal" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#43495F" />
-                        <stop offset="50%" stopColor="#1E2230" />
-                        <stop offset="100%" stopColor="#0B0D14" />
-                      </linearGradient>
-                      <linearGradient id="accentGlow" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#00E5FF" />
-                        <stop offset="100%" stopColor="#4D8CFF" />
-                      </linearGradient>
-                    </defs>
-                    <rect x="15" y="15" width="70" height="70" rx="14" fill="url(#safeMetal)" stroke="rgba(255,255,255,0.08)" strokeWidth="1.5" />
-                    <rect x="23" y="23" width="54" height="54" rx="8" fill="#121522" stroke="rgba(255,255,255,0.05)" />
-                    <circle cx="50" cy="50" r="18" fill="url(#safeMetal)" stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
-                    
-                    <motion.g
-                      animate={isVerifying ? { rotate: 360 } : isSuccess ? { rotate: 90 } : { rotate: 0 }}
-                      transition={isVerifying ? { repeat: Infinity, duration: 1.5, ease: 'linear' } : { duration: 0.5 }}
-                      style={{ originX: '50px', originY: '50px' }}
+              {/* Confirm button area */}
+              <div className="flex flex-col gap-3 mt-2">
+                <AnimatePresence mode="wait">
+                  {isSuccess ? (
+                    <motion.div key="success" initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }}
+                      className="flex flex-col items-center gap-2 py-4">
+                      <CheckCircle size={44} className="text-accent-success drop-shadow-[0_0_12px_rgba(0,255,136,0.6)]" />
+                      <span className="text-sm font-bold text-accent-success">Request Submitted!</span>
+                    </motion.div>
+                  ) : (
+                    <motion.button key="confirm" onClick={handleConfirmWithdraw} disabled={isVerifying}
+                      whileTap={{ scale: 0.97 }}
+                      className="w-full h-14 rounded-2xl text-sm font-black text-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 transition-all"
+                      style={{
+                        background: 'linear-gradient(135deg, #FF8A00, #E52E71)',
+                        boxShadow: '0 0 32px rgba(255,138,0,0.4), 0 8px 24px rgba(229,46,113,0.3)'
+                      }}
                     >
-                      <circle cx="50" cy="50" r="10" fill="none" stroke="url(#accentGlow)" strokeWidth="2.5" strokeDasharray="10 4" />
-                      <line x1="50" y1="36" x2="50" y2="40" stroke="#00E5FF" strokeWidth="2.5" strokeLinecap="round" />
-                    </motion.g>
+                      {isVerifying
+                        ? <><RefreshCw size={18} className="animate-spin" /> Processing…</>
+                        : <><ShieldCheck size={18} /> Confirm Withdrawal</>}
+                    </motion.button>
+                  )}
+                </AnimatePresence>
 
-                    <circle cx="30" cy="30" r="2" fill={isSuccess ? '#00FF88' : isVerifying ? '#00E5FF' : '#FF4D6D'} />
-                  </svg>
-                  
-                  <AnimatePresence>
-                    {isSuccess && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.6 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        className="absolute inset-0 z-20 flex items-center justify-center bg-bg-primary/40 rounded-full"
-                      >
-                        <CheckCircle size={44} className="text-accent-success drop-shadow-[0_0_12px_rgba(0,255,136,0.6)]" />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                <div className="flex flex-col items-center gap-2">
-                  <span className="text-xs text-slate-400 font-semibold tracking-wider">
-                    {isSuccess ? 'Confirmed' : isVerifying ? 'Verifying Signature...' : 'Enter 4-Digit Secure PIN'}
-                  </span>
-                  
-                  <div className="flex gap-4.5 my-2">
-                    {Array.from({ length: 4 }).map((_, idx) => (
-                      <div 
-                        key={idx}
-                        className={`w-3.5 h-3.5 rounded-full border transition-all duration-200 ${
-                          idx < pin.length 
-                            ? isSuccess 
-                              ? 'bg-accent-success border-accent-success shadow-[0_0_10px_rgba(0,255,136,0.5)]' 
-                              : isVerifying 
-                                ? 'bg-accent-cyan border-accent-cyan glow-cyan' 
-                                : 'bg-accent-purple border-accent-purple'
-                            : 'bg-white/5 border-white/10'
-                        }`}
-                      />
-                    ))}
+                <div className="rounded-xl px-4 py-3 flex flex-col gap-1" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-slate-500">Asset</span>
+                    <span className="font-bold text-white">{withdrawAsset === 'usdt' ? 'USDT (BEP-20)' : 'EForce Token'}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-slate-500">Amount</span>
+                    <span className="font-bold" style={{ color: withdrawAsset === 'usdt' ? '#4ADE80' : '#B388FF' }}>
+                      {withdrawAmount} {withdrawAsset === 'usdt' ? 'USDT' : 'EF'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-[10px]">
+                    <span className="text-slate-500">Destination</span>
+                    <span className="font-mono text-[9px] text-slate-400">{dbUser?.walletAddress?.slice(0, 8)}…{dbUser?.walletAddress?.slice(-6)}</span>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-3 gap-2 w-full max-w-[280px]">
-                  {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(num => (
-                    <button
-                      key={num}
-                      onClick={() => handlePinPress(num)}
-                      disabled={isVerifying || isSuccess}
-                      className="h-11 rounded-xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white hover:bg-white/[0.08] active:scale-95 transition-all cursor-pointer"
-                    >
-                      {num}
-                    </button>
-                  ))}
-                  
-                  <button
-                    onClick={() => setPin('')}
-                    disabled={isVerifying || isSuccess}
-                    className="h-11 rounded-xl text-xs font-bold text-accent-danger hover:bg-accent-danger/5 active:scale-95 transition-all cursor-pointer"
-                  >
-                    Clear
-                  </button>
-                  
-                  <button
-                    onClick={() => handlePinPress('0')}
-                    disabled={isVerifying || isSuccess}
-                    className="h-11 rounded-xl bg-white/[0.03] border border-white/5 text-sm font-bold text-white hover:bg-white/[0.08] active:scale-95 transition-all cursor-pointer"
-                  >
-                    0
-                  </button>
-                  
-                  <button
-                    onClick={handleBackspace}
-                    disabled={isVerifying || isSuccess}
-                    className="h-11 rounded-xl text-xs font-semibold text-slate-400 hover:bg-white/5 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-                  >
-                    Delete
-                  </button>
-                </div>
               </div>
+
             </motion.div>
           </div>
         )}

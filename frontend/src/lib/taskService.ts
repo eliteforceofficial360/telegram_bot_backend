@@ -36,6 +36,7 @@ export interface EForceTask {
   reward: number;        // EForce points
   tokenReward: number;   // EST tokens (optional)
   isEnabled: boolean;
+  isMandatory: boolean;  // must complete before optional tasks
   autoApprove: boolean;
   url: string;
   dailyLimit: number;    // max completions per user per day (0 = unlimited)
@@ -255,6 +256,7 @@ const getDefaultTasks = (): EForceTask[] => [
     reward: 500,
     tokenReward: 0,
     isEnabled: true,
+    isMandatory: true,
     autoApprove: true,
     url: 'https://t.me/EliteForceChannel',
     dailyLimit: 0,
@@ -271,6 +273,7 @@ const getDefaultTasks = (): EForceTask[] => [
     reward: 500,
     tokenReward: 0,
     isEnabled: true,
+    isMandatory: true,
     autoApprove: true,
     url: 'https://t.me/EliteForceGroup',
     dailyLimit: 0,
@@ -287,6 +290,7 @@ const getDefaultTasks = (): EForceTask[] => [
     reward: 800,
     tokenReward: 0,
     isEnabled: true,
+    isMandatory: false,
     autoApprove: true,
     url: 'https://x.com/EliteForce',
     dailyLimit: 0,
@@ -303,6 +307,7 @@ const getDefaultTasks = (): EForceTask[] => [
     reward: 200,
     tokenReward: 0,
     isEnabled: true,
+    isMandatory: false,
     autoApprove: true,
     url: '',
     dailyLimit: 1,

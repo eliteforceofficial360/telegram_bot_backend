@@ -3,15 +3,17 @@ import { motion } from 'framer-motion';
 import { Trophy, Search, RefreshCw, Star, HelpCircle } from 'lucide-react';
 import { getLeaderboardUsers, type FirestoreUser } from '../lib/userService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
+import { type AdminSettings } from '../lib/adminSettingsService';
 
 interface LeaderboardProps {
   telegramUser: { id: number; username?: string; firstName?: string; lastName?: string; photoUrl?: string } | null;
   efcBalance: number;
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   dbUser?: FirestoreUser | null;
+  adminSettings?: AdminSettings;
 }
 
-export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser }: LeaderboardProps) => {
+export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser, adminSettings }: LeaderboardProps) => {
   const [topMiners, setTopMiners] = useState<FirestoreUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,6 +107,32 @@ export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser }: Lea
           <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
         </button>
       </div>
+
+      {/* Custom Pinned Miners */}
+      {(adminSettings?.customTopMiners || []).length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-widest" style={{ color: '#FF8A00' }}>⛏️ Featured Miners</span>
+            <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(255,138,0,0.08)', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.2)' }}>Pinned by Admin</span>
+          </div>
+          <div className="glass-panel rounded-[20px] border-white/6 overflow-hidden divide-y divide-white/[0.04]">
+            {(adminSettings!.customTopMiners).map((m, i) => (
+              <div key={i} className="flex items-center gap-3 p-3.5">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center text-sm shrink-0" style={{ background: 'rgba(255,138,0,0.12)', border: '1px solid rgba(255,138,0,0.25)' }}>{m.badge || '⛏️'}</div>
+                <div className="w-8 h-8 rounded-full border border-[#FF8A00]/20 bg-[#FF8A00]/10 flex items-center justify-center text-xs font-bold shrink-0" style={{ color: '#FF8A00' }}>{(m.name?.[0] || 'E').toUpperCase()}</div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-xs font-bold text-white truncate block">{m.name}</span>
+                  <span className="text-[8px] font-bold uppercase tracking-wider" style={{ color: '#FF8A00' }}>Featured</span>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-xs font-black text-white">{m.score.toLocaleString()}</span>
+                  <span className="text-[8px] text-slate-500 block font-bold uppercase tracking-wider">EFC Points</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Leaderboard List */}
       <div className="glass-panel rounded-[24px] border-white/6 overflow-hidden divide-y divide-white/[0.04]">

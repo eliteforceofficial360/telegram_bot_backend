@@ -322,7 +322,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [tasks, setTasks] = useState<EForceTask[]>([]);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState<EForceTask | null>(null);
-  const blankTask = { title: '', description: '', type: 'channel' as TaskType, reward: 500, tokenReward: 0, url: '', dailyLimit: 0, totalCompletionLimit: 0, expiryDate: '', isEnabled: true, autoApprove: true };
+  const blankTask = { title: '', description: '', type: 'channel' as TaskType, reward: 500, tokenReward: 0, url: '', dailyLimit: 0, totalCompletionLimit: 0, expiryDate: '', isEnabled: true, isMandatory: false, autoApprove: true };
   const [taskForm, setTaskForm] = useState(blankTask);
   useEffect(() => { const unsub = subscribeToTasks(setTasks); return unsub; }, []);
   const handleSaveTask = async () => {
@@ -350,7 +350,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
   const startEditTask = (t: EForceTask) => {
     setEditingTask(t);
-    setTaskForm({ title: t.title, description: t.description, type: t.type, reward: t.reward, tokenReward: t.tokenReward, url: t.url, dailyLimit: t.dailyLimit, totalCompletionLimit: t.totalCompletionLimit, expiryDate: t.expiryDate || '', isEnabled: t.isEnabled, autoApprove: t.autoApprove });
+    setTaskForm({ title: t.title, description: t.description, type: t.type, reward: t.reward, tokenReward: t.tokenReward, url: t.url, dailyLimit: t.dailyLimit, totalCompletionLimit: t.totalCompletionLimit, expiryDate: t.expiryDate || '', isEnabled: t.isEnabled, isMandatory: t.isMandatory ?? false, autoApprove: t.autoApprove });
     setShowTaskForm(true);
   };
 
@@ -381,11 +381,30 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [notifMessage, setNotifMessage]     = useState('');
   const [notifTarget, setNotifTarget]       = useState<'all' | 'user'>('all');
   const [notifUserId, setNotifUserId]       = useState('');
+  const [notifUserSearch, setNotifUserSearch] = useState('');
+  const [notifUserDropdown, setNotifUserDropdown] = useState(false);
   const [notifSending, setNotifSending]     = useState(false);
   const [notifApiSecret, setNotifApiSecret] = useState('elite_force_secret_2024');
   const [notifImageUrl, setNotifImageUrl]   = useState('');
   const [notifBtnText, setNotifBtnText]     = useState('');
   const [notifBtnUrl, setNotifBtnUrl]       = useState('');
+
+  // Filtered user list for notification picker
+  const notifUserOptions = useMemo(() => {
+    if (!notifUserSearch.trim()) return usersList.slice(0, 50);
+    const q = notifUserSearch.toLowerCase();
+    return usersList.filter(u =>
+      u.firstName?.toLowerCase().includes(q) ||
+      u.username?.toLowerCase().includes(q) ||
+      String(u.telegramId).includes(q)
+    ).slice(0, 30);
+  }, [usersList, notifUserSearch]);
+
+  const handleSelectNotifUser = (u: FirestoreUser) => {
+    setNotifUserId(String(u.telegramId));
+    setNotifUserSearch(u.firstName + (u.username ? ` (@${u.username})` : ''));
+    setNotifUserDropdown(false);
+  };
 
   const handleSendNotification = async () => {
     if (!notifMessage.trim()) { showToast('Message cannot be empty.', 'warning'); return; }
@@ -421,6 +440,22 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     const ok = await saveAdminSettings(settings);
     setSavingSettings(false);
     ok ? showToast('⚙️ Settings saved.', 'success') : showToast('Failed.', 'error');
+  };
+
+  // --- Custom Top Miners ---
+  const [newMinerName, setNewMinerName] = useState('');
+  const [newMinerScore, setNewMinerScore] = useState('0');
+  const [newMinerBadge, setNewMinerBadge] = useState('⛏️');
+  const handleAddCustomMiner = () => {
+    const score = parseInt(newMinerScore) || 0;
+    if (!newMinerName.trim()) { showToast('Miner name is required.', 'warning'); return; }
+    const updated = [...(settings.customTopMiners || []), { name: newMinerName.trim(), score, badge: newMinerBadge || '⛏️' }];
+    setSettings(s => ({ ...s, customTopMiners: updated }));
+    setNewMinerName(''); setNewMinerScore('0'); setNewMinerBadge('⛏️');
+  };
+  const handleRemoveCustomMiner = (idx: number) => {
+    const updated = (settings.customTopMiners || []).filter((_, i) => i !== idx);
+    setSettings(s => ({ ...s, customTopMiners: updated }));
   };
 
   // Task type color map
@@ -889,6 +924,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             <div className="flex gap-5 items-center pt-5">
                               <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer"><input type="checkbox" checked={taskForm.isEnabled} onChange={e => setTaskForm(p => ({ ...p, isEnabled: e.target.checked }))} className="accent-[#FF8A00]" />Enabled</label>
                               <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer"><input type="checkbox" checked={taskForm.autoApprove} onChange={e => setTaskForm(p => ({ ...p, autoApprove: e.target.checked }))} className="accent-[#FF8A00]" />Auto-approve</label>
+                              <label className="flex items-center gap-2 text-[10px] cursor-pointer font-bold" style={{ color: taskForm.isMandatory ? '#FF8A00' : '#64748b' }}><input type="checkbox" checked={(taskForm as any).isMandatory ?? false} onChange={e => setTaskForm(p => ({ ...p, isMandatory: e.target.checked }))} className="accent-[#FF8A00]" />🔒 Mandatory</label>
                             </div>
                           </div>
                           <div className="flex gap-2">
@@ -927,7 +963,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             <div className={`w-2 h-2 rounded-full shrink-0 mt-1 ${task.isEnabled ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]' : 'bg-slate-600'}`} />
                             <span className="text-sm font-bold text-white truncate">{task.title}</span>
                           </div>
-                          <span className="text-[8px] font-black px-2 py-1 rounded-full capitalize shrink-0 uppercase tracking-wider" style={{ background: tc.bg, color: tc.text, border: `1px solid ${tc.border}` }}>{task.type}</span>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {task.isMandatory && (
+                              <span className="text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-wider" style={{ background: 'rgba(255,138,0,0.15)', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.3)' }}>🔒 Required</span>
+                            )}
+                            <span className="text-[8px] font-black px-2 py-1 rounded-full capitalize uppercase tracking-wider" style={{ background: tc.bg, color: tc.text, border: `1px solid ${tc.border}` }}>{task.type}</span>
+                          </div>
                         </div>
 
                         {task.description && <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">{task.description}</p>}
@@ -1089,19 +1130,46 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     ))}
                   </div>
 
-                  {/* User ID input (conditional) */}
+                  {/* User name picker (conditional) */}
                   {notifTarget === 'user' && (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Telegram User ID</label>
-                      <input
-                        type="number"
-                        placeholder="e.g. 123456789"
-                        value={notifUserId}
-                        onChange={e => setNotifUserId(e.target.value)}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                      <p className="text-[9px] text-slate-600">Find ID in the Users tab → Telegram ID column</p>
+                    <div className="flex flex-col gap-1 relative">
+                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Search User by Name or Username</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          placeholder="Type name or @username to search..."
+                          value={notifUserSearch}
+                          onChange={e => { setNotifUserSearch(e.target.value); setNotifUserDropdown(true); setNotifUserId(''); }}
+                          onFocus={() => setNotifUserDropdown(true)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        {notifUserSearch && notifUserId && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-accent-success">
+                            ID: {notifUserId}
+                          </div>
+                        )}
+                      </div>
+                      {notifUserDropdown && notifUserOptions.length > 0 && (
+                        <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-xl overflow-hidden shadow-xl max-h-48 overflow-y-auto"
+                          style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.1)' }}>
+                          {notifUserOptions.map(u => (
+                            <button key={u.telegramId} onClick={() => handleSelectNotifUser(u)}
+                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.06] transition-all cursor-pointer border-b last:border-0"
+                              style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
+                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
+                                style={{ background: `hsl(${(u.telegramId % 360)}, 60%, 25%)`, border: '1px solid rgba(255,255,255,0.1)' }}>
+                                {(u.firstName?.[0] || '?').toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold text-white truncate">{u.firstName} {u.username && <span className="text-slate-400 font-normal">@{u.username}</span>}</div>
+                                <div className="text-[9px] text-slate-600">ID: {u.telegramId}</div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <p className="text-[9px] text-slate-600">Select a user from the list — their Telegram ID will be used</p>
                     </div>
                   )}
 
@@ -1427,6 +1495,36 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         </div>
                       ))}
                     </div>
+                  </div>
+                </SectionCard>
+
+                {/* Custom Top Miners */}
+                <SectionCard accentColor="#FF8A0066">
+                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2"><span className="text-base">⛏️</span><span className="text-sm font-black text-white">Custom Top Miners</span></div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Add featured miners shown pinned at the top of the leaderboard</p>
+                  </div>
+                  <div className="p-4 flex flex-col gap-3">
+                    <div className="grid grid-cols-[1fr_5rem_3rem_2.5rem] gap-2 items-end">
+                      <div><label className="text-[8px] text-slate-500 uppercase tracking-wider font-bold block mb-1">Name</label><input type="text" placeholder="Miner name" value={newMinerName} onChange={e => setNewMinerName(e.target.value)} className={inputCls} style={inputStyle} /></div>
+                      <div><label className="text-[8px] text-slate-500 uppercase tracking-wider font-bold block mb-1">Score</label><input type="number" value={newMinerScore} onChange={e => setNewMinerScore(e.target.value)} className={inputCls + ' text-right'} style={inputStyle} /></div>
+                      <div><label className="text-[8px] text-slate-500 uppercase tracking-wider font-bold block mb-1">Badge</label><input type="text" value={newMinerBadge} onChange={e => setNewMinerBadge(e.target.value)} maxLength={2} className={inputCls + ' text-center'} style={inputStyle} /></div>
+                      <button onClick={handleAddCustomMiner} className="h-9 w-10 flex items-center justify-center rounded-xl cursor-pointer transition-all" style={btnStyle.primary} title="Add Miner"><Plus size={14} /></button>
+                    </div>
+                    {(settings.customTopMiners || []).length === 0 ? (
+                      <p className="text-[10px] text-slate-600 text-center py-3">No custom miners added yet.</p>
+                    ) : (
+                      <div className="flex flex-col gap-1.5 mt-1">
+                        {(settings.customTopMiners || []).map((m, idx) => (
+                          <div key={idx} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,138,0,0.05)', border: '1px solid rgba(255,138,0,0.12)' }}>
+                            <span className="text-lg w-8 text-center shrink-0">{m.badge || '⛏️'}</span>
+                            <span className="flex-1 text-xs font-bold text-white truncate">{m.name}</span>
+                            <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{m.score.toLocaleString()} EF</span>
+                            <button onClick={() => handleRemoveCustomMiner(idx)} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer" style={btnStyle.danger} title="Remove"><Trash2 size={12} /></button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </SectionCard>
 

@@ -521,6 +521,7 @@ export default function App() {
             efcBalance={efcBalance} 
             showToast={showToast} 
             dbUser={dbUser}
+            adminSettings={adminSettings}
           />
         );
       default:

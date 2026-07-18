@@ -64,6 +64,9 @@ export interface AdminSettings {
   // Bot & Admin Username
   botUsername: string;
   adminUsername: string;
+
+  // Custom Top Miners (shown as pinned entries on Leaderboard)
+  customTopMiners: { name: string; score: number; badge: string }[];
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -104,6 +107,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   botUsername: 'EliteForceBot',
   adminUsername: '',
   botApiUrl: '',
+  customTopMiners: [],
 };
 
 const SETTINGS_DOC = 'adminSettings/config';

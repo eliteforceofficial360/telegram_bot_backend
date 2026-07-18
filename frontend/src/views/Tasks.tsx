@@ -243,6 +243,10 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     .filter(t => isCompleted(t))
     .reduce((sum, t) => sum + t.reward, 0);
 
+  const mandatoryTasks = filteredTasks.filter(t => t.isMandatory);
+  const optionalTasks  = filteredTasks.filter(t => !t.isMandatory);
+  const allMandatoryDone = mandatoryTasks.every(t => isCompleted(t));
+
   return (
     <div className="flex flex-col gap-5 pb-28">
       {/* Header */}
@@ -291,75 +295,17 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
           No missions in this category yet.
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {/* Daily Sponsored Video Ads (Monetag) */}
-          {adminSettings.adEnabled && (activeFilter === 'all' || activeFilter === 'ad') && (() => {
-            const todayStr = new Date().toISOString().slice(0, 10);
-            const lastAdDate = dbUser?.dailyAdWatchDate || '';
-            const adCount = lastAdDate === todayStr ? (dbUser?.dailyAdWatchCount || 0) : 0;
-            const isPremium = !!telegramUser?.isPremium;
-            const limit = isPremium ? (adminSettings.adDailyLimitPremium || 20) : (adminSettings.adDailyLimitNormal || 10);
-            const isLimitReached = adCount >= limit;
-
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                className={`glass-panel p-4 rounded-[20px] border-white/6 flex items-center gap-3.5 transition-all ${
-                  isLimitReached ? 'opacity-60' : ''
-                }`}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.05) 0%, rgba(0, 229, 255, 0.01) 100%)',
-                  borderColor: 'rgba(0, 229, 255, 0.15)',
-                }}
-              >
-                {/* Icon */}
-                <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border border-accent-cyan/20 bg-accent-cyan/10 text-accent-cyan shadow-[0_0_12px_rgba(0,229,255,0.15)]">
-                  <Play size={14} className="fill-current" />
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[11px] font-black text-white truncate">Daily Sponsored Video Ads</span>
-                    {isPremium && <span className="text-[7px] font-black text-[#00E5FF] bg-[#00E5FF]/10 px-1 py-0.5 rounded border border-[#00E5FF]/20 uppercase">Premium Boost</span>}
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[9px] text-slate-400">
-                      Earn <span className="text-accent-purple font-black">+{adminSettings.adTokenReward || 1} EForce Token</span> per video watch
-                    </span>
-                    <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wide">
-                      Watched Today: {adCount}/{limit} ({limit - adCount} remaining)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action */}
-                <button
-                  onClick={handleWatchDailyVideo}
-                  disabled={watchingDailyVideo || isLimitReached}
-                  className={`shrink-0 w-24 h-8 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer
-                    ${isLimitReached
-                      ? 'bg-accent-success/15 text-accent-success border border-accent-success/25'
-                      : watchingDailyVideo
-                      ? 'bg-white/5 text-slate-400 border border-white/10 cursor-wait'
-                      : 'bg-gradient-to-r from-accent-cyan to-accent-blue text-white shadow-[0_0_12px_rgba(0,229,255,0.3)]'
-                    }`}
-                >
-                  {isLimitReached ? (
-                    <><Check size={12} /> Limit Met</>
-                  ) : watchingDailyVideo ? (
-                    <><Loader2 size={12} className="animate-spin" /> Loading...</>
-                  ) : (
-                    'Watch Video'
-                  )}
-                </button>
-              </motion.div>
-            );
-          })()}
-
+        <div className="flex flex-col gap-5">
+          {/* ── Required Missions ── */}
+          {mandatoryTasks.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-widest" style={{ color: '#FF8A00' }}>🔒 Required Missions</span>
+                <span className="text-[9px] text-slate-500">({mandatoryTasks.filter(t => isCompleted(t)).length}/{mandatoryTasks.length} done)</span>
+              </div>
+              <div className="flex flex-col gap-3">
           <AnimatePresence>
-            {filteredTasks.map((task, i) => {
+            {mandatoryTasks.map((task, i) => {
               const status = taskStatus[task.id] || 'idle';
               const done = isCompleted(task);
               const expired = isExpired(task);
@@ -519,9 +465,89 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
               );
             })}
           </AnimatePresence>
+
+              </div>
+            </div>
+          )}
+
+          {/* ── Optional Missions ── */}
+          {optionalTasks.length > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-widest text-slate-400">⭐ Optional Missions</span>
+                {!allMandatoryDone && mandatoryTasks.length > 0 && (
+                  <span className="text-[9px] px-2 py-0.5 rounded-full font-bold" style={{ background: 'rgba(255,138,0,0.1)', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.25)' }}>Complete required first for bonus rewards</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-3">
+                {/* Sponsored Video Ads (optional, always shown in all/ad filter) */}
+                {adminSettings.adEnabled && (activeFilter === 'all' || activeFilter === 'ad') && (() => {
+                  const todayStr = new Date().toISOString().slice(0, 10);
+                  const lastAdDate = dbUser?.dailyAdWatchDate || '';
+                  const adCount = lastAdDate === todayStr ? (dbUser?.dailyAdWatchCount || 0) : 0;
+                  const isPremium = !!telegramUser?.isPremium;
+                  const limit = isPremium ? (adminSettings.adDailyLimitPremium || 20) : (adminSettings.adDailyLimitNormal || 10);
+                  const isLimitReached = adCount >= limit;
+                  return (
+                    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                      className={`glass-panel p-4 rounded-[20px] border-white/6 flex items-center gap-3.5 transition-all ${isLimitReached ? 'opacity-60' : ''}`}
+                      style={{ background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.05) 0%, rgba(0, 229, 255, 0.01) 100%)', borderColor: 'rgba(0, 229, 255, 0.15)' }}>
+                      <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border border-accent-cyan/20 bg-accent-cyan/10 text-accent-cyan"><Play size={14} className="fill-current" /></div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] font-black text-white mb-0.5">Daily Sponsored Video Ads {isPremium && <span className="text-[7px] font-black text-[#00E5FF] bg-[#00E5FF]/10 px-1 py-0.5 rounded border border-[#00E5FF]/20 uppercase ml-1">Premium Boost</span>}</div>
+                        <div className="text-[9px] text-slate-400">Earn <span className="text-accent-purple font-black">+{adminSettings.adTokenReward || 1} EForce Token</span> per watch · {adCount}/{limit} today</div>
+                      </div>
+                      <button onClick={handleWatchDailyVideo} disabled={watchingDailyVideo || isLimitReached}
+                        className={`shrink-0 w-24 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all ${ isLimitReached ? 'bg-accent-success/15 text-accent-success border border-accent-success/25' : 'bg-gradient-to-r from-accent-cyan to-accent-blue text-white' }`}>
+                        {isLimitReached ? (<><Check size={11} /> Done</>) : watchingDailyVideo ? (<><Loader2 size={10} className="animate-spin" /> Loading</>) : (<><Play size={10} /> Watch</>)}
+                      </button>
+                    </motion.div>
+                  );
+                })()}
+
+                <AnimatePresence>
+                  {optionalTasks.map((task, i) => {
+                    const status = taskStatus[task.id] || 'idle';
+                    const done = isCompleted(task);
+                    const expired = isExpired(task);
+                    const limitHit = isLimitReached(task);
+                    return (
+                      <motion.div key={task.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                        className={`glass-panel rounded-[20px] border-white/6 transition-all overflow-hidden ${ done ? 'opacity-60' : expired || limitHit ? 'opacity-40' : '' }`}>
+                        <div className="p-4 flex items-center gap-3.5">
+                          <div className={`w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border ${taskTypeColor(task.type)}`}>{taskTypeIcon(task.type)}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 mb-0.5">
+                              <span className="text-[11px] font-bold text-white truncate">{task.title}</span>
+                              {task.url && !done && <ExternalLink size={10} className="text-slate-500 shrink-0" />}
+                            </div>
+                            <span className={`text-[9px] font-bold uppercase tracking-wider border rounded-full px-1.5 py-0.5 ${taskTypeColor(task.type)}`}>{taskTypeLabel(task.type)}</span>
+                          </div>
+                          <div className="shrink-0">
+                            {done ? (
+                              <button disabled className="w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"><Check size={12} /> Done</button>
+                            ) : expired || limitHit ? (
+                              <button disabled className="w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"><Lock size={11} /> Closed</button>
+                            ) : (
+                              <button onClick={() => handleVerifyStep(task)} disabled={status === 'verifying'}
+                                className="w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
+                                style={{ background: 'linear-gradient(135deg, #FF8A00, #E52E71)', color: '#fff' }}>
+                                {status === 'verifying' ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                                {status === 'verifying' ? 'Verifying' : task.url ? 'Start' : 'Claim'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
     </div>
   );
 };
-
