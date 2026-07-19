@@ -357,26 +357,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   // --- Withdrawals ---
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [withdrawFilter, setWithdrawFilter] = useState<'all' | 'Pending' | 'Approved' | 'Rejected' | 'Banned'>('Pending');
+  const [withdrawModal, setWithdrawModal] = useState<{ id: string; status: 'Approved' | 'Rejected' | 'Banned'; req: any } | null>(null);
+  const [withdrawNote, setWithdrawNote] = useState('');
   useEffect(() => { const unsub = subscribeToWithdrawRequests(setWithdrawals); return unsub; }, []);
-  const handleWithdrawAction = async (id: string, status: 'Approved' | 'Rejected' | 'Banned', req?: any) => {
-    const ok = await updateWithdrawRequest(id, status);
-    if (ok) {
-      showToast(`Request ${status}.`, status === 'Approved' ? 'success' : 'warning');
-      // Auto-notify user via Telegram bot
-      if (req?.telegramId && settings.botApiUrl) {
-        sendWithdrawNotification(
-          settings.botApiUrl,
-          req.telegramId,
-          status,
-          req.amount ?? 0,
-          req.type ?? 'usdt',
-          req.adminNote ?? ''
-        ).catch(() => {});
-      }
-    } else {
-      showToast('Update failed.', 'error');
-    }
-  };
   // --- Notifications tab ---
   const [notifMessage, setNotifMessage]     = useState('');
   const [notifTarget, setNotifTarget]       = useState<'all' | 'user'>('all');
@@ -1051,33 +1034,43 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                 {withdrawals.filter(w => withdrawFilter === 'all' || w.status === withdrawFilter).length === 0 ? (
                   <div className="text-center py-16 text-slate-500 text-xs">No {withdrawFilter !== 'all' ? withdrawFilter.toLowerCase() : ''} requests.</div>
-                ) : withdrawals.filter(w => withdrawFilter === 'all' || w.status === withdrawFilter).map((req, idx) => (
-                  <motion.div key={req.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
-                    className="grid gap-3 items-center px-5 py-4 border-b hover:bg-white/[0.015] transition-all"
-                    style={{ borderColor: 'rgba(255,255,255,0.04)', gridTemplateColumns: '2.5rem 1fr 8rem 6rem 6rem 9rem' }}>
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-lg shrink-0"
-                      style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>💸</div>
-                    <div>
-                      <span className="text-xs font-bold text-white block">@{req.username || req.telegramId}</span>
-                      <span className="text-[9px] text-slate-500">{req.telegramId}</span>
-                    </div>
-                    <div>
-                      <span className="text-sm font-black text-white">{req.amount || '?'}</span>
-                      <span className="text-[9px] text-slate-500 ml-1">{req.type === 'token' ? 'EF Token' : 'USDT'}</span>
-                    </div>
-                    <span className="text-[9px] font-bold text-slate-400">BEP-20</span>
-                    <span className={`text-[9px] font-black px-2.5 py-1 rounded-full inline-block ${req.status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/25' : req.status === 'Approved' ? 'text-green-400 bg-green-400/10 border border-green-400/25' : 'text-red-400 bg-red-400/10 border border-red-400/25'}`}>
-                      {req.status}
-                    </span>
-                    {req.status === 'Pending' ? (
-                      <div className="flex gap-1.5 justify-end">
-                        <button onClick={() => handleWithdrawAction(req.id, 'Approved', req)} title="Approve" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.success}><Check size={11} /> OK</button>
-                        <button onClick={() => handleWithdrawAction(req.id, 'Rejected', req)} title="Reject" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.ghost}><X size={11} /></button>
-                        <button onClick={() => handleWithdrawAction(req.id, 'Banned', req)} title="Ban user" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.danger}><Ban size={11} /></button>
+                ) : withdrawals.filter(w => withdrawFilter === 'all' || w.status === withdrawFilter).map((req, idx) => {
+                  const userObj = usersList.find(u => u.telegramId === req.telegramId);
+                  return (
+                    <motion.div key={req.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
+                      className="grid gap-3 items-center px-5 py-4 border-b hover:bg-white/[0.015] transition-all"
+                      style={{ borderColor: 'rgba(255,255,255,0.04)', gridTemplateColumns: '2.5rem 1fr 8rem 6rem 6rem 9rem' }}>
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden shrink-0"
+                        style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
+                        {userObj?.photoUrl ? (
+                          <img src={userObj.photoUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-lg">💸</span>
+                        )}
                       </div>
-                    ) : <div />}
-                  </motion.div>
-                ))}
+                      <div className="min-w-0">
+                        <span className="text-xs font-bold text-white block truncate">@{req.username || req.telegramId}</span>
+                        <span className="text-[9px] text-slate-500 font-mono select-all block truncate mt-0.5" title={req.walletAddress}>{req.walletAddress || 'No Wallet'}</span>
+                        <span className="text-[8px] text-slate-600 block">ID: {req.telegramId}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm font-black text-white">{req.amount || '?'}</span>
+                        <span className="text-[9px] text-slate-500 ml-1">{req.type === 'token' ? 'EF Token' : 'USDT'}</span>
+                      </div>
+                      <span className="text-[9px] font-bold text-slate-400">BEP-20</span>
+                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-full inline-block ${req.status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/25' : req.status === 'Approved' ? 'text-green-400 bg-green-400/10 border border-green-400/25' : 'text-red-400 bg-red-400/10 border border-red-400/25'}`}>
+                        {req.status}
+                      </span>
+                      {req.status === 'Pending' ? (
+                        <div className="flex gap-1.5 justify-end">
+                          <button onClick={() => { setWithdrawModal({ id: req.id, status: 'Approved', req }); setWithdrawNote('Processed successfully. Funds sent to your BEP-20 wallet.'); }} title="Approve" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.success}><Check size={11} /> OK</button>
+                          <button onClick={() => { setWithdrawModal({ id: req.id, status: 'Rejected', req }); setWithdrawNote('Wrong or invalid BEP-20 wallet address.'); }} title="Reject" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.ghost}><X size={11} /></button>
+                          <button onClick={() => { setWithdrawModal({ id: req.id, status: 'Banned', req }); setWithdrawNote('Account suspended due to policy violation (anti-cheat system flag).'); }} title="Ban user" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.danger}><Ban size={11} /></button>
+                        </div>
+                      ) : <div />}
+                    </motion.div>
+                  );
+                })}
               </SectionCard>
             </div>
           )}
@@ -1545,6 +1538,115 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
         </main>
       </div>
+
+      {/* ── Withdrawal Processing Modal ── */}
+      <AnimatePresence>
+        {withdrawModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="w-full max-w-md rounded-[28px] p-6 border border-white/10 shadow-[0_25px_50px_rgba(0,0,0,0.6)]"
+              style={{ background: '#090D1A' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-sm font-black text-white uppercase tracking-wider">
+                  {withdrawModal.status === 'Approved' ? '✅ Approve Withdrawal' : withdrawModal.status === 'Rejected' ? '❌ Reject Withdrawal' : '🚫 Ban & Cancel Request'}
+                </span>
+                <button
+                  onClick={() => setWithdrawModal(null)}
+                  className="text-slate-400 hover:text-white transition-all cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Request Info */}
+              <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3.5 mb-4 text-xs space-y-1.5 font-sans">
+                <div className="flex justify-between"><span className="text-slate-500">User:</span><span className="font-bold text-white">@{withdrawModal.req.username || withdrawModal.req.telegramId}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Amount:</span><span className="font-black text-[#FF8A00]">{withdrawModal.req.amount} {withdrawModal.req.type === 'token' ? 'EF' : 'USDT'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">BEP-20 Wallet:</span><span className="font-mono text-slate-300 select-all">{withdrawModal.req.walletAddress || 'None'}</span></div>
+              </div>
+
+              {/* Textarea for note */}
+              <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block mb-1.5">
+                {withdrawModal.status === 'Approved' ? 'Approval Message / Transaction TXID' : withdrawModal.status === 'Rejected' ? 'Rejection Reason' : 'Suspension Reason'}
+              </label>
+              <textarea
+                value={withdrawNote}
+                onChange={e => setWithdrawNote(e.target.value)}
+                placeholder="Enter a message to be sent to the user..."
+                className="w-full h-24 bg-white/[0.04] border border-white/10 rounded-xl p-3 text-xs text-white outline-none focus:ring-1 focus:ring-[#FF8A00]/50 resize-none mb-4"
+              />
+
+              {/* Quick templates */}
+              <div className="mb-5">
+                <span className="text-[8px] text-slate-500 font-bold uppercase tracking-wider block mb-1.5">Quick Templates</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {withdrawModal.status === 'Approved' ? (
+                    <>
+                      <button onClick={() => setWithdrawNote('Processed successfully. Funds sent to your BEP-20 wallet.')} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[9px] font-bold text-slate-300 rounded-lg transition-all cursor-pointer border border-white/5">Processed Successfully</button>
+                      <button onClick={() => setWithdrawNote('Approved. TXID: ')} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[9px] font-bold text-slate-300 rounded-lg transition-all cursor-pointer border border-white/5">TxID Prefix</button>
+                    </>
+                  ) : withdrawModal.status === 'Rejected' ? (
+                    <>
+                      <button onClick={() => setWithdrawNote('Wrong or invalid BEP-20 wallet address.')} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[9px] font-bold text-slate-300 rounded-lg transition-all cursor-pointer border border-white/5">Wrong Wallet</button>
+                      <button onClick={() => setWithdrawNote('Suspicious referral activity detected.')} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[9px] font-bold text-slate-300 rounded-lg transition-all cursor-pointer border border-white/5">Suspicious Refs</button>
+                      <button onClick={() => setWithdrawNote('Daily withdrawal limit exceeded. Please request a smaller amount.')} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[9px] font-bold text-slate-300 rounded-lg transition-all cursor-pointer border border-white/5">Exceeds Limit</button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => setWithdrawNote('Account suspended due to policy violation (anti-cheat system flag).')} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[9px] font-bold text-slate-300 rounded-lg transition-all cursor-pointer border border-white/5">Policy Violation</button>
+                      <button onClick={() => setWithdrawNote('Bot usage or automated scripting detected.')} className="px-2.5 py-1 bg-white/5 hover:bg-white/10 text-[9px] font-bold text-slate-300 rounded-lg transition-all cursor-pointer border border-white/5">Bot Detected</button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setWithdrawModal(null)}
+                  className="px-4 h-10 rounded-xl text-xs font-bold text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    const { id, status, req } = withdrawModal;
+                    const ok = await updateWithdrawRequest(id, status, withdrawNote);
+                    if (ok) {
+                      showToast(`Request ${status}.`, status === 'Approved' ? 'success' : 'warning');
+                      if (req?.telegramId && settings.botApiUrl) {
+                        sendWithdrawNotification(
+                          settings.botApiUrl,
+                          req.telegramId,
+                          status,
+                          req.amount ?? 0,
+                          req.type ?? 'usdt',
+                          withdrawNote
+                        ).catch(() => {});
+                      }
+                      setWithdrawModal(null);
+                      setWithdrawNote('');
+                    } else {
+                      showToast('Update failed.', 'error');
+                    }
+                  }}
+                  className="px-4 h-10 rounded-xl text-xs font-bold text-white transition-all cursor-pointer"
+                  style={{
+                    background: withdrawModal.status === 'Approved' ? 'linear-gradient(135deg, #10B981, #059669)' : withdrawModal.status === 'Rejected' ? 'linear-gradient(135deg, #FBBF24, #D97706)' : 'linear-gradient(135deg, #EF4444, #DC2626)',
+                    boxShadow: withdrawModal.status === 'Approved' ? '0 0 15px rgba(16,185,129,0.3)' : withdrawModal.status === 'Rejected' ? '0 0 15px rgba(251,191,36,0.3)' : '0 0 15px rgba(239,68,68,0.3)'
+                  }}
+                >
+                  {withdrawModal.status === 'Approved' ? 'Approve' : withdrawModal.status === 'Rejected' ? 'Reject' : 'Suspend & Ban'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

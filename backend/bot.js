@@ -203,11 +203,11 @@ const server = http.createServer(async (req, res) => {
     const assetLabel = asset === 'token' ? 'EForce Token' : 'USDT';
     let html = '';
     if (status === 'Approved') {
-      html = `✅ <b>Withdrawal Approved!</b>\n\n💰 Amount: <b>${amount} ${assetLabel}</b>\n\n🎉 Your withdrawal has been approved and is being processed. Funds will arrive in your BEP-20 wallet shortly.\n\n<i>Thank you for being part of Elite Force!</i>`;
+      html = `✅ <b>Withdrawal Approved!</b>\n\n💰 Amount: <b>${amount} ${assetLabel}</b>\n\n🎉 Your withdrawal has been approved and is being processed.${adminNote ? `\n\n📝 Note/TxID: <code>${escapeHTML(adminNote)}</code>` : ''}\n\nFunds will arrive in your BEP-20 wallet shortly.\n\n<i>Thank you for being part of Elite Force!</i>`;
     } else if (status === 'Rejected') {
       html = `❌ <b>Withdrawal Rejected</b>\n\n💰 Amount: <b>${amount} ${assetLabel}</b>\n\n${adminNote ? `📝 Reason: <i>${escapeHTML(adminNote)}</i>\n\n` : ''}Please check your wallet address and balance, then try again.\n\n<a href="${webAppUrl}">Open App</a>`;
     } else if (status === 'Banned') {
-      html = `🚫 <b>Account Suspended</b>\n\nYour withdrawal request has been flagged. Your account has been suspended pending review.\n\nContact support if you believe this is an error.`;
+      html = `🚫 <b>Account Suspended</b>\n\nYour withdrawal request has been flagged.${adminNote ? `\n\n📝 Reason: <i>${escapeHTML(adminNote)}</i>\n\n` : '\n\n'}Your account has been suspended pending review. Contact support if you believe this is an error.`;
     }
     if (html) {
       const ok = await sendToUser(telegramId, html);
