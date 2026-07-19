@@ -6,7 +6,7 @@ import { subscribeToTasks, subscribeToUserTasks, claimTaskReward, type EForceTas
 import type { TelegramUser } from '../lib/telegramUser';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { showRewardedAd } from '../lib/monetag';
-import { claimDailyAdVideoReward, type FirestoreUser } from '../lib/userService';
+import { claimDailyAdVideoReward, syncPointsToFirestore, type FirestoreUser } from '../lib/userService';
 
 interface TasksProps {
   efcBalance: number;
@@ -136,7 +136,11 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
 
     if (result.success) {
       setTaskStatus(prev => ({ ...prev, [task.id]: 'completed' }));
-      setEfcBalance(bal => bal + task.reward);
+      setEfcBalance(bal => {
+        const newVal = bal + task.reward;
+        syncPointsToFirestore(telegramUser.id, newVal).catch(() => {});
+        return newVal;
+      });
       showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points earned!`, 'success');
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
     } else {
@@ -179,7 +183,11 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
 
     if (result.success) {
       setTaskStatus(prev => ({ ...prev, [task.id]: 'completed' }));
-      setEfcBalance(bal => bal + task.reward);
+      setEfcBalance(bal => {
+        const newVal = bal + task.reward;
+        syncPointsToFirestore(telegramUser.id, newVal).catch(() => {});
+        return newVal;
+      });
       showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points earned!`, 'success');
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
     } else {

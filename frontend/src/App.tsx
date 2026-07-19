@@ -99,10 +99,28 @@ export default function App() {
   const telegramIdRef = useRef<number | null>(null);
 
   // Ref to store the last synced points to prevent overwrite loop
-  const lastSyncedPointsRef = useRef<number>(-1);
+  const lastSyncedPointsRef = useRef<number>(
+    (() => {
+      try {
+        const saved = localStorage.getItem('efcBalance');
+        return saved ? JSON.parse(saved) : 0;
+      } catch {
+        return 0;
+      }
+    })()
+  );
 
   // Ref to store the last synced tokens to prevent overwrite loop
-  const lastSyncedTokensRef = useRef<number>(-1);
+  const lastSyncedTokensRef = useRef<number>(
+    (() => {
+      try {
+        const saved = localStorage.getItem('eforceTokens');
+        return saved ? JSON.parse(saved) : 0;
+      } catch {
+        return 0;
+      }
+    })()
+  );
 
   // Dynamic live stats for Admin Panel (real from Firestore)
   const [liveUserCount, setLiveUserCount] = useState(0);
@@ -348,7 +366,7 @@ export default function App() {
     const timeout = setTimeout(() => {
       lastSyncedPointsRef.current = efcBalance;
       syncPointsToFirestore(telegramUser.id, efcBalance).catch(() => {});
-    }, 3000); // debounce 3s
+    }, 1000); // debounce 1s
     return () => clearTimeout(timeout);
   }, [efcBalance, telegramUser]);
 
@@ -362,7 +380,7 @@ export default function App() {
     const timeout = setTimeout(() => {
       lastSyncedTokensRef.current = eforceTokens;
       updateUserDatabaseValues(telegramUser.id, { tokens: eforceTokens }).catch(() => {});
-    }, 3000); // debounce 3s
+    }, 1000); // debounce 1s
     return () => clearTimeout(timeout);
   }, [eforceTokens, telegramUser]);
 
@@ -376,17 +394,35 @@ export default function App() {
     const unsubscribe = subscribeToUser(telegramUser.id, (user) => {
       if (user) {
         setDbUser(user);
-        // Only update local state if db points is different from last synced value
-        if (user.points !== lastSyncedPointsRef.current) {
-          setEfcBalance(user.points ?? 0);
-          lastSyncedPointsRef.current = user.points ?? 0;
+        
+        // Two-way robust points synchronization
+        const dbPoints = user.points ?? 0;
+        const currentLocalPoints = Number(localStorage.getItem('efcBalance') || '0');
+        if (dbPoints > currentLocalPoints) {
+          setEfcBalance(dbPoints);
+          lastSyncedPointsRef.current = dbPoints;
+        } else if (currentLocalPoints > dbPoints) {
+          lastSyncedPointsRef.current = currentLocalPoints;
+          syncPointsToFirestore(telegramUser.id, currentLocalPoints).catch(() => {});
+        } else {
+          lastSyncedPointsRef.current = dbPoints;
         }
+
         setUsdtBalance(user.wallet ?? 0);
-        // Only update local state if db tokens is different from last synced value
-        if (user.tokens !== lastSyncedTokensRef.current) {
-          setEforceTokens(user.tokens ?? 0);
-          lastSyncedTokensRef.current = user.tokens ?? 0;
+
+        // Two-way robust tokens synchronization
+        const dbTokens = user.tokens ?? 0;
+        const currentLocalTokens = Number(localStorage.getItem('eforceTokens') || '0');
+        if (dbTokens > currentLocalTokens) {
+          setEforceTokens(dbTokens);
+          lastSyncedTokensRef.current = dbTokens;
+        } else if (currentLocalTokens > dbTokens) {
+          lastSyncedTokensRef.current = currentLocalTokens;
+          updateUserDatabaseValues(telegramUser.id, { tokens: currentLocalTokens }).catch(() => {});
+        } else {
+          lastSyncedTokensRef.current = dbTokens;
         }
+
         setReferralsCount(user.referrals ?? 0);
       }
     });
