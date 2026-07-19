@@ -34,7 +34,7 @@ export const Settings = ({ showToast }: SettingsProps) => {
       >
         {/* Coin logo */}
         <div className="w-14 h-14 rounded-[16px] overflow-hidden shrink-0 border border-[#FFD700]/20 shadow-[0_0_20px_rgba(255,138,0,0.2)]">
-          <img src="/coin.png" alt="EF Coin" className="w-full h-full object-cover" />
+          <img src="/coin.png" alt="EForce Coin" className="w-full h-full object-cover" />
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-black text-white tracking-wide">Elite Force EFC</h2>

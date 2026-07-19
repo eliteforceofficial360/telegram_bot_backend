@@ -703,7 +703,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             {/* Points */}
                             <div>
                               <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{(u.points || 0).toLocaleString()}</span>
-                              <div className="text-[8px] uppercase tracking-widest text-slate-600">EF</div>
+                              <div className="text-[8px] uppercase tracking-widest text-slate-600">EForce</div>
                             </div>
 
                             {/* Tokens */}
@@ -893,7 +893,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           </div>
                           <div><label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Description</label><textarea value={taskForm.description} onChange={e => setTaskForm(p => ({ ...p, description: e.target.value }))} rows={2} className="w-full rounded-xl px-3 py-2 text-xs text-white outline-none resize-none" style={inputStyle} /></div>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                            {[{ label: 'EF Reward', key: 'reward' }, { label: 'Token Reward', key: 'tokenReward' }, { label: 'Daily Limit', key: 'dailyLimit' }, { label: 'Total Limit', key: 'totalCompletionLimit' }].map(f => (
+                            {[{ label: 'EForce Reward', key: 'reward' }, { label: 'Token Reward', key: 'tokenReward' }, { label: 'Daily Limit', key: 'dailyLimit' }, { label: 'Total Limit', key: 'totalCompletionLimit' }].map(f => (
                               <div key={f.key}><label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">{f.label}</label><input type="number" value={(taskForm as any)[f.key]} onChange={e => setTaskForm(p => ({ ...p, [f.key]: Number(e.target.value) }))} className={inputCls + ' text-right'} style={inputStyle} /></div>
                             ))}
                           </div>
@@ -958,7 +958,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                         <div className="flex items-center gap-2">
                           <div className="flex-1 rounded-xl px-3 py-2" style={{ background: 'rgba(255,138,0,0.07)', border: '1px solid rgba(255,138,0,0.15)' }}>
-                            <div className="text-[7px] text-slate-500 uppercase tracking-widest">EF Reward</div>
+                            <div className="text-[7px] text-slate-500 uppercase tracking-widest">EForce Reward</div>
                             <div className="text-sm font-black text-[#FF8A00]">{task.reward.toLocaleString()}</div>
                           </div>
                           {task.tokenReward > 0 && (
@@ -1055,7 +1055,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       </div>
                       <div>
                         <span className="text-sm font-black text-white">{req.amount || '?'}</span>
-                        <span className="text-[9px] text-slate-500 ml-1">{req.type === 'token' ? 'EF Token' : 'USDT'}</span>
+                        <span className="text-[9px] text-slate-500 ml-1">{req.type === 'token' ? 'EForce Token' : 'USDT'}</span>
                       </div>
                       <span className="text-[9px] font-bold text-slate-400">BEP-20</span>
                       <span className={`text-[9px] font-black px-2.5 py-1 rounded-full inline-block ${req.status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/25' : req.status === 'Approved' ? 'text-green-400 bg-green-400/10 border border-green-400/25' : 'text-red-400 bg-red-400/10 border border-red-400/25'}`}>
@@ -1385,7 +1385,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     <p className="text-[9px] text-slate-500 mt-0.5">Mining duration, reward, and cooldown</p>
                   </div>
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                    {[{ label: 'Duration (seconds)', key: 'autoMinerDuration' }, { label: 'Reward per Session (EF)', key: 'autoMinerReward' }, { label: 'Cooldown (seconds)', key: 'autoMinerCooldown' }].map(f => (
+                    {[{ label: 'Duration (seconds)', key: 'autoMinerDuration' }, { label: 'Reward per Session (EForce)', key: 'autoMinerReward' }, { label: 'Cooldown (seconds)', key: 'autoMinerCooldown' }].map(f => (
                       <div key={f.key} className="flex items-center justify-between gap-4 py-3">
                         <label className="text-xs text-slate-400">{f.label}</label>
                         <input type="number" value={(settings as any)[f.key]} onChange={e => setSettings(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right transition-all" style={inputStyle} />
@@ -1442,7 +1442,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                     <div className="flex items-center justify-between py-3"><label className="text-xs text-slate-400">Enable Ads System</label><Toggle on={settings.adEnabled} onToggle={() => setSettings(p => ({ ...p, adEnabled: !p.adEnabled }))} accentColor="#4ADE80" /></div>
                     <div className="flex items-center justify-between gap-4 py-3"><label className="text-xs text-slate-400">Monetag Zone ID</label><input type="text" value={settings.monetagZoneId} onChange={e => setSettings(p => ({ ...p, monetagZoneId: e.target.value }))} className="w-36 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} /></div>
-                    {[{ label: 'Ad EF Reward', key: 'adRewardAmount' }, { label: 'Ad Token Reward', key: 'adTokenReward' }, { label: 'Daily Ads (Normal)', key: 'adDailyLimitNormal' }, { label: 'Daily Ads (Premium)', key: 'adDailyLimitPremium' }].map(f => (
+                    {[{ label: 'Ad EForce Reward', key: 'adRewardAmount' }, { label: 'Ad Token Reward', key: 'adTokenReward' }, { label: 'Daily Ads (Normal)', key: 'adDailyLimitNormal' }, { label: 'Daily Ads (Premium)', key: 'adDailyLimitPremium' }].map(f => (
                       <div key={f.key} className="flex items-center justify-between gap-4 py-3">
                         <label className="text-xs text-slate-400">{f.label}</label>
                         <input type="number" value={(settings as any)[f.key]} onChange={e => setSettings(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
@@ -1476,7 +1476,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 <SectionCard accentColor="#FBBF2444">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                     <div className="flex items-center gap-2"><span className="text-base">📅</span><span className="text-sm font-black text-white">Daily Check-in Rewards</span></div>
-                    <p className="text-[9px] text-slate-500 mt-0.5">EF points awarded for each consecutive day</p>
+                    <p className="text-[9px] text-slate-500 mt-0.5">EForce points awarded for each consecutive day</p>
                   </div>
                   <div className="p-4">
                     <div className="grid grid-cols-4 gap-2">
@@ -1512,7 +1512,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           <div key={idx} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,138,0,0.05)', border: '1px solid rgba(255,138,0,0.12)' }}>
                             <span className="text-lg w-8 text-center shrink-0">{m.badge || '⛏️'}</span>
                             <span className="flex-1 text-xs font-bold text-white truncate">{m.name}</span>
-                            <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{m.score.toLocaleString()} EF</span>
+                            <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{m.score.toLocaleString()} EForce</span>
                             <button onClick={() => handleRemoveCustomMiner(idx)} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer" style={btnStyle.danger} title="Remove"><Trash2 size={12} /></button>
                           </div>
                         ))}
@@ -1565,7 +1565,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
               {/* Request Info */}
               <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-3.5 mb-4 text-xs space-y-1.5 font-sans">
                 <div className="flex justify-between"><span className="text-slate-500">User:</span><span className="font-bold text-white">@{withdrawModal.req.username || withdrawModal.req.telegramId}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Amount:</span><span className="font-black text-[#FF8A00]">{withdrawModal.req.amount} {withdrawModal.req.type === 'token' ? 'EF' : 'USDT'}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Amount:</span><span className="font-black text-[#FF8A00]">{withdrawModal.req.amount} {withdrawModal.req.type === 'token' ? 'EForce' : 'USDT'}</span></div>
                 <div className="flex justify-between"><span className="text-slate-500">BEP-20 Wallet:</span><span className="font-mono text-slate-300 select-all">{withdrawModal.req.walletAddress || 'None'}</span></div>
               </div>
 

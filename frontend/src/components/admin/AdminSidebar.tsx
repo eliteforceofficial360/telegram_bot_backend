@@ -180,7 +180,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             }}
           >
             <div className="text-[8px] text-slate-500 uppercase tracking-[0.22em] font-bold mb-2.5">
-              EF Token Price
+              EForce Token Price
             </div>
             <div className="flex items-center gap-2.5">
               <div
@@ -190,7 +190,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   boxShadow: '0 0 12px rgba(255,138,0,0.4)',
                 }}
               >
-                EF
+                EForce
               </div>
               <div>
                 <div className="text-[10px] text-white font-bold leading-none">EForce Token</div>

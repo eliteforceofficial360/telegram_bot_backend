@@ -128,7 +128,7 @@ export const Wallet: React.FC<WalletProps> = ({
           const minWithdrawTokens = minWithdrawUsdt / (settings.eforceTokenValue || 0.05);
           if (isNaN(amountNum) || amountNum < minWithdrawTokens) {
             setIsVerifying(false);
-            showToast(`Minimum withdrawal is ${minWithdrawTokens.toFixed(3)} EF.`, 'error');
+            showToast(`Minimum withdrawal is ${minWithdrawTokens.toFixed(3)} EForce.`, 'error');
             return;
           }
           if (eforceTokens < amountNum) {
@@ -415,9 +415,9 @@ export const Wallet: React.FC<WalletProps> = ({
                   <span className="text-[8px] text-slate-500 font-medium">Min: ${settings.withdrawMinAmount}</span>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex flex-col gap-0.5">
-                  <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable EF</span>
-                  <span className="text-xs font-extrabold text-accent-purple font-mono">{eforceTokens.toFixed(3)} EF</span>
-                  <span className="text-[8px] text-slate-500 font-medium">Min: {(settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05)).toFixed(0)} EF</span>
+                  <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable EForce</span>
+                  <span className="text-xs font-extrabold text-accent-purple font-mono">{eforceTokens.toFixed(3)} EForce</span>
+                  <span className="text-[8px] text-slate-500 font-medium">Min: {(settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05)).toFixed(0)} EForce</span>
                 </div>
               </div>
 
@@ -445,7 +445,7 @@ export const Wallet: React.FC<WalletProps> = ({
                   onClick={() => handleWithdrawClick('token')}
                   className="h-10 rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue text-white text-[11px] font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1"
                 >
-                  Withdraw EF Token
+                  Withdraw EForce Token
                 </button>
               </div>
             </div>
@@ -548,7 +548,7 @@ export const Wallet: React.FC<WalletProps> = ({
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              className="w-full glass-panel border-t border-white/10 rounded-t-[28px] p-6 pb-8 shadow-[0_-15px_50px_rgba(0,0,0,0.5)] max-h-[85vh] overflow-y-auto custom-scrollbar"
+              className="w-full glass-panel border-t border-white/10 rounded-t-[28px] p-6 pb-28 shadow-[0_-15px_50px_rgba(0,0,0,0.5)] max-h-[85vh] overflow-y-auto custom-scrollbar"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
@@ -606,11 +606,11 @@ export const Wallet: React.FC<WalletProps> = ({
                       className="bg-transparent border-none outline-none text-sm font-bold text-white w-full"
                     />
                     <span className={`text-xs font-bold shrink-0 ${withdrawAsset === 'usdt' ? 'text-accent-success' : 'text-accent-purple'}`}>
-                      {withdrawAsset === 'usdt' ? 'USDT' : 'EF'}
+                      {withdrawAsset === 'usdt' ? 'USDT' : 'EForce'}
                     </span>
                   </div>
                   <div className="flex flex-col text-[10px] text-slate-500 leading-none gap-1 pr-1">
-                    <span>Max: {withdrawAsset === 'usdt' ? `$${usdtBalance.toFixed(2)}` : `${eforceTokens.toFixed(3)} EF`}</span>
+                    <span>Max: {withdrawAsset === 'usdt' ? `$${usdtBalance.toFixed(2)}` : `${eforceTokens.toFixed(3)} EForce`}</span>
                     <span className="text-accent-cyan cursor-pointer font-bold" onClick={() => setWithdrawAmount(withdrawAsset === 'usdt' ? usdtBalance.toFixed(2) : eforceTokens.toFixed(3))}>Set Max</span>
                   </div>
                 </div>
@@ -649,7 +649,7 @@ export const Wallet: React.FC<WalletProps> = ({
                   <div className="flex justify-between text-[10px]">
                     <span className="text-slate-500">Amount</span>
                     <span className="font-bold" style={{ color: withdrawAsset === 'usdt' ? '#4ADE80' : '#B388FF' }}>
-                      {withdrawAmount} {withdrawAsset === 'usdt' ? 'USDT' : 'EF'}
+                      {withdrawAmount} {withdrawAsset === 'usdt' ? 'USDT' : 'EForce'}
                     </span>
                   </div>
                   <div className="flex justify-between text-[10px]">

@@ -339,7 +339,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                   <span className="text-[8px] text-slate-500">@{u.username || 'no_username'}</span>
                 </div>
-                <span className="text-[9px] font-black text-[#FF8A00] shrink-0">{(u.points || 0).toLocaleString()} EF</span>
+                <span className="text-[9px] font-black text-[#FF8A00] shrink-0">{(u.points || 0).toLocaleString()} EForce</span>
               </motion.div>
             ))}
           </motion.div>

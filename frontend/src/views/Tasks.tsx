@@ -263,7 +263,7 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
         </div>
         <div className="glass-panel p-3.5 rounded-[18px] border-white/5 flex flex-col gap-1">
           <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Earned Today</span>
-          <span className="text-lg font-black text-[#FF8A00]">{totalRewards.toLocaleString()} EF</span>
+          <span className="text-lg font-black text-[#FF8A00]">{totalRewards.toLocaleString()} EForce</span>
         </div>
       </div>
 
