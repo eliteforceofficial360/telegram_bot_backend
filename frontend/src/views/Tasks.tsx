@@ -85,6 +85,24 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     return unsub;
   }, [telegramUser]);
 
+  const [openedOptionalUrls, setOpenedOptionalUrls] = useState<Record<string, boolean>>({});
+
+  const handleStartOptionalTask = async (task: EForceTask) => {
+    if (adminSettings.adEnabled) {
+      try {
+        showToast('Loading sponsored video...', 'info');
+        await showRewardedAd(adminSettings.monetagZoneId);
+      } catch (err: any) {
+        showToast(err.message || 'Ad dismissed. Complete the ad to start task!', 'error');
+        return;
+      }
+    }
+    if (task.url) {
+      window.open(task.url, '_blank');
+    }
+    setOpenedOptionalUrls(prev => ({ ...prev, [task.id]: true }));
+  };
+
   const handleTaskClick = async (task: EForceTask) => {
     if (!telegramUser) {
       showToast('Please open in Telegram to complete tasks.', 'warning');
@@ -94,7 +112,7 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     if (currentStatus !== 'idle' || completedTaskIds.has(task.id)) return;
 
     // Show rewarded ad first if configured globally in admin
-    if (adminSettings.adEnabled && adminSettings.adRequireTasks) {
+    if (adminSettings.adEnabled) {
       try {
         showToast('Loading sponsored video...', 'info');
         await showRewardedAd(adminSettings.monetagZoneId);
@@ -528,12 +546,18 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
                               <button disabled className="w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"><Check size={12} /> Done</button>
                             ) : expired || limitHit ? (
                               <button disabled className="w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"><Lock size={11} /> Closed</button>
-                            ) : (
-                              <button onClick={() => handleVerifyStep(task)} disabled={status === 'verifying'}
+                            ) : !openedOptionalUrls[task.id] && task.url ? (
+                              <button onClick={() => handleStartOptionalTask(task)}
                                 className="w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all"
                                 style={{ background: 'linear-gradient(135deg, #FF8A00, #E52E71)', color: '#fff' }}>
+                                Start
+                              </button>
+                            ) : (
+                              <button onClick={() => handleVerifyStep(task)} disabled={status === 'verifying'}
+                                className="w-20 h-8 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all border border-accent-success/20 bg-accent-success/5 text-accent-success"
+                              >
                                 {status === 'verifying' ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
-                                {status === 'verifying' ? 'Verifying' : task.url ? 'Start' : 'Claim'}
+                                {status === 'verifying' ? 'Verifying' : 'Verify'}
                               </button>
                             )}
                           </div>

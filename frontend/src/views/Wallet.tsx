@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAlert, X, Edit3, Save, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { type AdminSettings } from '../lib/adminSettingsService';
+import { showRewardedAd } from '../lib/monetag';
 import { submitWithdrawRequest, updateWalletAddress, subscribeToUser, updateUserDatabaseValues, getUserTodayWithdrawalAmount, type FirestoreUser } from '../lib/userService';
 import type { TelegramUser } from '../lib/telegramUser';
 
@@ -71,6 +72,15 @@ export const Wallet: React.FC<WalletProps> = ({
       showToast('Invalid BEP-20 address. Must start with 0x followed by 40 hex characters.', 'error');
       return;
     }
+    if (settings.adEnabled) {
+      try {
+        showToast('Loading sponsored video...', 'info');
+        await showRewardedAd(settings.monetagZoneId);
+      } catch (err: any) {
+        showToast(err.message || 'Ad dismissed. Complete the ad to save address!', 'error');
+        return;
+      }
+    }
     setSavingAddress(true);
     const success = await updateWalletAddress(telegramUser.id, walletInput);
     setSavingAddress(false);
@@ -82,7 +92,7 @@ export const Wallet: React.FC<WalletProps> = ({
     }
   };
 
-  const handleWithdrawClick = (asset: 'usdt' | 'token') => {
+  const handleWithdrawClick = async (asset: 'usdt' | 'token') => {
     if (!settings.withdrawOpen) {
       showToast('Withdrawals are currently closed by administrators.', 'error');
       return;
@@ -100,6 +110,16 @@ export const Wallet: React.FC<WalletProps> = ({
       return;
     }
 
+    if (settings.adEnabled) {
+      try {
+        showToast('Loading sponsored video...', 'info');
+        await showRewardedAd(settings.monetagZoneId);
+      } catch (err: any) {
+        showToast(err.message || 'Ad dismissed. Complete the ad to open withdrawals!', 'error');
+        return;
+      }
+    }
+
     setWithdrawAsset(asset);
     setWithdrawAmount(asset === 'usdt' ? usdtBalance.toFixed(2) : eforceTokens.toFixed(3));
     setShowWithdrawModal(true);
@@ -109,6 +129,16 @@ export const Wallet: React.FC<WalletProps> = ({
 
   const handleConfirmWithdraw = async () => {
     setIsVerifying(true);
+    if (settings.adEnabled) {
+      try {
+        showToast('Loading sponsored video...', 'info');
+        await showRewardedAd(settings.monetagZoneId);
+      } catch (err: any) {
+        setIsVerifying(false);
+        showToast(err.message || 'Ad dismissed. Complete the ad to confirm withdrawal!', 'error');
+        return;
+      }
+    }
     try {
         const amountNum = parseFloat(withdrawAmount);
         const minWithdrawUsdt = settings.withdrawMinAmount;
@@ -371,7 +401,18 @@ export const Wallet: React.FC<WalletProps> = ({
                 Convert your mined EFC Points to EForce Token instantly. Current Conversion rate is <span className="text-accent-cyan font-bold">{swapRate} Points = 1 EForce Token</span>.
               </p>
               <button
-                onClick={() => setShowSwapModal(true)}
+                onClick={async () => {
+                  if (settings.adEnabled) {
+                    try {
+                      showToast('Loading sponsored video...', 'info');
+                      await showRewardedAd(settings.monetagZoneId);
+                    } catch (err: any) {
+                      showToast(err.message || 'Ad dismissed. Complete the ad to configure swap!', 'error');
+                      return;
+                    }
+                  }
+                  setShowSwapModal(true);
+                }}
                 className="h-10 rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer"
               >
                 Configure Swap Exchange

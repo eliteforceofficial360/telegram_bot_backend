@@ -29,7 +29,7 @@ export function initMonetag(zoneId: string): Promise<boolean> {
 
     const script = document.createElement('script');
     script.id = scriptId;
-    script.src = `//libtl.com/sdk.js`;          // official Monetag CDN
+    script.src = `https://libtl.com/sdk.js`;          // official Monetag CDN
     script.setAttribute('data-zone', zoneId);
     script.setAttribute('data-sdk', `show_${zoneId}`);
     script.async = true;

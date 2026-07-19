@@ -101,6 +101,9 @@ export default function App() {
   // Ref to store the last synced points to prevent overwrite loop
   const lastSyncedPointsRef = useRef<number>(-1);
 
+  // Ref to store the last synced tokens to prevent overwrite loop
+  const lastSyncedTokensRef = useRef<number>(-1);
+
   // Dynamic live stats for Admin Panel (real from Firestore)
   const [liveUserCount, setLiveUserCount] = useState(0);
 
@@ -357,6 +360,7 @@ export default function App() {
     if (!isRealTelegramUser && !isLocalhost && !bypassTelegramCheck) return;
 
     const timeout = setTimeout(() => {
+      lastSyncedTokensRef.current = eforceTokens;
       updateUserDatabaseValues(telegramUser.id, { tokens: eforceTokens }).catch(() => {});
     }, 3000); // debounce 3s
     return () => clearTimeout(timeout);
@@ -378,7 +382,11 @@ export default function App() {
           lastSyncedPointsRef.current = user.points ?? 0;
         }
         setUsdtBalance(user.wallet ?? 0);
-        setEforceTokens(user.tokens ?? 0);
+        // Only update local state if db tokens is different from last synced value
+        if (user.tokens !== lastSyncedTokensRef.current) {
+          setEforceTokens(user.tokens ?? 0);
+          lastSyncedTokensRef.current = user.tokens ?? 0;
+        }
         setReferralsCount(user.referrals ?? 0);
       }
     });

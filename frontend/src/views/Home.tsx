@@ -225,7 +225,7 @@ export const Home: React.FC<HomeProps> = ({
     }
 
     // Show rewarded ad first if configured globally in admin
-    if (settings.adEnabled && settings.adRequireDailyClaim) {
+    if (settings.adEnabled) {
       try {
         showToast('Loading Daily Claim Sponsor Ad...', 'info');
         await showRewardedAd(settings.monetagZoneId);
@@ -306,7 +306,7 @@ export const Home: React.FC<HomeProps> = ({
     }
 
     // Show rewarded ad first if configured globally in admin
-    if (settings.adEnabled && settings.adRequireAutoMiner) {
+    if (settings.adEnabled) {
       try {
         showToast('Loading sponsored video to start miner...', 'info');
         await showRewardedAd(settings.monetagZoneId);
