@@ -187,6 +187,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
   const fetchUsers = async () => { setLoadingUsers(true); const u = await getAllUsers(); setUsersList(u); setLoadingUsers(false); };
   useEffect(() => { fetchUsers(); }, []);
+  useEffect(() => {
+    if (activeTab === 'users') {
+      fetchUsers();
+    }
+  }, [activeTab]);
 
   const startEditUser = (u: FirestoreUser) => {
     setEditingUser(u); setEditPoints(u.points ?? 0); setEditTokens(u.tokens ?? 0);
@@ -299,9 +304,16 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       case 'online':  list = list.filter(u => u.isOnline); break;
     }
     list.sort((a, b) => {
-      const av = (a as any)[sortField] ?? 0; const bv = (b as any)[sortField] ?? 0;
-      if (typeof av === 'string') return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
-      return sortDir === 'asc' ? av - bv : bv - av;
+      let av = (a as any)[sortField];
+      let bv = (b as any)[sortField];
+      if (av === undefined || av === null) av = '';
+      if (bv === undefined || bv === null) bv = '';
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return sortDir === 'asc' ? av - bv : bv - av;
+      }
+      const avStr = String(av).toLowerCase();
+      const bvStr = String(bv).toLowerCase();
+      return sortDir === 'asc' ? avStr.localeCompare(bvStr) : bvStr.localeCompare(avStr);
     });
     return list;
   }, [usersList, userSearch, userFilter, sortField, sortDir]);
