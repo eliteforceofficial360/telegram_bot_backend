@@ -146,6 +146,55 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(204); res.end(); return;
   }
 
+  const url = req.url?.split('?')[0];
+
+  // ── POST /verify-captcha — bypass auth check ──────────────────────────────
+  if (req.method === 'POST' && url === '/verify-captcha') {
+    let verifyBody = '';
+    for await (const chunk of req) verifyBody += chunk;
+    let verifyData = {};
+    try { verifyData = JSON.parse(verifyBody); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
+
+    const { token } = verifyData;
+    if (!token) {
+      res.writeHead(400); res.end(JSON.stringify({ error: 'token required' })); return;
+    }
+
+    try {
+      const apiKey = process.env.FIREBASE_API_KEY || 'AIzaSyA3flAWMnQiYeVAOCv_je0SLExI5Vxol4Y';
+      const googleRes = await fetch(`https://recaptchaenterprise.googleapis.com/v1/projects/balmy-access-465013-m7/assessments?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          event: {
+            token: token,
+            expectedAction: 'verification',
+            siteKey: '6Lc7s1ktAAAAAItxOhjl2fLpLkM1ldYk-AVupikV'
+          }
+        })
+      });
+
+      if (!googleRes.ok) {
+        const errText = await googleRes.text();
+        console.error('Google reCAPTCHA API error:', errText);
+        res.writeHead(googleRes.status);
+        res.end(JSON.stringify({ error: 'Google API error', details: errText }));
+        return;
+      }
+
+      const result = await googleRes.json();
+      res.writeHead(200);
+      res.end(JSON.stringify(result));
+    } catch (err) {
+      console.error('reCAPTCHA Verification server error:', err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: 'Internal Server Error', message: err.message }));
+    }
+    return;
+  }
+
   // Auth check
   const auth = req.headers['authorization'] || '';
   if (auth !== `Bearer ${API_SECRET}`) {
@@ -158,7 +207,7 @@ const server = http.createServer(async (req, res) => {
   let data = {};
   try { data = JSON.parse(body); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
 
-  const url = req.url?.split('?')[0];
+
 
   // ── POST /notify/message — send custom message to one user ──────────────────
   if (req.method === 'POST' && url === '/notify/message') {
