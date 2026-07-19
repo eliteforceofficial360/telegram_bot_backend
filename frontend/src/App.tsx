@@ -633,7 +633,7 @@ export default function App() {
               Sign Out
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto pb-10 custom-scrollbar pr-1">
+          <div className="flex-1 overflow-hidden pr-1">
             <Admin 
               showToast={showToast} 
               liveUserCount={liveUserCount}

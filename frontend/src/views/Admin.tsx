@@ -471,7 +471,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
   // ============ RENDER ============
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#040810' }}>
+    <div className="flex h-full overflow-hidden" style={{ background: '#040810' }}>
       <AdminSidebar
         activeTab={activeTab}
         setActiveTab={tab => { setActiveTab(tab); setPage(1); }}
