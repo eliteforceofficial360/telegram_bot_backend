@@ -318,3 +318,8 @@ body {
   pointer-events: none !important;
   -webkit-touch-callout: none !important;
 }
+
+/* Hide floating Google reCAPTCHA Enterprise badge */
+.grecaptcha-badge {
+  visibility: hidden !important;
+}
