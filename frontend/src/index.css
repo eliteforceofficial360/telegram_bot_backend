@@ -25,27 +25,36 @@
   --radius-popup: 28px;
   --radius-input: 16px;
 
-  --animate-aurora: aurora-spin 25s linear infinite;
   --animate-float: float-anim 6s ease-in-out infinite;
 
-  @keyframes aurora-spin {
-    0% { transform: translate(-50%, -50%) rotate(0deg) scale(1); }
-    50% { transform: translate(-50%, -50%) rotate(180deg) scale(1.1); }
-    100% { transform: translate(-50%, -50%) rotate(360deg) scale(1); }
-  }
   @keyframes float-anim {
-    0%, 100% { transform: translateY(0px) rotate(0deg); }
-    50% { transform: translateY(-8px) rotate(1.5deg); }
+
+    0%,
+    100% {
+      transform: translateY(0px) rotate(0deg);
+    }
+
+    50% {
+      transform: translateY(-8px) rotate(1.5deg);
+    }
   }
 }
 
 /* Custom Base Styles */
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   margin: 0;
   padding: 0;
   overflow: hidden;
   background-color: #050816;
+}
+
+/* Telegram Mini App: notch/safe-area সাপোর্ট (নতুন যোগ) */
+body {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 /* Noise overlay */
@@ -82,13 +91,13 @@ html, body, #root {
   border-radius: 999px;
   background: radial-gradient(circle, rgba(0, 229, 255, 0.05) 0%, rgba(179, 136, 255, 0.04) 40%, rgba(5, 8, 22, 0) 70%);
   filter: blur(80px);
-  /* Use will-change to promote to GPU layer — no re-layout on animation */
   will-change: transform;
   transform: translate(-50%, 0);
-  /* Slow down animation significantly on mobile to reduce CPU usage */
   animation: aurora-spin 45s linear infinite;
   transform-origin: center center;
-  contain: strict;
+  /* strict এর বদলে layout + style — paint বাদ দেওয়া হলো,
+     কারণ paint containment blur-কে বক্সের কিনারায় কেটে দিচ্ছিল */
+  contain: layout style;
 }
 
 .bg-layer-aurora-secondary {
@@ -103,23 +112,71 @@ html, body, #root {
   will-change: transform;
   animation: aurora-spin 60s linear infinite reverse;
   transform-origin: center center;
-  contain: strict;
+  contain: layout style;
 }
 
-/* Disable heavy aurora animations on low-power/mobile for max performance */
+@keyframes aurora-spin {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
+  }
+
+  50% {
+    transform: translate(-50%, -50%) rotate(180deg) scale(1.1);
+  }
+
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg) scale(1);
+  }
+}
+
+/* কম শক্তিশালী ডিভাইসে aurora পুরোপুরি বন্ধ করে দাও (নতুন) */
+@media (max-width: 480px),
+(prefers-reduced-motion: reduce) {
+
+  .bg-layer-aurora,
+  .bg-layer-aurora-secondary {
+    animation: none !important;
+    filter: blur(60px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .bg-layer-aurora, .bg-layer-aurora-secondary { animation: none !important; }
-  .particle { animation: none !important; display: none; }
+
+  .particle,
+  .animate-spin-slow {
+    animation: none !important;
+  }
+
+  .particle {
+    display: none;
+  }
 }
 
-/* Glassmorphism Panels — blur reduced from 24px to 12px for mobile GPU performance */
+/* Glassmorphism শেয়ার্ড বেস — ডুপ্লিকেট কোড কমানোর জন্য (নতুন) */
+.glass-base {
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transform: translateZ(0);
+}
+
+/* backdrop-filter সাপোর্ট না থাকলে (পুরনো Android WebView) ফলব্যাক */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+
+  .glass-base,
+  .glass-panel,
+  .glass-card-interactive,
+  .glass-btn {
+    background: rgba(18, 24, 45, 0.92) !important;
+  }
+}
+
 .glass-panel {
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.06);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-  /* GPU compositing hint */
   transform: translateZ(0);
   contain: layout style;
 }
@@ -133,7 +190,8 @@ html, body, #root {
   transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.glass-card-interactive:hover, .glass-card-interactive:active {
+.glass-card-interactive:hover,
+.glass-card-interactive:active {
   transform: translateY(-2px);
   background: rgba(255, 255, 255, 0.05);
   border-color: rgba(0, 229, 255, 0.25);
@@ -149,7 +207,8 @@ html, body, #root {
   cursor: pointer;
 }
 
-.glass-btn:hover, .glass-btn:active {
+.glass-btn:hover,
+.glass-btn:active {
   background: rgba(255, 255, 255, 0.09);
   border-color: rgba(0, 229, 255, 0.35);
   transform: translateY(-1px) scale(1.02);
@@ -160,12 +219,15 @@ html, body, #root {
 .glow-cyan {
   box-shadow: 0 0 35px rgba(0, 229, 255, 0.12);
 }
+
 .glow-purple {
   box-shadow: 0 0 35px rgba(179, 136, 255, 0.12);
 }
+
 .glow-green {
   box-shadow: 0 0 35px rgba(0, 255, 136, 0.08);
 }
+
 .glow-gold {
   box-shadow: 0 0 35px rgba(255, 215, 0, 0.08);
 }
@@ -174,27 +236,42 @@ html, body, #root {
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 99px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+.custom-scrollbar {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
 }
 
 /* Spin animation for coin */
 .animate-spin-slow {
   animation: spin 8s linear infinite;
 }
+
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-/* Floating particles — GPU-optimized with will-change & transform3d */
+/* Floating particles */
 .particle {
   position: absolute;
   background: rgba(255, 255, 255, 0.10);
@@ -206,32 +283,38 @@ html, body, #root {
 }
 
 @keyframes float-particle {
-  0% { transform: translate3d(0, 105vh, 0) scale(0.5); opacity: 0; }
-  15% { opacity: 0.5; }
-  85% { opacity: 0.5; }
-  100% { transform: translate3d(60px, -10vh, 0) scale(1.2); opacity: 0; }
+  0% {
+    transform: translate3d(0, 105vh, 0) scale(0.5);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.5;
+  }
+
+  85% {
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: translate3d(60px, -10vh, 0) scale(1.2);
+    opacity: 0;
+  }
 }
 
-/* Scroll performance optimization */
-.custom-scrollbar {
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  scroll-behavior: smooth;
-}
-
-/* Disables context menus, highlighting, selection overlays and drag on tapping coin */
+/* Coin tap area: context menu/selection/drag বন্ধ */
 .coin-tap-container {
   -webkit-tap-highlight-color: transparent !important;
   -webkit-touch-callout: none !important;
   -webkit-user-select: none !important;
   user-select: none !important;
-  touch-action: manipulation !important; /* Prevents double-tap zooming & selection lag */
+  touch-action: manipulation !important;
   outline: none !important;
 }
 
 .coin-image {
   -webkit-user-drag: none !important;
   user-drag: none !important;
-  pointer-events: none !important; /* Lets touch/clicks pass through to container */
+  pointer-events: none !important;
   -webkit-touch-callout: none !important;
 }
