@@ -477,6 +477,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   });
   const [notifImageUrl, setNotifImageUrl]   = useState('');
   const [notifBtnText, setNotifBtnText]     = useState('');
+  const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
   const [notifBtnUrl, setNotifBtnUrl]       = useState('');
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -527,6 +528,54 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setNotifImageUrl('');
     setNotifBtnText('');
     setNotifBtnUrl('');
+  };
+
+  const handleNotificationImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!settings.botApiUrl) {
+      showToast('Please set and save Bot API URL first in Settings.', 'warning');
+      return;
+    }
+    setUploadingNotificationImage(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+        try {
+          const res = await fetch(`${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${notifApiSecret}`
+            },
+            body: JSON.stringify({
+              image: base64Image,
+              filename: `notif_${Date.now()}`
+            })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.secureUrl) {
+            setNotifImageUrl(data.secureUrl);
+            showToast('✅ Notification image uploaded successfully!', 'success');
+          } else {
+            showToast(data.error || 'Upload failed.', 'error');
+          }
+        } catch (err: any) {
+          showToast(err.message || 'Upload server communication failed.', 'error');
+        } finally {
+          setUploadingNotificationImage(false);
+        }
+      };
+      reader.onerror = () => {
+        showToast('Failed to read file.', 'error');
+        setUploadingNotificationImage(false);
+      };
+    } catch (err) {
+      showToast('File processing error.', 'error');
+      setUploadingNotificationImage(false);
+    }
   };
 
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
@@ -1403,14 +1452,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   {/* Image URL (Optional) */}
                   <div className="flex flex-col gap-1">
                     <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Image URL (Optional)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. https://example.com/banner.png"
-                      value={notifImageUrl}
-                      onChange={e => setNotifImageUrl(e.target.value)}
-                      className={inputCls}
-                      style={inputStyle}
-                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        placeholder="e.g. https://example.com/banner.png"
+                        value={notifImageUrl}
+                        onChange={e => setNotifImageUrl(e.target.value)}
+                        className={`${inputCls} flex-1`}
+                        style={inputStyle}
+                      />
+                      <label className="h-9 px-4 rounded-xl bg-[#C084FC] hover:bg-[#818CF8] text-white text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all shrink-0 select-none">
+                        {uploadingNotificationImage ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />} Upload Image
+                        <input type="file" accept="image/*" onChange={handleNotificationImageUpload} className="hidden" disabled={uploadingNotificationImage} />
+                      </label>
+                    </div>
                     <p className="text-[9px] text-slate-600">If set, Telegram will send this as a Photo with the message as caption</p>
                   </div>
 
@@ -1680,6 +1735,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           <input type="file" accept="image/*" onChange={e => handleBrandingUpload(e, 'coinIconUrl')} className="hidden" />
                         </label>
                       </div>
+                    </div>
+                    <div className="p-4 pt-0 border-t border-white/[0.03]">
+                      <p className="text-[9px] text-slate-500">
+                        ℹ️ Image uploading uses the Bot API server. Make sure the <b>Bot API URL</b> (above) and <b>API Secret</b> (in Notifications tab) are configured correctly.
+                      </p>
                     </div>
                   </div>
                 </SectionCard>
