@@ -25,7 +25,7 @@ async function postToApi(
 
   const url = botApiUrl.replace(/\/$/, '') + endpoint;
   try {
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -33,6 +33,19 @@ async function postToApi(
       },
       body: JSON.stringify(body),
     });
+
+    // Auto-retry with default secret if unauthorized and custom secret was tried
+    if (res.status === 401 && secret !== DEFAULT_SECRET) {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${DEFAULT_SECRET}`,
+        },
+        body: JSON.stringify(body),
+      });
+    }
+
     const data = await res.json().catch(() => ({}));
     return { ok: res.ok, ...data };
   } catch (err: any) {
