@@ -280,6 +280,17 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     }
   };
 
+  const handleRemoveFromLeaderboard = async (u: FirestoreUser) => {
+    if (!confirm(`Remove ${u.firstName} from the leaderboard?`)) return;
+    try {
+      await adminHideUser(u.telegramId, true);
+      showToast(`👁️‍🗨️ ${u.firstName} removed from leaderboard.`, 'success');
+      fetchUsers();
+    } catch {
+      showToast('Failed to remove user from leaderboard.', 'error');
+    }
+  };
+
   const handleDeleteUser = async (u: FirestoreUser) => {
     if (!confirm(`Delete ${u.firstName} (${u.telegramId}) permanently?`)) return;
     try { await adminRemoveUser(u.telegramId); showToast(`🗑 ${u.firstName} deleted.`, 'error'); fetchUsers(); }
@@ -784,6 +795,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 <span className="text-xs font-bold text-white truncate max-w-[130px]">{u.firstName} {u.lastName}</span>
                                 {u.isVerified && <VerifiedBadge size={10} />}
                                 {u.isTelegramPremium && <Star size={10} className="text-[#00E5FF] fill-current shrink-0" />}
+                                {u.leaderboardHidden && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase bg-slate-500/10 border border-slate-500/20 text-slate-400">Hidden</span>}
                                 {(u.banStatus ?? 'none') !== 'none' && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase" style={{ color: '#F87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)' }}>Banned</span>}
                                 {u.flagCount > 0 && <span className="text-[7px] font-black px-1.5 py-0.5 rounded" style={{ color: '#FBBF24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)' }}>🚩{u.flagCount}</span>}
                               </div>
@@ -1737,11 +1749,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
 
                   {/* Table rows */}
-                  {usersList.length === 0 ? (
+                  {usersList.filter(u => !u.leaderboardHidden).length === 0 ? (
                     <p className="text-xs text-slate-500 text-center py-8">No miners found in database.</p>
                   ) : (
                     <div className="divide-y divide-white/[0.03]">
-                      {usersList.map((u, idx) => (
+                      {usersList.filter(u => !u.leaderboardHidden).map((u, idx) => (
                         <div key={u.telegramId} className="flex flex-col">
                           <div className="grid items-center gap-2 px-5 py-3.5 hover:bg-white/[0.015] transition-all"
                             style={{ gridTemplateColumns: '3.5rem 2.5rem 1fr 8rem 8rem 10rem' }}>
@@ -1794,7 +1806,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 {u.leaderboardHidden ? <EyeOff size={11} /> : <Eye size={11} />}
                               </button>
                               {/* Remove */}
-                              <button onClick={() => handleDeleteUser(u)} title="Remove Miner" className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(248,82,82,0.1)', border: '1px solid rgba(248,82,82,0.25)', color: '#FF5252' }}>
+                              <button onClick={() => handleRemoveFromLeaderboard(u)} title="Remove Miner" className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(248,82,82,0.1)', border: '1px solid rgba(248,82,82,0.25)', color: '#FF5252' }}>
                                 <Trash2 size={11} />
                               </button>
                             </div>
@@ -1829,6 +1841,86 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               </motion.div>
                             )}
                           </AnimatePresence>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
+
+              {/* Hidden / Excluded Miners */}
+              <SectionCard accentColor="#EF444466">
+                <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <EyeOff size={16} className="text-[#EF4444]" />
+                      <span className="text-sm font-black text-white">Hidden / Excluded Miners</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Miners hidden from the leaderboard. You can add them back at any time.</p>
+                  </div>
+                </div>
+
+                <div className="p-0">
+                  {/* Table headers */}
+                  <div className="grid items-center gap-2 px-5 py-3 border-b text-[9px] font-black uppercase tracking-widest text-slate-600"
+                    style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(4,8,16,0.3)', gridTemplateColumns: '3.5rem 2.5rem 1fr 8rem 8rem 10rem' }}>
+                    <span>Status</span>
+                    <div />
+                    <span>User</span>
+                    <span>Points</span>
+                    <span>Tokens</span>
+                    <span className="text-right">Actions</span>
+                  </div>
+
+                  {/* Table rows */}
+                  {usersList.filter(u => u.leaderboardHidden).length === 0 ? (
+                    <p className="text-xs text-slate-500 text-center py-8">No hidden miners found.</p>
+                  ) : (
+                    <div className="divide-y divide-white/[0.03]">
+                      {usersList.filter(u => u.leaderboardHidden).map((u) => (
+                        <div key={u.telegramId} className="flex flex-col">
+                          <div className="grid items-center gap-2 px-5 py-3.5 hover:bg-white/[0.015] transition-all"
+                            style={{ gridTemplateColumns: '3.5rem 2.5rem 1fr 8rem 8rem 10rem' }}>
+                            {/* Status */}
+                            <span className="text-[8px] font-black text-red-400 bg-red-400/10 px-1.5 py-0.5 rounded border border-red-400/20 text-center uppercase">
+                              Hidden
+                            </span>
+
+                            {/* Avatar */}
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 relative"
+                              style={{ background: 'rgba(255,138,0,0.1)', border: '1px solid rgba(255,138,0,0.2)', color: '#FF8A00' }}>
+                              {u.photoUrl ? (
+                                <img src={u.photoUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                (u.firstName?.[0] ?? 'U').toUpperCase()
+                              )}
+                              {u.isOnline && <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-slate-900" />}
+                            </div>
+
+                            {/* Name / User */}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="text-xs font-bold text-white truncate max-w-[120px]">{u.firstName} {u.lastName}</span>
+                                {u.isVerified && <VerifiedBadge size={9} />}
+                              </div>
+                              <span className="text-[8px] text-slate-600 block">@{u.username || 'no_username'} · ID {u.telegramId}</span>
+                            </div>
+
+                            {/* Points */}
+                            <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{(u.points || 0).toLocaleString()} EFC</span>
+
+                            {/* Tokens */}
+                            <span className="text-xs font-bold text-slate-400">{(u.tokens || 0).toLocaleString()} EForce</span>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Add Back Button */}
+                              <button onClick={() => handleHideUser(u)} title="Add back to leaderboard" className="h-7 px-3 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold transition-all cursor-pointer"
+                                style={{ background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', color: '#4ADE80' }}>
+                                <Plus size={11} /> Add to Leaderboard
+                              </button>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
