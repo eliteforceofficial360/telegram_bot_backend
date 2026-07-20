@@ -5,7 +5,7 @@ import {
   Check, X, Search, Ban, Edit3, Save,
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  ArrowUpDown, ShieldAlert, Trophy,
+  ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -19,7 +19,7 @@ import {
   updateWithdrawRequest, subscribeToWithdrawRequests,
   flagUser, adminSetBan, logAdminAction,
   adminPinUser, adminRemoveUser, adminAddUser, adminResetLeaderboard,
-  type FirestoreUser, subscribeToAllUsers,
+  type FirestoreUser, subscribeToAllUsers, adminHideUser,
 } from '../lib/userService';
 import {
   subscribeToTasks, createTask, updateTask, deleteTask, type EForceTask, type TaskType,
@@ -268,6 +268,16 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const handlePinUser = async (u: FirestoreUser) => {
     try { await adminPinUser(u.telegramId, !u.leaderboardPinned); showToast(u.leaderboardPinned ? `📌 ${u.firstName} unpinned.` : `📌 ${u.firstName} pinned.`, 'success'); fetchUsers(); }
     catch { showToast('Failed to toggle pin state.', 'error'); }
+  };
+
+  const handleHideUser = async (u: FirestoreUser) => {
+    try {
+      await adminHideUser(u.telegramId, !u.leaderboardHidden);
+      showToast(u.leaderboardHidden ? `👁️ ${u.firstName} is now visible on leaderboard.` : `👁️‍🗨️ ${u.firstName} is now hidden from leaderboard.`, 'success');
+      fetchUsers();
+    } catch {
+      showToast('Failed to toggle leaderboard visibility.', 'error');
+    }
   };
 
   const handleDeleteUser = async (u: FirestoreUser) => {
@@ -820,6 +830,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 style={{ background: u.leaderboardPinned ? 'rgba(255,138,0,0.15)' : 'rgba(255,255,255,0.04)', border: u.leaderboardPinned ? '1px solid rgba(255,138,0,0.3)' : '1px solid rgba(255,255,255,0.08)' }}>
                                 📌
                               </button>
+                              {/* Hide / Show from Leaderboard */}
+                              <button onClick={() => handleHideUser(u)} title={u.leaderboardHidden ? "Show on leaderboard" : "Hide from leaderboard"} className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer"
+                                style={{ background: u.leaderboardHidden ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)', border: u.leaderboardHidden ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.08)', color: u.leaderboardHidden ? '#EF4444' : '#64748b' }}>
+                                {u.leaderboardHidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                              </button>
                               {/* Flag */}
                               <button onClick={() => handleFlagUser(u)} title="Flag user" className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer text-[12px]"
                                 style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
@@ -890,6 +905,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">LB Pin</label>
                                       <select value={editLeaderboardPinned ? 'true' : 'false'} onChange={e => setEditLeaderboardPinned(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
                                         <option value="false">Unpinned</option><option value="true">Pinned</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">LB Visibility</label>
+                                      <select value={editLeaderboardHidden ? 'true' : 'false'} onChange={e => setEditLeaderboardHidden(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
+                                        <option value="false">Visible</option><option value="true">Hidden</option>
                                       </select>
                                     </div>
                                     <div>
@@ -1766,6 +1787,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               <button onClick={() => handlePinUser(u)} title="Pin/Unpin" className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
                                 style={{ background: u.leaderboardPinned ? 'rgba(255,138,0,0.15)' : 'rgba(255,255,255,0.04)', border: u.leaderboardPinned ? '1px solid rgba(255,138,0,0.3)' : '1px solid rgba(255,255,255,0.08)' }}>
                                 📌
+                              </button>
+                              {/* Hide / Show from Leaderboard */}
+                              <button onClick={() => handleHideUser(u)} title={u.leaderboardHidden ? "Show on leaderboard" : "Hide from leaderboard"} className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                style={{ background: u.leaderboardHidden ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)', border: u.leaderboardHidden ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(255,255,255,0.08)', color: u.leaderboardHidden ? '#EF4444' : '#64748b' }}>
+                                {u.leaderboardHidden ? <EyeOff size={11} /> : <Eye size={11} />}
                               </button>
                               {/* Remove */}
                               <button onClick={() => handleDeleteUser(u)} title="Remove Miner" className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(248,82,82,0.1)', border: '1px solid rgba(248,82,82,0.25)', color: '#FF5252' }}>
