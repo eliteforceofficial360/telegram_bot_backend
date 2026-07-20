@@ -28,7 +28,8 @@ export interface AdminSettings {
 
   // Referral
   referralRewardUsdt: number;   // USDT per valid referral
-  referralRewardToken: number;  // EST tokens per valid referral
+  referralRewardToken: number;  // EST tokens per valid referral (kept for compatibility)
+  referralRewardPoints: number; // EFC points per valid referral
   withdrawMinReferrals: number; // min referrals to unlock withdraw
   withdrawMinAmount: number;    // min USDT to withdraw
 
@@ -59,6 +60,7 @@ export interface AdminSettings {
   withdrawOpen: boolean;
   withdrawRequireReferrals: boolean;
   dailyWithdrawLimit: number;
+  dailyTokenWithdrawLimit: number; // EForce token daily withdraw limit
   humanVerificationOpen: boolean;
 
   // Bot & Admin Username
@@ -85,7 +87,8 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   autoMinerCooldown: 86400,
   autoMinerPremiumOnly: false,
   referralRewardUsdt: 0.05,
-  referralRewardToken: 10,
+  referralRewardToken: 0,
+  referralRewardPoints: 250,
   withdrawMinReferrals: 10,
   withdrawMinAmount: 0.20,
   adEnabled: true,
@@ -107,6 +110,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   withdrawOpen: true,
   withdrawRequireReferrals: true,
   dailyWithdrawLimit: 50.00,
+  dailyTokenWithdrawLimit: 1000,
   humanVerificationOpen: false,
   botUsername: 'EliteForceBot',
   adminUsername: '',

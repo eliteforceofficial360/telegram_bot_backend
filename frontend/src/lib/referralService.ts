@@ -26,6 +26,7 @@ export interface ReferralRecord {
   networkSuspicion: boolean; // true = flagged for network-level issues
   rewardUsdt: number;
   rewardTokens: number;
+  rewardPoints?: number;
 }
 
 const REFERRALS_COLLECTION = 'referrals';
@@ -93,7 +94,8 @@ export const recordReferral = async (
   const isValid = !deviceMatch; // Auto-invalid only on exact device match
 
   const rewardUsdt = isValid ? settings.referralRewardUsdt : 0;
-  const rewardTokens = isValid ? settings.referralRewardToken : 0;
+  const rewardTokens = 0; // No longer reward tokens
+  const rewardPoints = isValid ? (settings.referralRewardPoints ?? 250) : 0;
 
   await setDoc(ref, {
     referrerId,
@@ -105,9 +107,10 @@ export const recordReferral = async (
     networkSuspicion: false,
     rewardUsdt,
     rewardTokens,
+    rewardPoints,
   } satisfies Omit<ReferralRecord, 'id'>);
 
-  // Update referrer's referral count, wallet, and tokens in users collection
+  // Update referrer's referral count, wallet, and points in users collection
   if (isValid) {
     try {
       const userRef = doc(db, 'users', String(referrerId));
@@ -116,12 +119,12 @@ export const recordReferral = async (
         const data = userSnap.data();
         const currentReferrals = (data.referrals as number) || 0;
         const currentWallet = (data.wallet as number) || 0;
-        const currentTokens = (data.tokens as number) || 0;
+        const currentPoints = (data.points as number) || 0;
 
         await updateDoc(userRef, {
           referrals: currentReferrals + 1,
           wallet: currentWallet + rewardUsdt,
-          tokens: currentTokens + rewardTokens,
+          points: currentPoints + rewardPoints,
         });
       }
     } catch (err) {

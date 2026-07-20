@@ -849,6 +849,36 @@ export const getUserTodayWithdrawalAmount = async (telegramId: number): Promise<
 };
 
 /**
+ * Gets the total EForce Token amount withdrawn by a user today.
+ */
+export const getUserTodayWithdrawalTokens = async (telegramId: number): Promise<number> => {
+  if (!isFirebaseConfigured()) return 0;
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const q = query(
+      collection(db, 'withdrawRequests'),
+      where('telegramId', '==', telegramId),
+      where('createdAt', '>=', Timestamp.fromDate(today))
+    );
+    const snap = await getDocs(q);
+    let sum = 0;
+    snap.forEach((d) => {
+      const data = d.data();
+      // Only count non-rejected, non-banned Token withdrawals
+      if (data.status !== 'Rejected' && data.status !== 'Banned' && data.type === 'token') {
+        sum += data.amount || 0;
+      }
+    });
+    return sum;
+  } catch (err) {
+    console.error("Error in getUserTodayWithdrawalTokens:", err);
+    return 0;
+  }
+};
+
+/**
  * Withdraw requests management.
  */
 export const submitWithdrawRequest = async (

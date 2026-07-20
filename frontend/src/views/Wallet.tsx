@@ -4,7 +4,7 @@ import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAler
 import confetti from 'canvas-confetti';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { showRewardedAd } from '../lib/monetag';
-import { submitWithdrawRequest, updateWalletAddress, subscribeToUser, updateUserDatabaseValues, getUserTodayWithdrawalAmount, type FirestoreUser } from '../lib/userService';
+import { submitWithdrawRequest, updateWalletAddress, subscribeToUser, updateUserDatabaseValues, getUserTodayWithdrawalAmount, getUserTodayWithdrawalTokens, type FirestoreUser } from '../lib/userService';
 import type { TelegramUser } from '../lib/telegramUser';
 
 interface WalletProps {
@@ -175,12 +175,21 @@ export const Wallet: React.FC<WalletProps> = ({
         }
 
         // Daily limit validation
-        const todayWithdrawn = await getUserTodayWithdrawalAmount(telegramUser.id);
-        const requestedWithdrawalAmount = withdrawAsset === 'usdt' ? amountNum : amountNum * (settings.eforceTokenValue || 0.05);
-        if (todayWithdrawn + requestedWithdrawalAmount > settings.dailyWithdrawLimit) {
-          setIsVerifying(false);
-          showToast(`Exceeds daily withdrawal limit of $${settings.dailyWithdrawLimit.toFixed(2)} USDT. Remaining: $${Math.max(0, settings.dailyWithdrawLimit - todayWithdrawn).toFixed(2)} USDT`, 'warning');
-          return;
+        if (withdrawAsset === 'usdt') {
+          const todayWithdrawn = await getUserTodayWithdrawalAmount(telegramUser.id);
+          if (todayWithdrawn + amountNum > settings.dailyWithdrawLimit) {
+            setIsVerifying(false);
+            showToast(`Exceeds daily USDT withdrawal limit of $${settings.dailyWithdrawLimit.toFixed(2)} USDT. Remaining: $${Math.max(0, settings.dailyWithdrawLimit - todayWithdrawn).toFixed(2)} USDT`, 'warning');
+            return;
+          }
+        } else {
+          const todayWithdrawnTokens = await getUserTodayWithdrawalTokens(telegramUser.id);
+          const limit = settings.dailyTokenWithdrawLimit ?? 1000;
+          if (todayWithdrawnTokens + amountNum > limit) {
+            setIsVerifying(false);
+            showToast(`Exceeds daily Token withdrawal limit of ${limit.toLocaleString()} EForce. Remaining: ${(Math.max(0, limit - todayWithdrawnTokens)).toFixed(3)} EForce`, 'warning');
+            return;
+          }
         }
 
         const res = await submitWithdrawRequest(

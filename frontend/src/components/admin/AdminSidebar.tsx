@@ -2,10 +2,10 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, CheckSquare, DollarSign, Shield,
-  Settings, Zap, ExternalLink, X, ChevronRight, Bell,
+  Settings, Zap, ExternalLink, X, ChevronRight, Bell, Trophy,
 } from 'lucide-react';
 
-export type AdminTab = 'dashboard' | 'users' | 'tasks' | 'withdrawals' | 'security' | 'notifications' | 'settings';
+export type AdminTab = 'dashboard' | 'users' | 'tasks' | 'withdrawals' | 'security' | 'notifications' | 'settings' | 'topminers';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -22,6 +22,7 @@ const navItems: { id: AdminTab; label: string; icon: React.ReactNode; desc: stri
   { id: 'withdrawals',   label: 'Withdrawals',    icon: <DollarSign size={15} />,      desc: 'Payment requests',       accentColor: '#4ADE80' },
   { id: 'security',      label: 'Security',       icon: <Shield size={15} />,          desc: 'Flags & bans',           accentColor: '#FB923C' },
   { id: 'notifications', label: 'Notifications',  icon: <Bell size={15} />,            desc: 'Push messages & alerts', accentColor: '#C084FC' },
+  { id: 'topminers',     label: 'Top Miners',     icon: <Trophy size={15} />,          desc: 'Leaderboard setup',      accentColor: '#FFD700' },
   { id: 'settings',      label: 'Settings',       icon: <Settings size={15} />,        desc: 'System config',          accentColor: '#B388FF' },
 ];
 

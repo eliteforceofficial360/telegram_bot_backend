@@ -246,7 +246,28 @@ const server = http.createServer(async (req, res) => {
   let data = {};
   try { data = JSON.parse(body); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
 
-
+  // ── POST /upload-branding — upload local device image to Cloudinary ──────────
+  if (req.method === 'POST' && url === '/upload-branding') {
+    const { image, filename } = data;
+    if (!image) {
+      res.writeHead(400); res.end(JSON.stringify({ error: 'image data required' })); return;
+    }
+    try {
+      const { v2: cloudinary } = await import('cloudinary');
+      const uploadResult = await cloudinary.uploader.upload(image, {
+        folder: 'branding',
+        public_id: filename || `brand_${Date.now()}`,
+        overwrite: true,
+      });
+      res.writeHead(200);
+      res.end(JSON.stringify({ secureUrl: uploadResult.secure_url }));
+    } catch (err) {
+      console.error('[Cloudinary] Branding upload error:', err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: 'Cloudinary upload failed', message: err.message }));
+    }
+    return;
+  }
 
   // ── POST /notify/message — send custom message to one user ──────────────────
   if (req.method === 'POST' && url === '/notify/message') {

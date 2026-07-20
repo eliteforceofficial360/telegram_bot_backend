@@ -5,7 +5,7 @@ import {
   Check, X, Search, Ban, Edit3, Save,
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  ArrowUpDown, ShieldAlert,
+  ArrowUpDown, ShieldAlert, Trophy,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -379,10 +379,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [notifUserSearch, setNotifUserSearch] = useState('');
   const [notifUserDropdown, setNotifUserDropdown] = useState(false);
   const [notifSending, setNotifSending]     = useState(false);
-  const [notifApiSecret, setNotifApiSecret] = useState('elite_force_secret_2024');
+  const [notifApiSecret, setNotifApiSecret] = useState(() => {
+    return localStorage.getItem('admin_api_secret') || 'elite_force_secret_2024';
+  });
   const [notifImageUrl, setNotifImageUrl]   = useState('');
   const [notifBtnText, setNotifBtnText]     = useState('');
   const [notifBtnUrl, setNotifBtnUrl]       = useState('');
+
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingCoin, setUploadingCoin] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('admin_api_secret', notifApiSecret);
+  }, [notifApiSecret]);
 
   // Filtered user list for notification picker
   const notifUserOptions = useMemo(() => {
@@ -451,6 +460,59 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const handleRemoveCustomMiner = (idx: number) => {
     const updated = (settings.customTopMiners || []).filter((_, i) => i !== idx);
     setSettings(s => ({ ...s, customTopMiners: updated }));
+  };
+
+  const handleBrandingUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'loadingLogoUrl' | 'coinIconUrl') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!settings.botApiUrl) {
+      showToast('Please set and save Bot API URL first.', 'warning');
+      return;
+    }
+
+    const setUploading = targetField === 'loadingLogoUrl' ? setUploadingLogo : setUploadingCoin;
+    setUploading(true);
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+        try {
+          const res = await fetch(`${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${notifApiSecret}`
+            },
+            body: JSON.stringify({
+              image: base64Image,
+              filename: `${targetField}_${Date.now()}`
+            })
+          });
+
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.secureUrl) {
+            setSettings(prev => ({ ...prev, [targetField]: data.secureUrl }));
+            showToast('✅ Branding image uploaded!', 'success');
+          } else {
+            showToast(data.error || 'Upload failed. Check API Secret in Notifications tab.', 'error');
+          }
+        } catch (err: any) {
+          showToast(err.message || 'Upload server communication failed.', 'error');
+        } finally {
+          setUploading(false);
+        }
+      };
+      reader.onerror = () => {
+        showToast('Failed to read file.', 'error');
+        setUploading(false);
+      };
+    } catch (err) {
+      showToast('File processing error.', 'error');
+      setUploading(false);
+    }
   };
 
   // Task type color map
@@ -1390,26 +1452,6 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
-                {/* Auto Miner */}
-                <SectionCard accentColor="#FF8A0055">
-                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    <div className="flex items-center gap-2"><span className="text-base">⛏️</span><span className="text-sm font-black text-white">Auto Miner</span></div>
-                    <p className="text-[9px] text-slate-500 mt-0.5">Mining duration, reward, and cooldown</p>
-                  </div>
-                  <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                    {[{ label: 'Duration (seconds)', key: 'autoMinerDuration' }, { label: 'Reward per Session (EForce)', key: 'autoMinerReward' }, { label: 'Cooldown (seconds)', key: 'autoMinerCooldown' }].map(f => (
-                      <div key={f.key} className="flex items-center justify-between gap-4 py-3">
-                        <label className="text-xs text-slate-400">{f.label}</label>
-                        <input type="number" value={(settings as any)[f.key]} onChange={e => setSettings(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right transition-all" style={inputStyle} />
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between py-3">
-                      <label className="text-xs text-slate-400">Premium Users Only</label>
-                      <Toggle on={settings.autoMinerPremiumOnly} onToggle={() => setSettings(p => ({ ...p, autoMinerPremiumOnly: !p.autoMinerPremiumOnly }))} accentColor="#00E5FF" />
-                    </div>
-                  </div>
-                </SectionCard>
-
                 {/* Referral & Withdrawal */}
                 <SectionCard accentColor="#B388FF55">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
@@ -1417,7 +1459,14 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     <p className="text-[9px] text-slate-500 mt-0.5">Invite rewards and payout rules</p>
                   </div>
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                    {[{ label: 'Referral USDT Reward', key: 'referralRewardUsdt' }, { label: 'Referral Token Reward', key: 'referralRewardToken' }, { label: 'Min Referrals to Withdraw', key: 'withdrawMinReferrals' }, { label: 'Min Withdraw Amount (USDT)', key: 'withdrawMinAmount' }, { label: 'Daily Withdraw Limit (USDT)', key: 'dailyWithdrawLimit' }].map(f => (
+                    {[
+                      { label: 'Referral USDT Reward', key: 'referralRewardUsdt' },
+                      { label: 'Referral Points Reward', key: 'referralRewardPoints' },
+                      { label: 'Min Referrals to Withdraw', key: 'withdrawMinReferrals' },
+                      { label: 'Min Withdraw Amount (USDT)', key: 'withdrawMinAmount' },
+                      { label: 'Daily Withdraw Limit (USDT)', key: 'dailyWithdrawLimit' },
+                      { label: 'Daily Token Limit (EForce)', key: 'dailyTokenWithdrawLimit' }
+                    ].map(f => (
                       <div key={f.key} className="flex items-center justify-between gap-4 py-3">
                         <label className="text-xs text-slate-400">{f.label}</label>
                         <input type="number" value={(settings as any)[f.key]} onChange={e => setSettings(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right transition-all" style={inputStyle} />
@@ -1457,17 +1506,29 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                     <div className="flex items-center justify-between gap-4 py-3">
                       <div>
-                        <label className="text-xs text-slate-400 block">Loading Screen Logo URL</label>
-                        <span className="text-[9px] text-slate-600">URL of the logo shown on startup loading screen</span>
+                        <label className="text-xs text-slate-400 block font-semibold">Loading Screen Logo URL</label>
+                        <span className="text-[9px] text-slate-600">Enter image URL or select local file</span>
                       </div>
-                      <input type="text" value={settings.loadingLogoUrl || ''} onChange={e => setSettings(prev => ({ ...prev, loadingLogoUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                      <div className="flex items-center gap-2">
+                        <input type="text" value={settings.loadingLogoUrl || ''} onChange={e => setSettings(prev => ({ ...prev, loadingLogoUrl: e.target.value }))} className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                        <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center cursor-pointer transition-all shrink-0">
+                          {uploadingLogo ? '...' : 'Upload'}
+                          <input type="file" accept="image/*" onChange={e => handleBrandingUpload(e, 'loadingLogoUrl')} className="hidden" />
+                        </label>
+                      </div>
                     </div>
                     <div className="flex items-center justify-between gap-4 py-3">
                       <div>
-                        <label className="text-xs text-slate-400 block">Mining Coin Icon URL</label>
-                        <span className="text-[9px] text-slate-600">URL of the central spinning coin / mine button logo</span>
+                        <label className="text-xs text-slate-400 block font-semibold">Mining Coin Icon URL</label>
+                        <span className="text-[9px] text-slate-600">Enter image URL or select local file</span>
                       </div>
-                      <input type="text" value={settings.coinIconUrl || ''} onChange={e => setSettings(prev => ({ ...prev, coinIconUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                      <div className="flex items-center gap-2">
+                        <input type="text" value={settings.coinIconUrl || ''} onChange={e => setSettings(prev => ({ ...prev, coinIconUrl: e.target.value }))} className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                        <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center cursor-pointer transition-all shrink-0">
+                          {uploadingCoin ? '...' : 'Upload'}
+                          <input type="file" accept="image/*" onChange={e => handleBrandingUpload(e, 'coinIconUrl')} className="hidden" />
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </SectionCard>
@@ -1530,10 +1591,32 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
-                {/* Custom Top Miners */}
-                <SectionCard accentColor="#FF8A0066">
+              </div>
+
+              {/* ── Save All Settings CTA ── */}
+              <button
+                onClick={handleSaveSettings}
+                disabled={savingSettings}
+                className={`${Btn.primary} w-full h-14 rounded-2xl text-sm font-black`}
+                style={{ ...btnStyle.primary, boxShadow: '0 0 40px rgba(255,138,0,0.45), 0 8px 24px rgba(255,138,0,0.25)' }}
+              >
+                {savingSettings ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
+                {savingSettings ? 'Saving to Firestore…' : 'Save All Settings'}
+              </button>
+            </div>
+          )}
+
+          {/* ════════════════════ TOP MINERS (LEADERBOARD) ════════════════════ */}
+          {activeTab === 'topminers' && (
+            <div className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {/* Custom Top Miners config */}
+                <SectionCard accentColor="#FFD70088">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    <div className="flex items-center gap-2"><span className="text-base">⛏️</span><span className="text-sm font-black text-white">Custom Top Miners</span></div>
+                    <div className="flex items-center gap-2">
+                      <Trophy size={16} className="text-[#FFD700]" />
+                      <span className="text-sm font-black text-white">Custom Top Pinned Miners</span>
+                    </div>
                     <p className="text-[9px] text-slate-500 mt-0.5">Add featured miners shown pinned at the top of the leaderboard</p>
                   </div>
                   <div className="p-4 flex flex-col gap-3">
@@ -1551,7 +1634,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           <div key={idx} className="flex items-center gap-3 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(255,138,0,0.05)', border: '1px solid rgba(255,138,0,0.12)' }}>
                             <span className="text-lg w-8 text-center shrink-0">{m.badge || '⛏️'}</span>
                             <span className="flex-1 text-xs font-bold text-white truncate">{m.name}</span>
-                            <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{m.score.toLocaleString()} EForce</span>
+                            <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{m.score.toLocaleString()} EFC</span>
                             <button onClick={() => handleRemoveCustomMiner(idx)} className="w-7 h-7 flex items-center justify-center rounded-lg transition-all cursor-pointer" style={btnStyle.danger} title="Remove"><Trash2 size={12} /></button>
                           </div>
                         ))}
@@ -1560,9 +1643,31 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
+                {/* Reset Leaderboard and stats */}
+                <SectionCard accentColor="#EF444488">
+                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⚠️</span>
+                      <span className="text-sm font-black text-white">Leaderboard Maintenance</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Critical operations for ranking database</p>
+                  </div>
+                  <div className="p-5 flex flex-col gap-4">
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Resetting the leaderboard will set all users' EFC points balance to 0. Custom pinned miners will NOT be affected.
+                    </p>
+                    <button
+                      onClick={handleResetLeaderboard}
+                      className={`${Btn.danger} w-full h-12 rounded-xl text-xs font-black flex items-center justify-center gap-2`}
+                      style={{ ...btnStyle.danger, boxShadow: '0 0 20px rgba(239,68,68,0.3)' }}
+                    >
+                      <RefreshCw size={14} /> Reset Leaderboard Points to 0
+                    </button>
+                  </div>
+                </SectionCard>
               </div>
 
-              {/* ── Save All Settings CTA ── */}
+              {/* Save Settings button */}
               <button
                 onClick={handleSaveSettings}
                 disabled={savingSettings}
@@ -1570,7 +1675,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 style={{ ...btnStyle.primary, boxShadow: '0 0 40px rgba(255,138,0,0.45), 0 8px 24px rgba(255,138,0,0.25)' }}
               >
                 {savingSettings ? <RefreshCw size={18} className="animate-spin" /> : <Save size={18} />}
-                {savingSettings ? 'Saving to Firestore…' : 'Save All Settings'}
+                {savingSettings ? 'Saving to Firestore…' : 'Save Leaderboard Settings'}
               </button>
             </div>
           )}

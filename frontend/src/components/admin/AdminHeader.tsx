@@ -20,6 +20,7 @@ const tabMeta: Record<AdminTab, { title: string; sub: string; icon: string; acce
   withdrawals:   { title: 'Withdrawals',      sub: 'Review and process payout requests',              icon: '💸', accentColor: '#4ADE80' },
   security:      { title: 'Security Center',  sub: 'Monitor flagged users and threats',               icon: '🛡️', accentColor: '#FB923C' },
   notifications: { title: 'Notifications',   sub: 'Send bot messages, announcements & alerts',       icon: '📢', accentColor: '#C084FC' },
+  topminers:     { title: 'Top Miners Control',sub: 'Configure leaderboard pinned miners and ranks',       icon: '🏆', accentColor: '#FFD700' },
   settings:      { title: 'System Settings',  sub: 'Configure app economy and global parameters',     icon: '⚙️', accentColor: '#B388FF' },
 };
 
