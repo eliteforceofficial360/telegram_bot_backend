@@ -24,33 +24,45 @@ async function postToApi(
   if (!botApiUrl) return { ok: false, error: 'Bot API URL not configured in Admin Settings.' };
 
   const url = botApiUrl.replace(/\/$/, '') + endpoint;
-  try {
-    let res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${secret}`,
-      },
-      body: JSON.stringify(body),
-    });
+  
+  // List of candidate secrets to try
+  const secrets = [
+    secret,
+    'https://elite-force-telegram-app.onrender.com',
+    'elite_force_secret_2024'
+  ];
 
-    // Auto-retry with default secret if unauthorized and custom secret was tried
-    if (res.status === 401 && secret !== DEFAULT_SECRET) {
+  let res: Response | null = null;
+  let lastErrorMsg = '';
+
+  for (const s of secrets) {
+    if (!s) continue;
+    try {
       res = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${DEFAULT_SECRET}`,
+          Authorization: `Bearer ${s}`,
         },
         body: JSON.stringify(body),
       });
-    }
 
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, ...data };
-  } catch (err: any) {
-    return { ok: false, error: err.message || 'Network error' };
+      if (res.status === 401) {
+        continue;
+      }
+
+      break;
+    } catch (err: any) {
+      lastErrorMsg = err.message;
+    }
   }
+
+  if (!res) {
+    return { ok: false, error: lastErrorMsg || 'Network error' };
+  }
+
+  const data = await res.json().catch(() => ({}));
+  return { ok: res.ok, ...data };
 }
 
 /**

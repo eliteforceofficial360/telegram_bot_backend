@@ -235,24 +235,39 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     if (!settings.botApiUrl) throw new Error('Please set and save Bot API URL first in Settings.');
     const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
     
-    let res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${notifApiSecret}`
-      },
-      body: JSON.stringify({ image: base64Image, filename })
-    });
+    const secrets = [
+      notifApiSecret,
+      'https://elite-force-telegram-app.onrender.com',
+      'elite_force_secret_2024'
+    ];
     
-    if (res.status === 401 && notifApiSecret !== 'elite_force_secret_2024') {
-      res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer elite_force_secret_2024`
-        },
-        body: JSON.stringify({ image: base64Image, filename })
-      });
+    let res: Response | null = null;
+    let lastErrorMsg = '';
+    
+    for (const secret of secrets) {
+      if (!secret) continue;
+      try {
+        res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${secret}`
+          },
+          body: JSON.stringify({ image: base64Image, filename })
+        });
+        
+        if (res.status === 401) {
+          continue;
+        }
+        
+        break;
+      } catch (err: any) {
+        lastErrorMsg = err.message;
+      }
+    }
+    
+    if (!res) {
+      throw new Error(lastErrorMsg || 'Failed to connect to Bot API server.');
     }
     
     if (!res.ok) {
