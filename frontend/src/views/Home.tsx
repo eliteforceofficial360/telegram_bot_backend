@@ -446,7 +446,7 @@ export const Home: React.FC<HomeProps> = ({
           {telegramUser?.photoUrl ? (
             <img src={telegramUser.photoUrl} alt="" className="w-full h-full object-cover rounded-full" />
           ) : (
-            <img src="/coin.png" alt="EForce Coin" className="w-full h-full object-cover rounded-full" />
+            <img src={settings.coinIconUrl || '/coin.png'} alt="EForce Coin" className="w-full h-full object-cover rounded-full" />
           )}
         </div>
       </div>
@@ -508,7 +508,7 @@ export const Home: React.FC<HomeProps> = ({
 
           {/* Coin image */}
           <motion.img
-            src="/coin.png"
+            src={settings.coinIconUrl || '/coin.png'}
             alt="EForce Coin"
             draggable={false}
             animate={autoMinerRunning ? { rotate: 360 } : isClaimable ? { scale: [1, 1.05, 1] } : {}}

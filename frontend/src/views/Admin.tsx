@@ -1445,6 +1445,33 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
+                {/* App Customization & Branding */}
+                <SectionCard accentColor="#FF8A0055">
+                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🎨</span>
+                      <span className="text-sm font-black text-white">App Branding</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Customize loading screen logo and central mining coin icon</p>
+                  </div>
+                  <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <div>
+                        <label className="text-xs text-slate-400 block">Loading Screen Logo URL</label>
+                        <span className="text-[9px] text-slate-600">URL of the logo shown on startup loading screen</span>
+                      </div>
+                      <input type="text" value={settings.loadingLogoUrl || ''} onChange={e => setSettings(prev => ({ ...prev, loadingLogoUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                    </div>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <div>
+                        <label className="text-xs text-slate-400 block">Mining Coin Icon URL</label>
+                        <span className="text-[9px] text-slate-600">URL of the central spinning coin / mine button logo</span>
+                      </div>
+                      <input type="text" value={settings.coinIconUrl || ''} onChange={e => setSettings(prev => ({ ...prev, coinIconUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                    </div>
+                  </div>
+                </SectionCard>
+
                 {/* Monetag Ads */}
                 <SectionCard accentColor="#00E5FF55">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>

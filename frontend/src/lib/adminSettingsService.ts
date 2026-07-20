@@ -67,6 +67,10 @@ export interface AdminSettings {
 
   // Custom Top Miners (shown as pinned entries on Leaderboard)
   customTopMiners: { name: string; score: number; badge: string }[];
+
+  // App Customization / Branding
+  loadingLogoUrl: string;
+  coinIconUrl: string;
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -108,6 +112,8 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   adminUsername: '',
   botApiUrl: '',
   customTopMiners: [],
+  loadingLogoUrl: '/loading-logo.png',
+  coinIconUrl: '/coin.png',
 };
 
 const SETTINGS_DOC = 'adminSettings/config';

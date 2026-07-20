@@ -889,7 +889,7 @@ export default function App() {
                 transition={{ repeat: Infinity, duration: 3.5, ease: 'linear' }}
                 className="w-24 h-24 rounded-full overflow-hidden border-2 border-[#FFD700]/30 flex items-center justify-center shadow-[0_0_30px_rgba(255,138,0,0.25)] bg-[#050816]"
               >
-                <img src="/loading-logo.png" alt="Loading Logo" className="w-full h-full object-contain p-1" />
+                <img src={adminSettings.loadingLogoUrl || '/loading-logo.png'} alt="Loading Logo" className="w-full h-full object-contain p-1" />
               </motion.div>
             </div>
 

@@ -1,15 +1,17 @@
 import { Info, ExternalLink, Copy, Shield, Star, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { type AdminSettings } from '../lib/adminSettingsService';
 
 interface SettingsProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+  adminSettings?: AdminSettings;
 }
 
 const APP_VERSION = '2.0.0';
 const BOT_USERNAME = '@EliteForceEFCBot';
 const SUPPORT_LINK = 'https://t.me/EliteForceEFCBot';
 
-export const Settings = ({ showToast }: SettingsProps) => {
+export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
 
   const copyBotLink = () => {
     navigator.clipboard.writeText(BOT_USERNAME).catch(() => {});
@@ -34,7 +36,7 @@ export const Settings = ({ showToast }: SettingsProps) => {
       >
         {/* Coin logo */}
         <div className="w-14 h-14 rounded-[16px] overflow-hidden shrink-0 border border-[#FFD700]/20 shadow-[0_0_20px_rgba(255,138,0,0.2)]">
-          <img src="/coin.png" alt="EForce Coin" className="w-full h-full object-cover" />
+          <img src={adminSettings?.coinIconUrl || '/coin.png'} alt="EForce Coin" className="w-full h-full object-cover" />
         </div>
         <div className="flex-1 min-w-0">
           <h2 className="text-sm font-black text-white tracking-wide">Elite Force EFC</h2>
