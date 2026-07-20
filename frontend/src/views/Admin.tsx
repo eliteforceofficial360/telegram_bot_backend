@@ -5,7 +5,7 @@ import {
   Check, X, Search, Ban, Edit3, Save,
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff,
+  ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff, Upload,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -101,6 +101,25 @@ const btnStyle = {
   } as React.CSSProperties,
 };
 
+// ── Image with fallback component ────────────────────────────────────────────
+const ImageWithFallback = ({ src, fallbackLetter, className }: { src: string; fallbackLetter: string; className?: string }) => {
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    setError(false);
+  }, [src]);
+  if (!src || error) {
+    return <span className="uppercase">{fallbackLetter}</span>;
+  }
+  return (
+    <img
+      src={src}
+      alt=""
+      className={className}
+      onError={() => setError(true)}
+    />
+  );
+};
+
 // ── Sort button (module-scoped so it's not recreated on every render) ─────────
 const SortBtn = ({ field, label, sortField, sortDir, handleSort }: { field: SortField; label: string; sortField: SortField; sortDir: SortDir; handleSort: (f: SortField) => void }) => (
   <button onClick={() => handleSort(field)} className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-white transition-all cursor-pointer group">
@@ -176,6 +195,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editLeaderboardPinned, setEditLeaderboardPinned] = useState(false);
   const [editLeaderboardHidden, setEditLeaderboardHidden] = useState(false);
   const [editIsVerified, setEditIsVerified] = useState(false);
+  const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [savingUser, setSavingUser] = useState(false);
   const [showAddUserForm, setShowAddUserForm] = useState(false);
@@ -202,11 +223,60 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setEditLeaderboardPinned(u.leaderboardPinned ?? false);
     setEditLeaderboardHidden(u.leaderboardHidden ?? false);
     setEditIsVerified(u.isVerified ?? false);
+    setEditPhotoUrl(u.photoUrl ?? '');
     if (u.banStatus === 'temp' && u.banUntil) {
       const until = u.banUntil instanceof Timestamp ? u.banUntil.toDate() : new Date(u.banUntil as string);
       const diffHrs = Math.max(1, Math.round((until.getTime() - Date.now()) / 3600000));
       setEditBanDuration(diffHrs >= 72 ? 72 : diffHrs >= 48 ? 48 : 24);
     } else setEditBanDuration(24);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!settings.botApiUrl) {
+      showToast('Please set and save Bot API URL first.', 'warning');
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+        try {
+          const res = await fetch(`${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${notifApiSecret}`
+            },
+            body: JSON.stringify({
+              image: base64Image,
+              filename: `user_${userId}_${Date.now()}`
+            })
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.secureUrl) {
+            setEditPhotoUrl(data.secureUrl);
+            showToast('✅ Avatar uploaded successfully!', 'success');
+          } else {
+            showToast(data.error || 'Upload failed.', 'error');
+          }
+        } catch (err: any) {
+          showToast(err.message || 'Upload server communication failed.', 'error');
+        } finally {
+          setUploadingAvatar(false);
+        }
+      };
+      reader.onerror = () => {
+        showToast('Failed to read file.', 'error');
+        setUploadingAvatar(false);
+      };
+    } catch (err) {
+      showToast('File processing error.', 'error');
+      setUploadingAvatar(false);
+    }
   };
 
   const handleSaveUser = async () => {
@@ -782,9 +852,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           >
                             {/* Avatar */}
                             <div className="relative">
-                              <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black"
+                              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-black"
                                 style={{ background: 'rgba(255,138,0,0.12)', border: '1.5px solid rgba(255,138,0,0.22)', color: '#FF8A00' }}>
-                                {(u.firstName?.[0] ?? 'U').toUpperCase()}
+                                <ImageWithFallback src={u.photoUrl ?? ''} fallbackLetter={(u.firstName?.[0] ?? 'U')} className="w-full h-full object-cover" />
                               </div>
                               {u.isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2" style={{ borderColor: '#040810', boxShadow: '0 0 6px rgba(74,222,128,0.8)' }} />}
                             </div>
@@ -882,6 +952,38 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                     <div className="text-[9px] px-3 py-1 rounded-full font-bold"
                                       style={{ background: editRiskLevel === 'high' ? 'rgba(248,113,113,0.12)' : editRiskLevel === 'medium' ? 'rgba(251,191,36,0.1)' : 'rgba(74,222,128,0.1)', color: editRiskLevel === 'high' ? '#F87171' : editRiskLevel === 'medium' ? '#FBBF24' : '#4ADE80', border: `1px solid ${editRiskLevel === 'high' ? 'rgba(248,113,113,0.3)' : editRiskLevel === 'medium' ? 'rgba(251,191,36,0.3)' : 'rgba(74,222,128,0.3)'}` }}>
                                       Risk: {editRiskLevel.toUpperCase()}
+                                    </div>
+                                  </div>
+
+                                  {/* Profile Photo Upload */}
+                                  <div className="flex items-center gap-4 p-3 rounded-xl border border-white/[0.04] bg-white/[0.01]">
+                                    <div className="relative w-12 h-12 rounded-full overflow-hidden flex items-center justify-center text-lg font-black shrink-0"
+                                      style={{ background: 'rgba(255,138,0,0.12)', border: '1.5px solid rgba(255,138,0,0.22)', color: '#FF8A00' }}>
+                                      <ImageWithFallback src={editPhotoUrl} fallbackLetter={(u.firstName?.[0] ?? 'U')} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">User Photo/Avatar</label>
+                                      <div className="flex items-center gap-2">
+                                        <input 
+                                          type="text" 
+                                          value={editPhotoUrl} 
+                                          onChange={e => setEditPhotoUrl(e.target.value)} 
+                                          placeholder="Enter Image URL or Upload below" 
+                                          className={`${inputCls} flex-1 text-[10px] h-8`} 
+                                          style={inputStyle} 
+                                        />
+                                        <label className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold cursor-pointer transition-all shrink-0 select-none"
+                                          style={{ background: 'rgba(255,138,0,0.12)', border: '1px solid rgba(255,138,0,0.22)', color: '#FF8A00' }}>
+                                          {uploadingAvatar ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />} Upload Image
+                                          <input 
+                                            type="file" 
+                                            accept="image/*" 
+                                            onChange={e => handleAvatarUpload(e, u.telegramId)} 
+                                            className="hidden" 
+                                            disabled={uploadingAvatar} 
+                                          />
+                                        </label>
+                                      </div>
                                     </div>
                                   </div>
                                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -1765,11 +1867,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             {/* Avatar */}
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 relative"
                               style={{ background: 'rgba(255,138,0,0.1)', border: '1px solid rgba(255,138,0,0.2)', color: '#FF8A00' }}>
-                              {u.photoUrl ? (
-                                <img src={u.photoUrl} alt="" className="w-full h-full rounded-full object-cover" />
-                              ) : (
-                                (u.firstName?.[0] ?? 'U').toUpperCase()
-                              )}
+                              <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+                                <ImageWithFallback src={u.photoUrl ?? ''} fallbackLetter={(u.firstName?.[0] ?? 'U')} className="w-full h-full object-cover" />
+                              </div>
                               {u.isOnline && <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-slate-900" />}
                             </div>
 
@@ -1889,11 +1989,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             {/* Avatar */}
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 relative"
                               style={{ background: 'rgba(255,138,0,0.1)', border: '1px solid rgba(255,138,0,0.2)', color: '#FF8A00' }}>
-                              {u.photoUrl ? (
-                                <img src={u.photoUrl} alt="" className="w-full h-full rounded-full object-cover" />
-                              ) : (
-                                (u.firstName?.[0] ?? 'U').toUpperCase()
-                              )}
+                              <div className="w-full h-full rounded-full overflow-hidden flex items-center justify-center">
+                                <ImageWithFallback src={u.photoUrl ?? ''} fallbackLetter={(u.firstName?.[0] ?? 'U')} className="w-full h-full object-cover" />
+                              </div>
                               {u.isOnline && <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-slate-900" />}
                             </div>
 

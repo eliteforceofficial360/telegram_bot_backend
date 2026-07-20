@@ -657,6 +657,7 @@ export const updateUserDatabaseValues = async (
     leaderboardPinned?: boolean;
     leaderboardHidden?: boolean;
     isVerified?: boolean;
+    photoUrl?: string;
   }
 ): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
