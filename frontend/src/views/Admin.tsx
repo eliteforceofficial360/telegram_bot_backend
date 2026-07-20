@@ -19,7 +19,7 @@ import {
   updateWithdrawRequest, subscribeToWithdrawRequests,
   flagUser, adminSetBan, logAdminAction,
   adminPinUser, adminRemoveUser, adminAddUser, adminResetLeaderboard,
-  type FirestoreUser,
+  type FirestoreUser, subscribeToAllUsers,
 } from '../lib/userService';
 import {
   subscribeToTasks, createTask, updateTask, deleteTask, type EForceTask, type TaskType,
@@ -186,12 +186,14 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [addingUser, setAddingUser] = useState(false);
 
   const fetchUsers = async () => { setLoadingUsers(true); const u = await getAllUsers(); setUsersList(u); setLoadingUsers(false); };
-  useEffect(() => { fetchUsers(); }, []);
   useEffect(() => {
-    if (activeTab === 'users') {
-      fetchUsers();
-    }
-  }, [activeTab]);
+    setLoadingUsers(true);
+    const unsub = subscribeToAllUsers((u) => {
+      setUsersList(u);
+      setLoadingUsers(false);
+    });
+    return unsub;
+  }, []);
 
   const startEditUser = (u: FirestoreUser) => {
     setEditingUser(u); setEditPoints(u.points ?? 0); setEditTokens(u.tokens ?? 0);
@@ -380,7 +382,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [notifUserDropdown, setNotifUserDropdown] = useState(false);
   const [notifSending, setNotifSending]     = useState(false);
   const [notifApiSecret, setNotifApiSecret] = useState(() => {
-    return localStorage.getItem('admin_api_secret') || 'elite_force_secret_2024';
+    return localStorage.getItem('admin_api_secret') || 'https://elite-force-telegram-app.onrender.com';
   });
   const [notifImageUrl, setNotifImageUrl]   = useState('');
   const [notifBtnText, setNotifBtnText]     = useState('');
@@ -1439,7 +1441,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     <p className="text-[9px] text-slate-500 mt-0.5">Token values, reward rates, and energy</p>
                   </div>
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                    {[{ label: 'Swap Rate (Points per Token)', key: 'swapRate' }, { label: 'EForce Token Value (USD)', key: 'eforceTokenValue' }, { label: 'Tap Reward', key: 'tapReward' }, { label: 'Combo Multiplier', key: 'comboReward' }, { label: 'Max Energy', key: 'energyMax' }].map(f => (
+                    {[{ label: 'Swap Rate (Points per Token)', key: 'swapRate' }, { label: 'EForce Token Value (USD)', key: 'eforceTokenValue' }].map(f => (
                       <div key={f.key} className="flex items-center justify-between gap-4 py-3">
                         <label className="text-xs text-slate-400">{f.label}</label>
                         <input type="number" value={(settings as any)[f.key]} onChange={e => setSettings(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right transition-all" style={inputStyle} />
@@ -1509,7 +1511,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         <label className="text-xs text-slate-400 block font-semibold">Loading Screen Logo URL</label>
                         <span className="text-[9px] text-slate-600">Enter image URL or select local file</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
+                        {settings.loadingLogoUrl && (
+                          <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
+                            <img src={settings.loadingLogoUrl} alt="" className="w-full h-full object-contain" />
+                          </div>
+                        )}
                         <input type="text" value={settings.loadingLogoUrl || ''} onChange={e => setSettings(prev => ({ ...prev, loadingLogoUrl: e.target.value }))} className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
                         <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center cursor-pointer transition-all shrink-0">
                           {uploadingLogo ? '...' : 'Upload'}
@@ -1522,7 +1529,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         <label className="text-xs text-slate-400 block font-semibold">Mining Coin Icon URL</label>
                         <span className="text-[9px] text-slate-600">Enter image URL or select local file</span>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
+                        {settings.coinIconUrl && (
+                          <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
+                            <img src={settings.coinIconUrl} alt="" className="w-full h-full object-contain" />
+                          </div>
+                        )}
                         <input type="text" value={settings.coinIconUrl || ''} onChange={e => setSettings(prev => ({ ...prev, coinIconUrl: e.target.value }))} className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
                         <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center cursor-pointer transition-all shrink-0">
                           {uploadingCoin ? '...' : 'Upload'}
@@ -1666,6 +1678,133 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
               </div>
+
+              {/* Leaderboard Members (Real-time) */}
+              <SectionCard accentColor="#FFD70066">
+                <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <Trophy size={16} className="text-[#FFD700]" />
+                      <span className="text-sm font-black text-white">Real-Time Leaderboard Members</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Manage live miners, points, pin/unpin status, and accounts</p>
+                  </div>
+                  {/* Quick Add User button */}
+                  <button
+                    onClick={() => { setActiveTab('users'); setShowAddUserForm(true); }}
+                    className={`${Btn.primary} h-9 px-4 rounded-xl text-[10px] font-black flex items-center gap-1.5`}
+                    style={btnStyle.primary}
+                  >
+                    <Plus size={12} /> Add Miner
+                  </button>
+                </div>
+
+                <div className="p-0">
+                  {/* Table headers */}
+                  <div className="grid items-center gap-2 px-5 py-3 border-b text-[9px] font-black uppercase tracking-widest text-slate-600"
+                    style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(4,8,16,0.3)', gridTemplateColumns: '3.5rem 2.5rem 1fr 8rem 8rem 10rem' }}>
+                    <span>Rank</span>
+                    <div />
+                    <span>User</span>
+                    <span>Points</span>
+                    <span>Tokens</span>
+                    <span className="text-right">Actions</span>
+                  </div>
+
+                  {/* Table rows */}
+                  {usersList.length === 0 ? (
+                    <p className="text-xs text-slate-500 text-center py-8">No miners found in database.</p>
+                  ) : (
+                    <div className="divide-y divide-white/[0.03]">
+                      {usersList.map((u, idx) => (
+                        <div key={u.telegramId} className="flex flex-col">
+                          <div className="grid items-center gap-2 px-5 py-3.5 hover:bg-white/[0.015] transition-all"
+                            style={{ gridTemplateColumns: '3.5rem 2.5rem 1fr 8rem 8rem 10rem' }}>
+                            {/* Rank */}
+                            <span className="text-xs font-black text-slate-400">
+                              {idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}
+                            </span>
+
+                            {/* Avatar */}
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 relative"
+                              style={{ background: 'rgba(255,138,0,0.1)', border: '1px solid rgba(255,138,0,0.2)', color: '#FF8A00' }}>
+                              {u.photoUrl ? (
+                                <img src={u.photoUrl} alt="" className="w-full h-full rounded-full object-cover" />
+                              ) : (
+                                (u.firstName?.[0] ?? 'U').toUpperCase()
+                              )}
+                              {u.isOnline && <div className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-400 border border-slate-900" />}
+                            </div>
+
+                            {/* Name / User */}
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1 flex-wrap">
+                                <span className="text-xs font-bold text-white truncate max-w-[120px]">{u.firstName} {u.lastName}</span>
+                                {u.leaderboardPinned && <span className="text-[8px] font-black text-[#FF8A00]">📌 Pinned</span>}
+                                {u.isVerified && <VerifiedBadge size={9} />}
+                              </div>
+                              <span className="text-[8px] text-slate-600 block">@{u.username || 'no_username'} · ID {u.telegramId}</span>
+                            </div>
+
+                            {/* Points */}
+                            <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{(u.points || 0).toLocaleString()} EFC</span>
+
+                            {/* Tokens */}
+                            <span className="text-xs font-bold text-slate-400">{(u.tokens || 0).toLocaleString()} EForce</span>
+
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* Edit */}
+                              <button onClick={() => startEditUser(u)} title="Edit points/balance" className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: '#A78BFA' }}>
+                                <Edit3 size={11} />
+                              </button>
+                              {/* Pin */}
+                              <button onClick={() => handlePinUser(u)} title="Pin/Unpin" className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer"
+                                style={{ background: u.leaderboardPinned ? 'rgba(255,138,0,0.15)' : 'rgba(255,255,255,0.04)', border: u.leaderboardPinned ? '1px solid rgba(255,138,0,0.3)' : '1px solid rgba(255,255,255,0.08)' }}>
+                                📌
+                              </button>
+                              {/* Remove */}
+                              <button onClick={() => handleDeleteUser(u)} title="Remove Miner" className="w-7 h-7 rounded-lg flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(248,82,82,0.1)', border: '1px solid rgba(248,82,82,0.25)', color: '#FF5252' }}>
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Inline Edit Drawer for Leaderboard Tab */}
+                          <AnimatePresence>
+                            {editingUser?.telegramId === u.telegramId && (
+                              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
+                                <div className="px-5 py-4 border-b flex flex-col gap-3" style={{ borderColor: 'rgba(255,138,0,0.15)', background: 'rgba(255,138,0,0.02)' }}>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-white">Adjust Balances for {u.firstName}</span>
+                                    <span className="text-[9px] text-slate-500">ID: {u.telegramId}</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                    {[{ label: 'Points', val: editPoints, set: setEditPoints }, { label: 'Tokens', val: editTokens, set: setEditTokens }, { label: 'Wallet', val: editWallet, set: setEditWallet }, { label: 'Referrals', val: editReferrals, set: setEditReferrals }].map(f => (
+                                      <div key={f.label}>
+                                        <label className="text-[8px] text-slate-500 font-bold uppercase tracking-wider block mb-1">{f.label}</label>
+                                        <input type="number" value={f.val} onChange={e => f.set(Number(e.target.value))} className={inputCls} style={inputStyle} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <div className="flex gap-2 justify-end">
+                                    <button onClick={handleSaveUser} disabled={savingUser} className={`${Btn.primary} h-8 px-4 rounded-lg text-[10px] font-bold`} style={btnStyle.primary}>
+                                      {savingUser ? '...' : 'Save Changes'}
+                                    </button>
+                                    <button onClick={() => setEditingUser(null)} className={`${Btn.ghost} h-8 px-3 rounded-lg text-[10px] font-bold`} style={btnStyle.ghost}>
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </SectionCard>
 
               {/* Save Settings button */}
               <button

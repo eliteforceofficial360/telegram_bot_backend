@@ -508,6 +508,23 @@ export const getAllUsers = async (): Promise<FirestoreUser[]> => {
 };
 
 
+export const subscribeToAllUsers = (
+  callback: (users: FirestoreUser[]) => void
+): (() => void) => {
+  if (!isFirebaseConfigured()) return () => {};
+  const usersRef = collection(db, USERS_COLLECTION);
+  return onSnapshot(usersRef, (querySnapshot) => {
+    const users: FirestoreUser[] = [];
+    querySnapshot.forEach((docSnap) => {
+      users.push(docSnap.data() as FirestoreUser);
+    });
+    users.sort((a, b) => (b.points || 0) - (a.points || 0));
+    callback(users);
+  }, (err) => {
+    console.error("Error in subscribeToAllUsers:", err);
+  });
+};
+
 export const getTotalUserCount = async (): Promise<number> => {
   if (!isFirebaseConfigured()) return 0;
   try {
