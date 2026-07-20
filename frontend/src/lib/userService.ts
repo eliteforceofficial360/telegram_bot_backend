@@ -104,6 +104,36 @@ export const upsertUser = async (
   const userRef = doc(db, USERS_COLLECTION, String(telegramUser.id));
   const snap = await getDoc(userRef);
 
+  // Cloudinary profile photo upload proxy integration
+  const existing = snap.exists() ? snap.data() as FirestoreUser : null;
+  let finalPhotoUrl = telegramUser.photoUrl || '';
+
+  if (existing && existing.photoUrl && existing.photoUrl.includes('cloudinary.com')) {
+    // Already uploaded previously
+    finalPhotoUrl = existing.photoUrl;
+  } else if (finalPhotoUrl && !finalPhotoUrl.includes('cloudinary.com')) {
+    try {
+      const settingsSnap = await getDoc(doc(db, 'adminSettings', 'config'));
+      const botApiUrl = settingsSnap.exists() ? settingsSnap.data().botApiUrl || '' : '';
+      
+      if (botApiUrl) {
+        const uploadRes = await fetch(`${botApiUrl.replace(/\/$/, '')}/upload-profile-photo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramId: telegramUser.id, photoUrl: finalPhotoUrl }),
+        });
+        if (uploadRes.ok) {
+          const data = await uploadRes.json();
+          if (data.secureUrl) {
+            finalPhotoUrl = data.secureUrl;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Cloudinary] Failed to upload via backend proxy:', err);
+    }
+  }
+
   // Check if this device fingerprint is already used by another account (Multi-account detection)
   let isMultiAccount = false;
   if (deviceFingerprint) {
@@ -176,7 +206,7 @@ export const upsertUser = async (
       username: telegramUser.username || '',
       firstName: telegramUser.firstName || '',
       lastName: telegramUser.lastName || '',
-      photoUrl: telegramUser.photoUrl || '',
+      photoUrl: finalPhotoUrl,
       isTelegramPremium: telegramUser.isPremium,
       country: 'Unknown',
       joinDate: serverTimestamp(),
@@ -228,7 +258,7 @@ export const upsertUser = async (
     let updateFields: any = {
       firstName: telegramUser.firstName || '',
       lastName: telegramUser.lastName || '',
-      photoUrl: telegramUser.photoUrl || '',
+      photoUrl: finalPhotoUrl,
       isTelegramPremium: telegramUser.isPremium,
       isOnline: true,
       lastSeen: serverTimestamp(),

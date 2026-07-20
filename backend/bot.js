@@ -195,6 +195,45 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── POST /upload-profile-photo — upload user avatar to Cloudinary ──────────
+  if (req.method === 'POST' && url === '/upload-profile-photo') {
+    let uploadBody = '';
+    for await (const chunk of req) uploadBody += chunk;
+    let uploadData = {};
+    try {
+      uploadData = JSON.parse(uploadBody);
+    } catch {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      return;
+    }
+
+    const { telegramId, photoUrl } = uploadData;
+    if (!telegramId || !photoUrl) {
+      res.writeHead(400);
+      res.end(JSON.stringify({ error: 'telegramId and photoUrl required' }));
+      return;
+    }
+
+    try {
+      const { v2: cloudinary } = await import('cloudinary');
+      // Upload directly from the telegram photoUrl to Cloudinary
+      const uploadResult = await cloudinary.uploader.upload(photoUrl, {
+        folder: 'telegram_profiles',
+        public_id: `user_${telegramId}`,
+        overwrite: true,
+      });
+
+      res.writeHead(200);
+      res.end(JSON.stringify({ secureUrl: uploadResult.secure_url }));
+    } catch (err) {
+      console.error('[Cloudinary] Upload error:', err);
+      res.writeHead(500);
+      res.end(JSON.stringify({ error: 'Cloudinary upload failed', message: err.message }));
+    }
+    return;
+  }
+
   // Auth check
   const auth = req.headers['authorization'] || '';
   if (auth !== `Bearer ${API_SECRET}`) {
