@@ -54,28 +54,64 @@ export function initMonetag(zoneId: string): Promise<boolean> {
  *
  * @param zoneId  Monetag Zone ID ('11271101')
  */
-export async function showRewardedAd(zoneId: string): Promise<boolean> {
-  const loaded = await initMonetag(zoneId);
-
+export function showRewardedAd(zoneId: string): Promise<boolean> {
   const fn = window[`show_${zoneId}`];
 
-  if (!loaded || typeof fn !== 'function') {
-    // ── Simulation fallback (ad-blocker / dev / no zone ID) ──
-    console.info('[Monetag] Simulation mode — 3 s delay');
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    return true;
+  // If the Monetag SDK is already loaded and the function exists, call it synchronously
+  // to avoid yielding the microtask queue and losing the user gesture context.
+  if (typeof fn === 'function') {
+    return new Promise((resolve, reject) => {
+      try {
+        const result = fn('pop');
+        if (result && typeof result.then === 'function') {
+          result.then(() => {
+            console.log('[Monetag] Ad completed ✓');
+            resolve(true);
+          }).catch((err: any) => {
+            console.error('[Monetag] Ad error:', err);
+            reject(new Error('Watch the complete ad to earn your reward.'));
+          });
+        } else {
+          console.warn('[Monetag] Ad function did not return a promise');
+          resolve(true);
+        }
+      } catch (err) {
+        console.error('[Monetag] Ad execution error:', err);
+        reject(new Error('Watch the complete ad to earn your reward.'));
+      }
+    });
   }
 
-  try {
-    // Rewarded Popup: show_XXXXXX('pop')
-    // Resolves after user watches ad or dismisses the interstitial.
-    await fn('pop');
-    console.log('[Monetag] Ad completed ✓');
-    return true;
-  } catch (err) {
-    console.error('[Monetag] Ad error:', err);
-    throw new Error('Watch the complete ad to earn your reward.');
-  }
+  // Fallback if not loaded yet: load dynamically (gesture context might be lost)
+  return initMonetag(zoneId).then((loaded) => {
+    const fnDelayed = window[`show_${zoneId}`];
+    if (!loaded || typeof fnDelayed !== 'function') {
+      console.info('[Monetag] Simulation mode — 3 s delay');
+      return new Promise<boolean>((resolve) => {
+        setTimeout(() => resolve(true), 3000);
+      });
+    }
+
+    return new Promise<boolean>((resolve, reject) => {
+      try {
+        const result = fnDelayed('pop');
+        if (result && typeof result.then === 'function') {
+          result.then(() => {
+            console.log('[Monetag] Ad completed ✓');
+            resolve(true);
+          }).catch((err: any) => {
+            console.error('[Monetag] Ad error:', err);
+            reject(new Error('Watch the complete ad to earn your reward.'));
+          });
+        } else {
+          resolve(true);
+        }
+      } catch (err) {
+        console.error('[Monetag] Ad error:', err);
+        reject(new Error('Watch the complete ad to earn your reward.'));
+      }
+    });
+  });
 }
 
 /**

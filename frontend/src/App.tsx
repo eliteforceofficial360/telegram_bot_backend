@@ -16,6 +16,7 @@ import { subscribeToAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings } 
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 import { loadRecaptcha } from './utils/loadRecaptcha';
+import { initMonetag } from './lib/monetag';
 
 interface Toast {
   id: number;
@@ -336,6 +337,15 @@ export default function App() {
     const unsub = subscribeToAdminSettings(setAdminSettings);
     return unsub;
   }, []);
+
+  // Preload Monetag SDK script as soon as settings are loaded to avoid gesture loss on click
+  useEffect(() => {
+    if (adminSettings.adEnabled && adminSettings.monetagZoneId) {
+      initMonetag(adminSettings.monetagZoneId).catch((err) => {
+        console.warn('[Monetag] Background preload failed:', err);
+      });
+    }
+  }, [adminSettings.adEnabled, adminSettings.monetagZoneId]);
 
   // Load reCAPTCHA Enterprise script dynamically when human verification is enabled
   useEffect(() => {
