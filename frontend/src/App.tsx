@@ -16,7 +16,7 @@ import { subscribeToAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings } 
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 import { loadRecaptcha } from './utils/loadRecaptcha';
-import { initMonetag } from './lib/monetag';
+import { initMonetag, showRewardedAd } from './lib/monetag';
 
 interface Toast {
   id: number;
@@ -134,11 +134,21 @@ export default function App() {
 
   const [isVerifyingCaptcha, setIsVerifyingCaptcha] = useState(false);
 
-  const handleReCaptchaVerify = () => {
+  const handleReCaptchaVerify = async () => {
     const grecaptcha = (window as any).grecaptcha;
     if (!grecaptcha?.enterprise) {
       showToast("reCAPTCHA is loading, please try again in a moment.", "warning");
       return;
+    }
+
+    if (adminSettings.adEnabled) {
+      try {
+        showToast('Loading verification sponsor ad...', 'info');
+        await showRewardedAd(adminSettings.monetagZoneId);
+      } catch (err: any) {
+        showToast(err.message || 'Ad dismissed. Complete the ad to verify!', 'error');
+        return;
+      }
     }
     
     setIsVerifyingCaptcha(true);

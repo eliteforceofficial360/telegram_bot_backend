@@ -14,8 +14,10 @@
     "firebase": "^12.16.0",
     "framer-motion": "^11.11.17",
     "lucide-react": "^0.454.0",
+    "monetag-tg-sdk": "^1.0.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-is": "^19.2.7",
     "recharts": "^3.9.2"
   },
   "devDependencies": {

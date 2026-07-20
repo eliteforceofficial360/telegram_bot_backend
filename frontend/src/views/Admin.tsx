@@ -496,8 +496,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
           const data = await res.json().catch(() => ({}));
           if (res.ok && data.secureUrl) {
-            setSettings(prev => ({ ...prev, [targetField]: data.secureUrl }));
-            showToast('✅ Branding image uploaded!', 'success');
+            setSettings(prev => {
+              const updated = { ...prev, [targetField]: data.secureUrl };
+              saveAdminSettings(updated).catch(() => {});
+              return updated;
+            });
+            showToast('✅ Branding image uploaded & saved successfully!', 'success');
           } else {
             showToast(data.error || 'Upload failed. Check API Secret in Notifications tab.', 'error');
           }
