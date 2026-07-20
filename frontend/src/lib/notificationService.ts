@@ -6,7 +6,7 @@
  * must be configured in Admin → Settings → Bot API URL.
  */
 
-const DEFAULT_SECRET = 'elite_force_secret_2024';
+const DEFAULT_SECRET = 'https://elite-force-telegram-app.onrender.com';
 
 interface NotifyResult {
   ok: boolean;

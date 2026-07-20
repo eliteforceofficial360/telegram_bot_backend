@@ -501,7 +501,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [notifUserDropdown, setNotifUserDropdown] = useState(false);
   const [notifSending, setNotifSending]     = useState(false);
   const [notifApiSecret, setNotifApiSecret] = useState(() => {
-    return localStorage.getItem('admin_api_secret') || 'https://elite-force-telegram-app.onrender.com';
+    const saved = localStorage.getItem('admin_api_secret');
+    return (saved && saved.trim() !== '') ? saved : 'https://elite-force-telegram-app.onrender.com';
   });
   const [notifImageUrl, setNotifImageUrl]   = useState('');
   const [notifBtnText, setNotifBtnText]     = useState('');
