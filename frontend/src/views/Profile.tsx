@@ -1,12 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
   Calendar, 
   Globe2, 
   Laptop, 
-  Save, 
-  Loader2, 
   Copy, 
   Check, 
   ShieldCheck, 
@@ -19,7 +17,7 @@ import {
   Users
 } from 'lucide-react';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
-import { type FirestoreUser, updateWalletAddress } from '../lib/userService';
+import { type FirestoreUser } from '../lib/userService';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 
@@ -42,36 +40,7 @@ export const Profile = ({
   telegramUser 
 }: ProfileProps) => {
   const connectedAddress = dbUser?.walletAddress || null;
-  const [walletInput, setWalletInput] = useState(dbUser?.walletAddress || '');
-  const [savingAddress, setSavingAddress] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
-  const [copiedWallet, setCopiedWallet] = useState(false);
-
-  useEffect(() => {
-    if (dbUser?.walletAddress) {
-      setWalletInput(dbUser.walletAddress);
-    }
-  }, [dbUser]);
-
-  const validateBep20 = (address: string): boolean => {
-    return /^0x[a-fA-F0-9]{40}$/.test(address);
-  };
-
-  const handleSaveAddress = async () => {
-    if (!telegramUser) return;
-    if (!validateBep20(walletInput)) {
-      showToast('Invalid BEP-20 address. Must start with 0x followed by 40 hex characters.', 'error');
-      return;
-    }
-    setSavingAddress(true);
-    const success = await updateWalletAddress(telegramUser.id, walletInput);
-    setSavingAddress(false);
-    if (success) {
-      showToast('BEP-20 wallet address saved successfully!', 'success');
-    } else {
-      showToast('Failed to save wallet address.', 'error');
-    }
-  };
 
   const handleCopyId = () => {
     if (!telegramUser) return;
@@ -79,14 +48,6 @@ export const Profile = ({
     setCopiedId(true);
     showToast('Telegram ID copied to clipboard!', 'success');
     setTimeout(() => setCopiedId(false), 2000);
-  };
-
-  const handleCopyWallet = () => {
-    if (!walletInput) return;
-    navigator.clipboard.writeText(walletInput);
-    setCopiedWallet(true);
-    showToast('Wallet address copied!', 'success');
-    setTimeout(() => setCopiedWallet(false), 2000);
   };
 
   const formatTimestamp = (ts: any) => {
@@ -290,71 +251,7 @@ export const Profile = ({
         </div>
       </motion.div>
 
-      {/* BEP-20 Wallet Connection Node Card */}
-      <motion.div 
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.05 }}
-        className="glass-panel p-5 rounded-[24px] border-white/8 flex flex-col gap-3.5 shadow-lg"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/20 flex items-center justify-center text-[#00E5FF]">
-              <WalletIcon size={14} />
-            </div>
-            <span className="text-xs font-bold text-white">BEP-20 Connected Node</span>
-          </div>
 
-          {connectedAddress ? (
-            <span className="text-accent-success bg-accent-success/10 border border-accent-success/20 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 text-[9px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-success animate-ping" />
-              Connected
-            </span>
-          ) : (
-            <span className="text-slate-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 text-[9px]">
-              Disconnected
-            </span>
-          )}
-        </div>
-
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              placeholder="Enter BEP-20 Address (0x...)"
-              value={walletInput}
-              onChange={(e) => setWalletInput(e.target.value)}
-              disabled={savingAddress}
-              className="w-full h-10 rounded-xl bg-white/[0.04] border border-white/10 px-3 pr-8 text-xs text-white outline-none focus:border-[#00E5FF]/50 transition-all font-mono placeholder:text-slate-600"
-            />
-            {walletInput && (
-              <button
-                onClick={handleCopyWallet}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors cursor-pointer"
-                title="Copy Address"
-              >
-                {copiedWallet ? <Check size={12} className="text-accent-success" /> : <Copy size={12} />}
-              </button>
-            )}
-          </div>
-
-          <button
-            onClick={handleSaveAddress}
-            disabled={savingAddress || !walletInput}
-            className="h-10 px-4 rounded-xl bg-[#00E5FF] hover:bg-[#00E5FF]/90 disabled:opacity-40 disabled:cursor-not-allowed text-[#050816] text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 shadow-[0_0_14px_rgba(0,229,255,0.25)]"
-          >
-            {savingAddress ? (
-              <Loader2 size={13} className="animate-spin" />
-            ) : (
-              <><Save size={13} /> Save</>
-            )}
-          </button>
-        </div>
-
-        <p className="text-[9px] text-slate-500 leading-normal">
-          🔒 Your BEP-20 address is used to receive your automated USDT & EForce Token withdrawal payouts safely.
-        </p>
-      </motion.div>
 
       {/* Security & Node Metadata Grid */}
       <div className="grid grid-cols-2 gap-3">
