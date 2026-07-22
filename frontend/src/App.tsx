@@ -622,6 +622,9 @@ export default function App() {
         return (
           <Profile 
             efcBalance={efcBalance} 
+            usdtBalance={usdtBalance}
+            referralsCount={referralsCount}
+            adminSettings={adminSettings}
             dbUser={dbUser}
             showToast={showToast}
             telegramUser={telegramUser}
