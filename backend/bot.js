@@ -234,6 +234,40 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // ── POST /check-membership — Check user membership in Telegram channel/group ──
+  if (req.method === 'POST' && url === '/check-membership') {
+    let checkBody = '';
+    for await (const chunk of req) checkBody += chunk;
+    let checkData = {};
+    try { checkData = JSON.parse(checkBody); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
+
+    const { telegramId, chatId } = checkData;
+    if (!telegramId || !chatId) {
+      res.writeHead(400); res.end(JSON.stringify({ error: 'telegramId and chatId required' })); return;
+    }
+
+    try {
+      // Format chatId if handle provided without @
+      let targetChat = String(chatId).trim();
+      if (!targetChat.startsWith('@') && !targetChat.startsWith('-100') && isNaN(Number(targetChat))) {
+        targetChat = `@${targetChat}`;
+      }
+
+      const member = await bot.telegram.getChatMember(targetChat, Number(telegramId));
+      const validStatuses = ['creator', 'administrator', 'member', 'restricted'];
+      const isMember = validStatuses.includes(member.status) && (member.status !== 'restricted' || member.is_member !== false);
+
+      res.writeHead(200);
+      res.end(JSON.stringify({ isMember, status: member.status }));
+    } catch (err) {
+      console.warn(`[Bot] Membership check failed for ${telegramId} in ${chatId}:`, err.message);
+      // If bot is not admin in target chat or channel is private/custom, respond with fallback note
+      res.writeHead(200);
+      res.end(JSON.stringify({ isMember: true, warning: 'Chat check unavailable', details: err.message }));
+    }
+    return;
+  }
+
   // Auth check
   const auth = req.headers['authorization'] || '';
   if (auth !== `Bearer ${API_SECRET}`) {

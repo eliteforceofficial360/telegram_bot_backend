@@ -233,15 +233,64 @@ export const claimTaskReward = async (
       rewardClaimed: true,
     });
 
-    // Increment global completedCount
-    await updateDoc(doc(db, TASKS_COLLECTION, task.id), {
-      completedCount: (task.completedCount || 0) + 1,
-    });
+    // Increment global completedCount safely using setDoc merge (avoids missing doc error)
+    if (!task.id.startsWith('default_')) {
+      try {
+        await setDoc(doc(db, TASKS_COLLECTION, task.id), {
+          completedCount: (task.completedCount || 0) + 1,
+        }, { merge: true });
+      } catch (err) {
+        console.warn("Could not update task completedCount:", err);
+      }
+    }
 
     return { success: true };
-  } catch {
-    return { success: false, reason: 'Network error. Try again.' };
+  } catch (err: any) {
+    console.error("Error in claimTaskReward:", err);
+    return { success: false, reason: err?.message || 'Network error. Try again.' };
   }
+};
+
+/**
+ * Verifies if user has joined a Telegram channel or group via backend bot API.
+ */
+export const checkTelegramMembership = async (
+  telegramId: number,
+  chatIdOrUrl: string,
+  botApiUrl = ''
+): Promise<{ isMember: boolean; reason?: string }> => {
+  if (!telegramId || !chatIdOrUrl) return { isMember: true };
+
+  // Extract handle from full t.me URL if needed
+  let chatId = chatIdOrUrl.trim();
+  if (chatId.includes('t.me/')) {
+    const parts = chatId.split('t.me/')[1].split('?')[0].split('/')[0].replace('+', '');
+    chatId = parts ? `@${parts}` : chatId;
+  }
+
+  if (botApiUrl) {
+    try {
+      const res = await fetch(`${botApiUrl.replace(/\/$/, '')}/check-membership`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramId, chatId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (typeof data.isMember === 'boolean') {
+          return {
+            isMember: data.isMember,
+            reason: data.isMember ? undefined : `You have not joined ${chatId} yet. Please join first!`
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('[TelegramCheck] Failed calling bot API:', err);
+    }
+  }
+
+  // Fallback to true if bot API not configured
+  return { isMember: true };
 };
 
 /**

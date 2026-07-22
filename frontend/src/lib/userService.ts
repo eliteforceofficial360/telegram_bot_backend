@@ -21,7 +21,7 @@ import {
 import { db, isFirebaseConfigured } from './firebase';
 import type { TelegramUser } from './telegramUser';
 
-import { recordReferral } from './referralService';
+import { recordReferral, parseReferralFromStartParam } from './referralService';
 
 export interface FirestoreUser {
   telegramId: number;
@@ -181,18 +181,12 @@ export const upsertUser = async (
   }
 
   if (!snap.exists()) {
-    // Parse referral code from WebApp start param
+    // Parse referral code from WebApp start param or URL search query
     let referredBy: number | null = null;
-    try {
-      const tg = (window as any).Telegram?.WebApp;
-      const startParam = tg?.initDataUnsafe?.start_param || '';
-      if (startParam.startsWith('ref_')) {
-        const id = parseInt(startParam.replace('ref_', ''), 10);
-        if (!isNaN(id) && id !== telegramUser.id) {
-          referredBy = id;
-        }
-      }
-    } catch { /* noop */ }
+    const parsedRef = parseReferralFromStartParam();
+    if (parsedRef && parsedRef !== telegramUser.id) {
+      referredBy = parsedRef;
+    }
 
     // If multi-account, start with 1 flag and temporary ban (24h)
     const initialFlags = isMultiAccount ? 1 : 0;

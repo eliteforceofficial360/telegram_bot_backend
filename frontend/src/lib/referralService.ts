@@ -39,16 +39,25 @@ export const getReferralLink = (telegramId: number, botUsername = 'EliteForceBot
 };
 
 /**
- * Parses the referrer ID from Telegram WebApp start param.
+ * Parses the referrer ID from Telegram WebApp start param or URL params.
  * Returns null if no referral param found.
  */
 export const parseReferralFromStartParam = (): number | null => {
   try {
     const tg = (window as any).Telegram?.WebApp;
-    const startParam = tg?.initDataUnsafe?.start_param || '';
-    if (startParam.startsWith('ref_')) {
-      const id = parseInt(startParam.replace('ref_', ''), 10);
-      return isNaN(id) ? null : id;
+    const searchParams = new URLSearchParams(window.location.search);
+    const startParam = (
+      tg?.initDataUnsafe?.start_param ||
+      searchParams.get('tgWebAppStartParam') ||
+      searchParams.get('start_param') ||
+      searchParams.get('ref') ||
+      ''
+    ).trim();
+
+    if (startParam) {
+      const cleanParam = startParam.replace(/^ref_/, '');
+      const id = parseInt(cleanParam, 10);
+      return !isNaN(id) && id > 0 ? id : null;
     }
   } catch { /* noop */ }
   return null;
@@ -66,7 +75,9 @@ export const recordReferral = async (
   referrerDeviceFingerprint?: string
 ): Promise<{ recorded: boolean; valid: boolean; reason?: string }> => {
   if (!isFirebaseConfigured()) return { recorded: false, valid: false };
-  if (referrerId === referredId) return { recorded: false, valid: false, reason: 'Self-referral detected.' };
+  if (!referrerId || !referredId || referrerId === referredId) {
+    return { recorded: false, valid: false, reason: 'Self-referral or invalid IDs.' };
+  }
 
   const docId = `${referrerId}_${referredId}`;
   const ref = doc(db, REFERRALS_COLLECTION, docId);
@@ -86,15 +97,16 @@ export const recordReferral = async (
   // Fetch admin settings for dynamic rewards
   const settings = await getAdminSettings();
 
-  // Check device fingerprint match (suspicious if same)
-  const deviceMatch = !!(referrerDeviceFingerprint && deviceFingerprint === referrerDeviceFingerprint);
+  // Check device fingerprint match (suspicious ONLY if non-empty and matching)
+  const fp1 = (deviceFingerprint || '').trim();
+  const fp2 = (referrerDeviceFingerprint || '').trim();
+  const deviceMatch = !!(fp1 && fp2 && fp1 === fp2);
 
-  // Mark as suspicious if device matches but don't outright block
-  // (legitimate family members may share a device)
-  const isValid = !deviceMatch; // Auto-invalid only on exact device match
+  // Mark valid if non-matching device
+  const isValid = !deviceMatch;
 
-  const rewardUsdt = isValid ? settings.referralRewardUsdt : 0;
-  const rewardTokens = 0; // No longer reward tokens
+  const rewardUsdt = isValid ? (settings.referralRewardUsdt ?? 0.05) : 0;
+  const rewardTokens = 0;
   const rewardPoints = isValid ? (settings.referralRewardPoints ?? 250) : 0;
 
   await setDoc(ref, {
@@ -117,15 +129,28 @@ export const recordReferral = async (
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
         const data = userSnap.data();
-        const currentReferrals = (data.referrals as number) || 0;
-        const currentWallet = (data.wallet as number) || 0;
-        const currentPoints = (data.points as number) || 0;
+        const currentReferrals = Number(data.referrals || data.referralCount || 0);
+        const currentWallet = Number(data.wallet || 0);
+        const currentPoints = Number(data.points || 0);
 
         await updateDoc(userRef, {
           referrals: currentReferrals + 1,
-          wallet: currentWallet + rewardUsdt,
+          referralCount: currentReferrals + 1,
+          wallet: Number((currentWallet + rewardUsdt).toFixed(4)),
           points: currentPoints + rewardPoints,
         });
+
+        // Notify referrer via bot API if enabled
+        if (settings.botApiUrl) {
+          fetch(`${settings.botApiUrl.replace(/\/$/, '')}/notify/referral`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer elite_force_secret_2024`
+            },
+            body: JSON.stringify({ referrerId, refereeName: `User #${referredId}` })
+          }).catch(() => {});
+        }
       }
     } catch (err) {
       console.error("Error updating referrer rewards:", err);

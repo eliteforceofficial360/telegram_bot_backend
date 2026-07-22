@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, Loader2, Send, Twitter, Globe, Compass, Play, Megaphone, Star, Lock, ExternalLink } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { subscribeToTasks, subscribeToUserTasks, claimTaskReward, type EForceTask, type TaskType } from '../lib/taskService';
+import { subscribeToTasks, subscribeToUserTasks, claimTaskReward, checkTelegramMembership, type EForceTask, type TaskType } from '../lib/taskService';
 import type { TelegramUser } from '../lib/telegramUser';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { showRewardedAd } from '../lib/monetag';
@@ -130,7 +130,21 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     setTaskStatus(prev => ({ ...prev, [task.id]: 'verifying' }));
 
     // Verification delay (simulates checking join/follow)
-    await new Promise(res => setTimeout(res, 2500));
+    await new Promise(res => setTimeout(res, 2000));
+
+    // For Telegram channel or group tasks, check membership via Telegram API
+    if (task.type === 'channel' || task.type === 'group') {
+      const checkRes = await checkTelegramMembership(
+        telegramUser.id,
+        task.url || adminSettings.botUsername || 'EliteForceChannel',
+        adminSettings.botApiUrl
+      );
+      if (!checkRes.isMember) {
+        setTaskStatus(prev => ({ ...prev, [task.id]: 'idle' }));
+        showToast(checkRes.reason || 'You have not joined the Telegram channel/group yet!', 'error');
+        return;
+      }
+    }
 
     const result = await claimTaskReward(telegramUser.id, task);
 
@@ -177,7 +191,21 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     if (!telegramUser) return;
     setTaskStatus(prev => ({ ...prev, [task.id]: 'verifying' }));
     // Verification delay (simulates checking join/follow)
-    await new Promise(res => setTimeout(res, 2500));
+    await new Promise(res => setTimeout(res, 2000));
+
+    // Check Telegram membership via API if channel/group task
+    if (task.type === 'channel' || task.type === 'group') {
+      const checkRes = await checkTelegramMembership(
+        telegramUser.id,
+        task.url || adminSettings.botUsername || 'EliteForceChannel',
+        adminSettings.botApiUrl
+      );
+      if (!checkRes.isMember) {
+        setTaskStatus(prev => ({ ...prev, [task.id]: 'idle' }));
+        showToast(checkRes.reason || 'You have not joined the Telegram channel/group yet!', 'error');
+        return;
+      }
+    }
 
     const result = await claimTaskReward(telegramUser.id, task);
 
