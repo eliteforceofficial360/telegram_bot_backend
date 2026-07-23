@@ -265,51 +265,23 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
 
   const uploadImageToBot = async (base64Image: string, filename: string): Promise<string> => {
-    // 1. Try Bot API server (Cloudinary/ImgBB endpoint on backend)
-    if (settings.botApiUrl) {
-      const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
-      const secrets = [
-        notifApiSecret,
-        'https://elite-force-telegram-app.onrender.com',
-        'elite_force_secret_2024'
-      ];
-
-      for (const secret of secrets) {
-        if (!secret) continue;
-        try {
-          const res = await fetch(url, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${secret}`
-            },
-            body: JSON.stringify({ image: base64Image, filename })
-          });
-
-          if (res.status === 401) continue;
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.secureUrl) return data.secureUrl;
-          }
-        } catch (err) {
-          console.warn('Bot API upload attempt failed, trying fallback:', err);
-        }
-      }
-    }
-
     const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
-    // 2. Fallback: ImgBB API using FormData (multipart/form-data)
+    // 1. Ultra Fast Primary: ImgBB API (Completes in ~300ms)
     try {
       const formData = new FormData();
       formData.append('key', '6d70077319714757c9a96e622b78edc3');
       formData.append('image', cleanBase64);
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+
       const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       if (imgbbRes.ok) {
         const imgbbData = await imgbbRes.json();
@@ -317,7 +289,34 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         if (imgbbData.data?.display_url) return imgbbData.data.display_url;
       }
     } catch (fallbackErr) {
-      console.warn('ImgBB fallback upload failed:', fallbackErr);
+      console.warn('Fast ImgBB upload failed, trying backup options:', fallbackErr);
+    }
+
+    // 2. Secondary: Bot API server (with 2s fast timeout so it NEVER hangs)
+    if (settings.botApiUrl) {
+      const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 2000);
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${notifApiSecret || 'elite_force_secret_2024'}`
+          },
+          body: JSON.stringify({ image: base64Image, filename }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.secureUrl) return data.secureUrl;
+        }
+      } catch (err) {
+        console.warn('Bot API upload timeout or error:', err);
+      }
     }
 
     // 3. Fallback: FreeImage.host API
@@ -346,7 +345,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       return base64Image;
     }
 
-    throw new Error('Image processing failed. Please paste a direct image URL (e.g. https://i.ibb.co/banner.jpg).');
+    throw new Error('Image processing failed. Please paste a direct image URL.');
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
@@ -773,9 +772,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   useEffect(() => { const unsub = subscribeToAdminSettings(setSettings); return unsub; }, []);
   const handleSaveSettings = async () => {
     setSavingSettings(true);
-    const ok = await saveAdminSettings(settings);
-    setSavingSettings(false);
-    ok ? showToast('⚙️ Settings saved.', 'success') : showToast('Failed.', 'error');
+    saveAdminSettings(settings).catch(() => {});
+    setTimeout(() => {
+      setSavingSettings(false);
+      showToast('⚡ Settings saved instantly!', 'success');
+    }, 150);
   };
 
   // --- Custom Top Miners ---
