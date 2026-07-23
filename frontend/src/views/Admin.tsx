@@ -264,6 +264,47 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     } else setEditBanDuration(24);
   };
 
+  // Client-side Image Compressor (Resizes high-res uploads to max 600x400 ~20KB to ensure instant upload & 0 Firestore document size errors)
+  const compressImageFile = (file: File, maxWidth = 600, maxHeight = 400, quality = 0.75): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(compressedDataUrl);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  };
+
   const uploadImageToBot = async (base64Image: string, filename: string): Promise<string> => {
     const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
@@ -806,29 +847,21 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setUploadingImageField(String(targetField));
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        try {
-          const secureUrl = await uploadImageToBot(reader.result as string, `${String(targetField)}_${Date.now()}`);
-          setSettings(prev => {
-            const updated = { ...prev, [targetField]: secureUrl };
-            saveAdminSettings(updated).catch(() => { });
-            return updated;
-          });
-          showToast('✅ System image uploaded & saved successfully!', 'success');
-        } catch (err: any) {
-          showToast(err.message || 'Upload failed.', 'error');
-        } finally {
-          setUploadingImageField(null);
-        }
-      };
-      reader.onerror = () => {
-        showToast('Failed to read file.', 'error');
-        setUploadingImageField(null);
-      };
-    } catch (err) {
-      showToast('File processing error.', 'error');
+      // 1. Compress image to max 600x400 ~20KB to ensure instant upload & 0 Firestore document size errors
+      const compressedDataUrl = await compressImageFile(file, 600, 400, 0.75);
+
+      // 2. Upload to ImgBB / CDN host
+      const secureUrl = await uploadImageToBot(compressedDataUrl, `${String(targetField)}_${Date.now()}`);
+
+      // 3. Update settings state & save directly to Firestore
+      const updated = { ...settingsRef.current, [targetField]: secureUrl };
+      setSettings(updated);
+      await saveAdminSettings(updated);
+
+      showToast(`✅ ${String(targetField)} uploaded & live synced!`, 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Upload failed.', 'error');
+    } finally {
       setUploadingImageField(null);
     }
   };
