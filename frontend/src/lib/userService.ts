@@ -90,6 +90,39 @@ export interface FirestoreUser {
 const USERS_COLLECTION = 'users';
 
 /**
+ * Detects user country using free IP Geolocation API with fallback to Telegram language code.
+ */
+export async function detectUserCountry(languageCode?: string): Promise<string> {
+  try {
+    const res = await fetch('https://ipwho.is/', { signal: AbortSignal.timeout(2500) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.success && data.country) {
+        return data.country;
+      }
+    }
+  } catch { /* fallback to language code */ }
+
+  const lang = (languageCode || (typeof navigator !== 'undefined' ? navigator.language : '') || '').toLowerCase();
+  if (lang.startsWith('bn')) return 'Bangladesh';
+  if (lang.startsWith('hi') || lang.startsWith('te') || lang.startsWith('ta') || lang.startsWith('kn') || lang.startsWith('mr')) return 'India';
+  if (lang.startsWith('id')) return 'Indonesia';
+  if (lang.startsWith('ur')) return 'Pakistan';
+  if (lang.startsWith('ru')) return 'Russia';
+  if (lang.startsWith('uz')) return 'Uzbekistan';
+  if (lang.startsWith('pt')) return 'Brazil';
+  if (lang.startsWith('tl') || lang.startsWith('fil')) return 'Philippines';
+  if (lang.startsWith('vi')) return 'Vietnam';
+  if (lang.startsWith('ar')) return 'Egypt';
+  if (lang.startsWith('es')) return 'Spain';
+  if (lang.startsWith('de')) return 'Germany';
+  if (lang.startsWith('fr')) return 'France';
+  if (lang.startsWith('tr')) return 'Turkey';
+
+  return 'Unknown';
+}
+
+/**
  * Creates or updates a user document in Firestore on app load.
  */
 export const upsertUser = async (
@@ -193,8 +226,9 @@ export const upsertUser = async (
     const initialBanStatus = isMultiAccount ? 'temp' : 'none';
     const initialBanUntil = isMultiAccount ? Timestamp.fromDate(new Date(Date.now() + 24 * 3600 * 1000)) : null;
     const initialRiskLevel = isMultiAccount ? 'high' : 'safe';
-
     // Save user doc
+    const userCountry = await detectUserCountry(telegramUser.languageCode);
+
     await setDoc(userRef, {
       telegramId: telegramUser.id,
       username: telegramUser.username || '',
@@ -202,7 +236,7 @@ export const upsertUser = async (
       lastName: telegramUser.lastName || '',
       photoUrl: finalPhotoUrl,
       isTelegramPremium: telegramUser.isPremium,
-      country: 'Unknown',
+      country: userCountry,
       joinDate: serverTimestamp(),
       isOnline: true,
       createdAt: serverTimestamp(),
@@ -260,6 +294,10 @@ export const upsertUser = async (
       ipHistory,
       ...(deviceFingerprint ? { deviceFingerprint } : {}),
     };
+
+    if (!user.country || user.country === 'Unknown') {
+      updateFields.country = await detectUserCountry(telegramUser.languageCode);
+    }
 
     if (isMultiAccount && user.banStatus === 'none') {
       const newFlags = (user.flagCount || 0) + 1;

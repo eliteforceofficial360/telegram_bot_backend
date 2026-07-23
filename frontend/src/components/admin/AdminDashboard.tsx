@@ -178,6 +178,29 @@ const CustomChartTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+export function getCountryFlag(countryName?: string): string {
+  if (!countryName) return '🌐';
+  const c = countryName.toLowerCase();
+  if (c.includes('bangladesh') || c === 'bd') return '🇧🇩';
+  if (c.includes('india') || c === 'in') return '🇮🇳';
+  if (c.includes('pakistan') || c === 'pk') return '🇵🇰';
+  if (c.includes('indonesia') || c === 'id') return '🇮🇩';
+  if (c.includes('nigeria') || c === 'ng') return '🇳🇬';
+  if (c.includes('philippines') || c === 'ph') return '🇵🇭';
+  if (c.includes('russia') || c === 'ru') return '🇷🇺';
+  if (c.includes('brazil') || c === 'br') return '🇧🇷';
+  if (c.includes('united states') || c.includes('usa') || c === 'us') return '🇺🇸';
+  if (c.includes('united kingdom') || c.includes('uk') || c === 'gb') return '🇬🇧';
+  if (c.includes('vietnam') || c === 'vn') return '🇻🇳';
+  if (c.includes('uzbekistan') || c === 'uz') return '🇺🇿';
+  if (c.includes('turkey') || c.includes('türkiye') || c === 'tr') return '🇹🇷';
+  if (c.includes('egypt') || c === 'eg') return '🇪🇬';
+  if (c.includes('germany') || c === 'de') return '🇩🇪';
+  if (c.includes('france') || c === 'fr') return '🇫🇷';
+  if (c.includes('spain') || c === 'es') return '🇪🇸';
+  return '🌐';
+}
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   kpi, loadingKpi, liveUserCount, withdrawals, usersList, eforceTokenValue
 }) => {
@@ -186,6 +209,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const pending = withdrawals.filter(w => w.status === 'Pending');
   const recentUsers = [...usersList].slice(0, 5);
   const flaggedUsers = usersList.filter(u => u.flagCount > 0).slice(0, 5);
+
+  const countryCounts: Record<string, number> = {};
+  (usersList || []).forEach((u: any) => {
+    const cName = u.country && u.country !== 'Unknown' ? u.country : 'Other';
+    countryCounts[cName] = (countryCounts[cName] || 0) + 1;
+  });
+
+  const totalCount = (usersList || []).length || 1;
+  const computedCountryData = Object.entries(countryCounts)
+    .map(([name, count]) => ({
+      name,
+      count,
+      value: parseFloat(((count / totalCount) * 100).toFixed(1)),
+      flag: getCountryFlag(name),
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 6);
 
   const sparkPoints = [400, 430, 448, 470, 540, 580, kpi.total || 620];
   const newUserSpark = [30, 45, 28, 80, 55, 95, kpi.newToday || 70];
@@ -255,39 +295,42 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         <div className="flex flex-col gap-4">
           <div className="rounded-[22px] p-4 flex-1" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span className="text-xs font-black text-white block mb-2">Users by Country</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-black text-white block">Users by Country</span>
+              <span className="text-[9px] font-semibold text-accent-cyan">Live Demographics</span>
+            </div>
             <ResponsiveContainer width="100%" height={120}>
               <PieChart>
                 <Pie
-                  data={COUNTRY_DATA} cx="50%" cy="50%" innerRadius={34} outerRadius={55}
+                  data={computedCountryData.length > 0 ? computedCountryData : COUNTRY_DATA} cx="50%" cy="50%" innerRadius={34} outerRadius={55}
                   dataKey="value" paddingAngle={3}
                   isAnimationActive={!reduceMotion} animationDuration={900} animationEasing="ease-out"
                 >
-                  {COUNTRY_DATA.map((_, i) => (
+                  {(computedCountryData.length > 0 ? computedCountryData : COUNTRY_DATA).map((_, i) => (
                     <Cell key={i} fill={COUNTRY_COLORS[i % COUNTRY_COLORS.length]} stroke="none" />
                   ))}
                 </Pie>
-                <Tooltip formatter={(v: any) => `${v}%`} contentStyle={{ background: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 10 }} />
+                <Tooltip formatter={(v: any, name: any, item: any) => [`${v}% (${item.payload.count || 0} users)`, name]} contentStyle={{ background: '#0D1117', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 10 }} />
               </PieChart>
             </ResponsiveContainer>
             <div className="flex flex-col gap-1.5 mt-1">
-              {COUNTRY_DATA.slice(0, 4).map((c, i) => (
+              {(computedCountryData.length > 0 ? computedCountryData : COUNTRY_DATA.map(c => ({ ...c, count: 0, flag: getCountryFlag(c.name) }))).slice(0, 5).map((c, i) => (
                 <div key={i} className="flex items-center justify-between text-[9px]">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: COUNTRY_COLORS[i] }} />
-                    <span className="text-slate-400">{c.name}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs leading-none shrink-0">{c.flag}</span>
+                    <span className="text-slate-300 font-medium truncate max-w-[90px]">{c.name}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-14 h-1 rounded-full bg-white/5 overflow-hidden">
+                    <div className="w-12 h-1 rounded-full bg-white/5 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full"
-                        style={{ background: COUNTRY_COLORS[i] }}
+                        style={{ background: COUNTRY_COLORS[i % COUNTRY_COLORS.length] }}
                         initial={{ width: 0 }}
                         animate={{ width: `${c.value}%` }}
                         transition={{ duration: 0.8, delay: i * 0.08, ease: 'easeOut' }}
                       />
                     </div>
-                    <span className="text-white font-black w-8 text-right">{c.value}%</span>
+                    <span className="text-white font-black text-[9px] w-12 text-right">{c.count} ({c.value}%)</span>
                   </div>
                 </div>
               ))}

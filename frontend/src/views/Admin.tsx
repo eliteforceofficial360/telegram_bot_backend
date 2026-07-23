@@ -10,7 +10,7 @@ import {
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
 import { AdminHeader } from '../components/admin/AdminHeader';
-import { AdminDashboard } from '../components/admin/AdminDashboard';
+import { AdminDashboard, getCountryFlag } from '../components/admin/AdminDashboard';
 import type { AdminTab } from '../components/admin/AdminSidebar';
 import {
   getAllUsers, updateUserDatabaseValues, getTotalUserCount,
@@ -905,7 +905,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 {(u.banStatus ?? 'none') !== 'none' && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase" style={{ color: '#F87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)' }}>Banned</span>}
                                 {u.flagCount > 0 && <span className="text-[7px] font-black px-1.5 py-0.5 rounded" style={{ color: '#FBBF24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)' }}>🚩{u.flagCount}</span>}
                               </div>
-                              <span className="text-[9px] text-slate-600">@{u.username || 'no_username'} · {u.telegramId}</span>
+                              <span className="text-[9px] text-slate-600">@{u.username || 'no_username'} · {u.telegramId} · <span className="text-slate-400 font-medium" title={u.country || 'Unknown'}>{getCountryFlag(u.country)} {u.country && u.country !== 'Unknown' ? u.country : 'Unknown'}</span></span>
                             </div>
 
                             {/* Points */}
