@@ -198,6 +198,40 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // --- Country Analytics ---
+  const [countrySearch, setCountrySearch] = useState('');
+
+  const countryAnalytics = useMemo(() => {
+    const map: Record<string, { name: string; count: number; online: number; premium: number; points: number }> = {};
+    
+    (usersList || []).forEach((u: any) => {
+      const c = u.country && u.country !== 'Unknown' ? u.country : 'Other / Unknown';
+      if (!map[c]) {
+        map[c] = { name: c, count: 0, online: 0, premium: 0, points: 0 };
+      }
+      map[c].count += 1;
+      if (u.isOnline) map[c].online += 1;
+      if (u.isTelegramPremium) map[c].premium += 1;
+      map[c].points += (u.points || 0);
+    });
+
+    const total = (usersList || []).length || 1;
+    return Object.values(map)
+      .map(item => ({
+        ...item,
+        percentage: parseFloat(((item.count / total) * 100).toFixed(1)),
+        flag: getCountryFlag(item.name),
+        avgPoints: Math.round(item.points / (item.count || 1)),
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [usersList]);
+
+  const filteredCountries = useMemo(() => {
+    if (!countrySearch.trim()) return countryAnalytics;
+    const q = countrySearch.toLowerCase();
+    return countryAnalytics.filter(c => c.name.toLowerCase().includes(q));
+  }, [countryAnalytics, countrySearch]);
   const [savingUser, setSavingUser] = useState(false);
   const [showAddUserForm, setShowAddUserForm] = useState(false);
   const [addUserId, setAddUserId] = useState('');
@@ -1109,7 +1143,163 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
             </div>
           )}
 
-          {/* ════════════════════ TASKS ════════════════════ */}
+          {/* ════════════════════ COUNTRIES ════════════════════ */}
+          {activeTab === 'countries' && (
+            <div className="flex flex-col gap-5">
+              {/* Top Summary Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <SectionCard accentColor="#38BDF888">
+                  <div className="p-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Tracked Countries</div>
+                      <div className="text-2xl font-black text-white mt-1">{countryAnalytics.length}</div>
+                      <div className="text-[9px] text-slate-400 mt-0.5 font-medium">Unique Geographic Locations</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl bg-[#38BDF8]/10 border border-[#38BDF8]/20">
+                      🌐
+                    </div>
+                  </div>
+                </SectionCard>
+
+                <SectionCard accentColor="#FF8A0088">
+                  <div className="p-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Top User Hub</div>
+                      <div className="text-xl font-black text-white mt-1 truncate max-w-[140px]">
+                        {countryAnalytics[0]?.flag || '🌐'} {countryAnalytics[0]?.name || 'N/A'}
+                      </div>
+                      <div className="text-[9px] text-amber-400 mt-0.5 font-bold">
+                        {countryAnalytics[0]?.count || 0} users ({countryAnalytics[0]?.percentage || 0}%)
+                      </div>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl bg-[#FF8A00]/10 border border-[#FF8A00]/20">
+                      🏆
+                    </div>
+                  </div>
+                </SectionCard>
+
+                <SectionCard accentColor="#4ADE8088">
+                  <div className="p-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Active Live Online</div>
+                      <div className="text-2xl font-black text-green-400 mt-1">
+                        {countryAnalytics.reduce((acc, curr) => acc + curr.online, 0)}
+                      </div>
+                      <div className="text-[9px] text-slate-400 mt-0.5 font-medium">Currently Mining Online</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl bg-green-500/10 border border-green-500/20">
+                      ⚡
+                    </div>
+                  </div>
+                </SectionCard>
+
+                <SectionCard accentColor="#00E5FF88">
+                  <div className="p-4 flex items-center justify-between">
+                    <div>
+                      <div className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-500">Premium Members</div>
+                      <div className="text-2xl font-black text-[#00E5FF] mt-1">
+                        {countryAnalytics.reduce((acc, curr) => acc + curr.premium, 0)}
+                      </div>
+                      <div className="text-[9px] text-slate-400 mt-0.5 font-medium">Telegram Star Supporters</div>
+                    </div>
+                    <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-xl bg-[#00E5FF]/10 border border-[#00E5FF]/20">
+                      ⭐
+                    </div>
+                  </div>
+                </SectionCard>
+              </div>
+
+              {/* Main Country List & Breakdown Card */}
+              <SectionCard accentColor="#38BDF855">
+                <div className="p-5 flex flex-col gap-4">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div>
+                      <h3 className="text-sm font-black text-white flex items-center gap-2">
+                        <span>🌐</span> Country & Regional Demographics
+                      </h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Real-time user count, online activity, and point generation by country</p>
+                    </div>
+
+                    <div className="relative w-full md:w-64">
+                      <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                      <input
+                        value={countrySearch}
+                        onChange={e => setCountrySearch(e.target.value)}
+                        placeholder="Search country name..."
+                        className="w-full pl-10 pr-4 h-9 rounded-xl text-xs text-white outline-none"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Table of Countries */}
+                  <div className="overflow-x-auto rounded-2xl border border-white/[0.06]" style={{ background: 'rgba(0,0,0,0.2)' }}>
+                    <table className="w-full text-left text-xs text-slate-300">
+                      <thead>
+                        <tr className="border-b border-white/[0.08] text-[9px] uppercase tracking-wider text-slate-500" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                          <th className="py-3 px-4">Rank & Country</th>
+                          <th className="py-3 px-4">User Count</th>
+                          <th className="py-3 px-4">Percentage</th>
+                          <th className="py-3 px-4">Online Live</th>
+                          <th className="py-3 px-4">Premium Users</th>
+                          <th className="py-3 px-4 text-right">Avg EForce/User</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {filteredCountries.map((c, i) => (
+                          <tr key={c.name} className="hover:bg-white/[0.03] transition-colors">
+                            <td className="py-3 px-4 flex items-center gap-3">
+                              <span className="text-[10px] font-black text-slate-500 w-4">#{i + 1}</span>
+                              <span className="text-base">{c.flag}</span>
+                              <span className="font-bold text-white text-xs">{c.name}</span>
+                            </td>
+                            <td className="py-3 px-4 font-black text-white">{c.count.toLocaleString()}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <div className="w-20 h-1.5 rounded-full bg-white/5 overflow-hidden">
+                                  <div className="h-full rounded-full bg-gradient-to-r from-[#38BDF8] to-[#00E5FF]" style={{ width: `${c.percentage}%` }} />
+                                </div>
+                                <span className="text-[10px] font-bold text-slate-400">{c.percentage}%</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              {c.online > 0 ? (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-400/10 text-green-400 border border-green-400/20">
+                                  ● {c.online} online
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-slate-600">0 online</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4">
+                              {c.premium > 0 ? (
+                                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 flex items-center gap-1 w-fit">
+                                  <Star size={9} className="fill-current" /> {c.premium}
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-slate-600">0 premium</span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right font-black text-[#FF8A00]">
+                              {c.avgPoints.toLocaleString()} EFC
+                            </td>
+                          </tr>
+                        ))}
+
+                        {filteredCountries.length === 0 && (
+                          <tr>
+                            <td colSpan={6} className="py-8 text-center text-slate-500 text-xs font-medium">
+                              No country data matches your search query.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          )}
           {activeTab === 'tasks' && (
             <div className="flex flex-col gap-5">
               <SectionCard accentColor="#A3E63588">

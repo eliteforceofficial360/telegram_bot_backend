@@ -16,6 +16,7 @@ interface AdminHeaderProps {
 const tabMeta: Record<AdminTab, { title: string; sub: string; icon: string; accentColor: string }> = {
   dashboard:     { title: 'Dashboard',        sub: "Live overview of your mining ecosystem",          icon: '📊', accentColor: '#FF8A00' },
   users:         { title: 'User Management',  sub: 'Search, moderate and manage all members',         icon: '👥', accentColor: '#00E5FF' },
+  countries:     { title: 'Country Demographics', sub: 'Regional analytics & demographic breakdown', icon: '🌐', accentColor: '#38BDF8' },
   tasks:         { title: 'Mission Control',  sub: 'Create and manage EForce earning tasks',          icon: '✅', accentColor: '#A3E635' },
   withdrawals:   { title: 'Withdrawals',      sub: 'Review and process payout requests',              icon: '💸', accentColor: '#4ADE80' },
   security:      { title: 'Security Center',  sub: 'Monitor flagged users and threats',               icon: '🛡️', accentColor: '#FB923C' },

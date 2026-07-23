@@ -2,10 +2,10 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, Users, CheckSquare, DollarSign, Shield,
-  Settings, Zap, ExternalLink, X, ChevronRight, Bell, Trophy,
+  Settings, Zap, ExternalLink, X, ChevronRight, Bell, Trophy, Globe,
 } from 'lucide-react';
 
-export type AdminTab = 'dashboard' | 'users' | 'tasks' | 'withdrawals' | 'security' | 'notifications' | 'settings' | 'topminers';
+export type AdminTab = 'dashboard' | 'users' | 'countries' | 'tasks' | 'withdrawals' | 'security' | 'notifications' | 'settings' | 'topminers';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -18,6 +18,7 @@ interface AdminSidebarProps {
 const navItems: { id: AdminTab; label: string; icon: React.ReactNode; desc: string; accentColor: string }[] = [
   { id: 'dashboard',     label: 'Dashboard',      icon: <LayoutDashboard size={15} />, desc: 'Overview & KPIs',        accentColor: '#FF8A00' },
   { id: 'users',         label: 'Users',          icon: <Users size={15} />,           desc: 'Manage members',         accentColor: '#00E5FF' },
+  { id: 'countries',     label: 'Countries',      icon: <Globe size={15} />,           desc: 'Regional analytics',     accentColor: '#38BDF8' },
   { id: 'tasks',         label: 'Tasks',          icon: <CheckSquare size={15} />,     desc: 'Missions & rewards',     accentColor: '#A3E635' },
   { id: 'withdrawals',   label: 'Withdrawals',    icon: <DollarSign size={15} />,      desc: 'Payment requests',       accentColor: '#4ADE80' },
   { id: 'security',      label: 'Security',       icon: <Shield size={15} />,          desc: 'Flags & bans',           accentColor: '#FB923C' },
