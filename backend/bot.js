@@ -11,8 +11,8 @@ import {
 dotenv.config();
 
 const token     = process.env.BOT_TOKEN;
-let webAppUrlRaw = process.env.MINI_APP_URL || 'https://mini-telegram-app-c0fb4.web.app';
-const webAppUrl = webAppUrlRaw.endsWith('/') ? webAppUrlRaw : `${webAppUrlRaw}/`;
+let webAppUrlRaw = (process.env.MINI_APP_URL || 'https://mini-telegram-app-c0fb4.web.app').trim();
+const webAppUrl = webAppUrlRaw.endsWith('/') ? webAppUrlRaw.slice(0, -1) : webAppUrlRaw;
 const API_PORT  = process.env.API_PORT || 4000;
 const API_SECRET = process.env.API_SECRET || 'elite_force_secret_2024';
 
