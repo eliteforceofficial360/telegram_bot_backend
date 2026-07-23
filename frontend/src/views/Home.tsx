@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Trophy, Flame, ChevronRight, Zap } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Sparkles, Flame, Zap, ChevronRight, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
 import { recordDailyCheckin, subscribeToUser, upsertUser, syncPointsToFirestore, type FirestoreUser } from '../lib/userService';
@@ -38,14 +38,17 @@ export const Home: React.FC<HomeProps> = ({
   energyCooldownUntil,
 }) => {
   void usdtBalance;
+  void energy;
+  void setEnergy;
+  void maxEnergy;
+  void referralsCount;
+  void setActiveTab;
+  void energyCooldownUntil;
 
   // Daily Check-in (Firestore backed)
   const [dailyClaimed, setDailyClaimed] = useState(false);
   const [dailyStreak, setDailyStreak] = useState(0);
   const [claimingDaily, setClaimingDaily] = useState(false);
-
-  // Floating text tap effects state
-  const [clicks, setClicks] = useState<{ id: number; x: number; y: number; text: string }[]>([]);
 
   const [dbUser, setDbUser] = useState<FirestoreUser | null>(null);
 
@@ -88,43 +91,105 @@ export const Home: React.FC<HomeProps> = ({
   useEffect(() => { settingsRef.current = settings; }, [settings]);
   useEffect(() => { telegramUserRef.current = telegramUser; }, [telegramUser]);
 
-  // Unified click handler for central coin (Tap-to-Earn)
-  const handleMainCoinClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (energyCooldownUntil > Date.now()) {
-      const remaining = Math.ceil((energyCooldownUntil - Date.now()) / 1000);
-      showToast(`Energy exhausted! Cooldown: ${remaining}s remaining.`, 'warning');
-      return;
-    }
+  // --- Automated Cloud Mining Engine ---
+  const [miningStartTime, setMiningStartTime] = useState<number>(() => {
+    return Number(localStorage.getItem('miningStartTime') || '0');
+  });
+  void miningStartTime;
+  const [isMiningActive, setIsMiningActive] = useState<boolean>(false);
+  const [miningProgress, setMiningProgress] = useState<number>(0);
+  const [accumulatedMinedPoints, setAccumulatedMinedPoints] = useState<number>(0);
+  const [timeRemainingStr, setTimeRemainingStr] = useState<string>('');
+  const [isMiningCompleted, setIsMiningCompleted] = useState<boolean>(false);
+  const [claimingMining, setClaimingMining] = useState<boolean>(false);
 
-    const reward = settings.tapReward || 1;
-    if (energy < reward) {
-      showToast('Not enough energy! Wait for it to regenerate.', 'warning');
-      return;
-    }
+  const durationSec = settings.autoMinerDuration || 86400; // 24h default session
+  const totalReward = settings.autoMinerReward || 1000;    // 1,000 EFC default reward
 
-    // Trigger haptic feedback if running in Telegram WebView
-    try {
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg?.HapticFeedback) {
-        tg.HapticFeedback.impactOccurred('light');
+  // Live Mining Loop Effect
+  useEffect(() => {
+    const updateMiningStatus = () => {
+      const now = Date.now();
+      const startTime = Number(localStorage.getItem('miningStartTime') || '0');
+
+      if (!startTime || startTime === 0) {
+        setIsMiningActive(false);
+        setIsMiningCompleted(false);
+        setMiningProgress(0);
+        setAccumulatedMinedPoints(0);
+        setTimeRemainingStr('');
+        return;
       }
-    } catch { /* ignore */ }
 
-    // Deduct energy, reward points
-    setEnergy(prev => Math.max(0, prev - reward));
-    setEfcBalance(prev => prev + reward);
+      const elapsedSec = (now - startTime) / 1000;
 
-    // Visual float tap effect relative to coin wrapper bounds
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const id = Date.now() + Math.random();
-    setClicks(prev => [...prev, { id, x, y, text: `+${reward}` }]);
+      if (elapsedSec >= durationSec) {
+        // Mining Completed! Ready to Claim
+        setIsMiningActive(false);
+        setIsMiningCompleted(true);
+        setMiningProgress(100);
+        setAccumulatedMinedPoints(totalReward);
+        setTimeRemainingStr('00h 00m 00s');
+      } else {
+        // Mining Active
+        setIsMiningActive(true);
+        setIsMiningCompleted(false);
+        const ratio = elapsedSec / durationSec;
+        setMiningProgress(Math.min(100, ratio * 100));
+        setAccumulatedMinedPoints(Math.floor(ratio * totalReward));
 
-    // Automatically remove the click item after animation completes
-    setTimeout(() => {
-      setClicks(prev => prev.filter(c => c.id !== id));
-    }, 800);
+        const remainingSec = Math.max(0, durationSec - elapsedSec);
+        const hrs = Math.floor(remainingSec / 3600);
+        const mins = Math.floor((remainingSec % 3600) / 60);
+        const secs = Math.floor(remainingSec % 60);
+        setTimeRemainingStr(
+          `${String(hrs).padStart(2, '0')}h ${String(mins).padStart(2, '0')}m ${String(secs).padStart(2, '0')}s`
+        );
+      }
+    };
+
+    updateMiningStatus();
+    const interval = setInterval(updateMiningStatus, 1000);
+    return () => clearInterval(interval);
+  }, [durationSec, totalReward]);
+
+  // Start Automated Mining Session
+  const handleStartMining = () => {
+    const now = Date.now();
+    localStorage.setItem('miningStartTime', String(now));
+    setMiningStartTime(now);
+    setIsMiningActive(true);
+    setIsMiningCompleted(false);
+    showToast('⚡ Automated Cloud Mining started! Watch your points grow.', 'success');
+  };
+
+  // Claim Mining Rewards & Start Next Cycle
+  const handleClaimMiningRewards = async () => {
+    if (claimingMining) return;
+    setClaimingMining(true);
+
+    try {
+      const rewardToClaim = totalReward;
+      setEfcBalance(prev => prev + rewardToClaim);
+
+      // Auto-restart next mining session
+      const now = Date.now();
+      localStorage.setItem('miningStartTime', String(now));
+      setMiningStartTime(now);
+      setIsMiningActive(true);
+      setIsMiningCompleted(false);
+
+      if (telegramUser) {
+        syncPointsToFirestore(telegramUser.id, efcBalance + rewardToClaim).catch(() => {});
+      }
+
+      showToast(`🎁 Claimed +${rewardToClaim.toLocaleString()} EFC Points! Next mining session started.`, 'success');
+      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#FF8A00', '#00E5FF', '#FFD700'] });
+    } catch {
+      showToast('Error claiming mining rewards.', 'error');
+    } finally {
+      setClaimingMining(false);
+    }
   };
 
   // Daily Check-in (Firestore + localStorage)
@@ -301,88 +366,129 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </div>
 
-      {/* Main Mining Area */}
-      <div className="relative flex flex-col items-center gap-5 my-2">
-        {/* Coin Wrapper */}
+      {/* Automated Cloud Mining Reactor Widget */}
+      <div className="relative flex flex-col items-center gap-5 my-3 w-full">
+        {/* Cloud Mining Core Circle */}
         <div
-          onClick={handleMainCoinClick}
-          onContextMenu={(e) => e.preventDefault()}
-          className="relative w-64 h-64 cursor-pointer select-none flex items-center justify-center coin-tap-container active:scale-95 transition-transform duration-75 ease-out"
+          className="relative w-64 h-64 select-none flex items-center justify-center pointer-events-none"
           style={{ perspective: 900 }}
         >
-          {/* Floating rising clicks */}
-          <AnimatePresence>
-            {clicks.map(c => (
-              <motion.span
-                key={c.id}
-                initial={{ opacity: 1, y: c.y - 20, x: c.x - 10, scale: 1 }}
-                animate={{ opacity: 0, y: c.y - 80, scale: 1.2 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.8, ease: 'easeOut' }}
-                className="absolute z-50 text-base font-black pointer-events-none select-none text-[#FFD700] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] font-display"
-                style={{ left: 0, top: 0 }}
-              >
-                {c.text}
-              </motion.span>
-            ))}
-          </AnimatePresence>
+          {/* Ambient Glow Rings */}
+          <div className={`absolute inset-[-16px] rounded-full blur-3xl transition-all duration-700 ${
+            isMiningActive ? 'bg-[#00E5FF]/20 animate-pulse' : isMiningCompleted ? 'bg-[#FFD700]/25 animate-pulse' : 'bg-[#FF8A00]/10'
+          }`} />
+          <div className={`absolute inset-[-4px] rounded-full blur-xl transition-all duration-700 ${
+            isMiningActive ? 'bg-[#00E5FF]/25' : isMiningCompleted ? 'bg-[#FFD700]/30' : 'bg-[#FF8A00]/15'
+          }`} />
 
-          {/* Multi-layer ambient glow rings */}
-          <div className="absolute inset-[-16px] rounded-full blur-3xl bg-[#FF8A00]/10 animate-pulse transition-all duration-700" />
-          <div className="absolute inset-[-4px] rounded-full blur-xl bg-[#FF8A00]/15 transition-all duration-700" />
-
-          {/* Rotating orbit ring */}
+          {/* Rotating Orbit Ring */}
           <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 25, ease: 'linear' }}
-            className="absolute inset-0 rounded-full border border-dashed border-[#FFD700]/15"
+            animate={{ rotate: isMiningActive ? 360 : 0 }}
+            transition={{ repeat: Infinity, duration: 12, ease: 'linear' }}
+            className={`absolute inset-0 rounded-full border border-dashed ${
+              isMiningActive ? 'border-[#00E5FF]/40' : isMiningCompleted ? 'border-[#FFD700]/50' : 'border-[#FF8A00]/20'
+            }`}
           />
 
-          {/* Gold solid ring border */}
+          {/* Inner Glowing Ring */}
           <div
-            className="absolute inset-[2px] rounded-full pointer-events-none"
+            className="absolute inset-[2px] rounded-full"
             style={{
-              border: '2px solid rgba(255,215,0,0.18)',
-              boxShadow: '0 0 30px rgba(255,138,0,0.25), inset 0 0 20px rgba(255,215,0,0.06)',
+              border: `2px solid ${isMiningActive ? 'rgba(0,229,255,0.35)' : isMiningCompleted ? 'rgba(255,215,0,0.5)' : 'rgba(255,138,0,0.2)'}`,
+              boxShadow: isMiningActive
+                ? '0 0 35px rgba(0,229,255,0.3), inset 0 0 20px rgba(0,229,255,0.1)'
+                : isMiningCompleted
+                ? '0 0 40px rgba(255,215,0,0.4), inset 0 0 25px rgba(255,215,0,0.15)'
+                : '0 0 20px rgba(255,138,0,0.15)',
             }}
           />
 
-          {/* Coin image */}
+          {/* Mining Core Icon / Coin */}
           <motion.img
             src={settings.coinIconUrl || '/coin.png'}
-            alt="EForce Coin"
+            alt="Mining Core"
             draggable={false}
-            whileTap={{ scale: 0.95 }}
-            className="relative z-10 w-full h-full object-contain select-none drop-shadow-[0_0_28px_rgba(255,215,0,0.35)] coin-image transition-all duration-500"
+            animate={isMiningActive ? { rotate: [0, 4, -4, 0], scale: [1, 1.02, 1] } : {}}
+            transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+            className="relative z-10 w-44 h-44 object-contain select-none drop-shadow-[0_0_30px_rgba(255,215,0,0.35)] coin-image transition-all duration-500"
           />
+
+          {/* Live Hashrate Badge inside Core */}
+          {isMiningActive && (
+            <div className="absolute z-20 bottom-4 px-3.5 py-1 rounded-full bg-[#050816]/90 border border-[#00E5FF]/40 backdrop-blur-md flex items-center gap-1.5 shadow-[0_4px_15px_rgba(0,0,0,0.6)]">
+              <span className="w-2 h-2 rounded-full bg-[#00E5FF] animate-ping" />
+              <span className="text-[10px] font-black text-[#00E5FF] tracking-wider uppercase font-mono">
+                {(totalReward / (durationSec / 3600)).toFixed(1)} EFC/hr
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Energy Details */}
-        <div className="flex flex-col items-center gap-3.5 w-full">
-          <div className="w-full max-w-sm flex flex-col gap-1.5 px-4 mt-2">
-            <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-              <span className="flex items-center gap-1">
-                <Zap size={11} className="text-[#FF8A00] animate-pulse" />
-                Energy
+        {/* Live Mining Yield & Status Card */}
+        <div className="w-full max-w-sm flex flex-col items-center gap-3 px-2">
+          {/* Real-time Accumulated Mining Yield Counter */}
+          <div className="glass-panel p-4 rounded-[22px] border-white/8 w-full flex flex-col items-center gap-1 shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1">
+              <Zap size={11} className={isMiningActive ? 'text-[#00E5FF] animate-pulse' : 'text-[#FF8A00]'} />
+              {isMiningActive ? 'Live Mining Yield' : isMiningCompleted ? 'Mining Complete' : 'Cloud Mining Machine'}
+            </span>
+
+            <div className="flex items-center gap-1.5 my-1">
+              <span className={`text-2xl font-black ${
+                isMiningActive ? 'text-[#00E5FF]' : isMiningCompleted ? 'text-[#FFD700]' : 'text-slate-400'
+              }`}>
+                +{accumulatedMinedPoints.toLocaleString()}
               </span>
-              <span>{energy} / {maxEnergy}</span>
+              <span className="text-xs font-extrabold text-slate-300 uppercase tracking-wider">EFC</span>
             </div>
-            <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/[0.03]">
-              <div
-                className="h-full bg-gradient-to-r from-[#FF8A00] to-[#FFD700] rounded-full transition-all duration-100"
-                style={{ width: `${(energy / maxEnergy) * 100}%` }}
+
+            {/* Progress Bar */}
+            <div className="w-full h-2.5 bg-white/5 rounded-full overflow-hidden border border-white/[0.05] relative my-1">
+              <motion.div
+                className={`h-full rounded-full transition-all duration-300 ${
+                  isMiningActive
+                    ? 'bg-gradient-to-r from-[#00E5FF] to-[#0088FF]'
+                    : isMiningCompleted
+                    ? 'bg-gradient-to-r from-[#FF8A00] to-[#FFD700]'
+                    : 'bg-white/10'
+                }`}
+                style={{ width: `${miningProgress}%` }}
               />
             </div>
-            {energyCooldownUntil > Date.now() && (
-              <span className="text-[8px] text-accent-danger font-black uppercase tracking-wider text-center mt-1">
-                ⚡ Cooldown Active (Locked for 60s)
-              </span>
-            )}
+
+            {/* Subtext info */}
+            <div className="flex justify-between items-center w-full text-[9.5px] font-bold text-slate-400 mt-0.5 font-mono">
+              <span>{isMiningActive ? `Time Remaining: ${timeRemainingStr}` : isMiningCompleted ? 'Ready to Claim!' : 'Automated Cloud Mining'}</span>
+              <span>{miningProgress.toFixed(1)}%</span>
+            </div>
           </div>
 
-          <span className="text-[9px] text-slate-500 font-semibold uppercase tracking-widest block text-center mt-1">
-            Tap the coin to mine EFC points
-          </span>
+          {/* Action Button: Start / Claim / In Progress */}
+          {isMiningCompleted ? (
+            <button
+              onClick={handleClaimMiningRewards}
+              disabled={claimingMining}
+              className="w-full h-12 rounded-[20px] bg-gradient-to-r from-[#FF8A00] via-[#FFB347] to-[#FFD700] text-black text-xs font-black uppercase tracking-wider shadow-[0_0_25px_rgba(255,138,0,0.5)] hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              {claimingMining ? (
+                <span className="w-4 h-4 border-2 border-t-transparent border-black rounded-full animate-spin" />
+              ) : (
+                <>🎁 CLAIM MINING REWARDS (+{totalReward.toLocaleString()} EFC)</>
+              )}
+            </button>
+          ) : isMiningActive ? (
+            <div className="w-full h-12 rounded-[20px] bg-[#0E1225] border border-[#00E5FF]/30 text-[#00E5FF] text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,229,255,0.15)] select-none">
+              <span className="w-2 h-2 rounded-full bg-[#00E5FF] animate-ping" />
+              <span>MINING IN PROGRESS ⚡ ({timeRemainingStr})</span>
+            </div>
+          ) : (
+            <button
+              onClick={handleStartMining}
+              className="w-full h-12 rounded-[20px] bg-gradient-to-r from-[#00E5FF] to-[#0088FF] text-black text-xs font-black uppercase tracking-wider shadow-[0_0_25px_rgba(0,229,255,0.4)] hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              🚀 START AUTOMATED MINING SESSION
+            </button>
+          )}
         </div>
       </div>
 
