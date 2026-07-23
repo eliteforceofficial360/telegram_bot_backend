@@ -264,51 +264,61 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
 
   const uploadImageToBot = async (base64Image: string, filename: string): Promise<string> => {
-    if (!settings.botApiUrl) throw new Error('Please set and save Bot API URL first in Settings.');
-    const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
+    // 1. Try Bot API server (Cloudinary endpoint)
+    if (settings.botApiUrl) {
+      const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
+      const secrets = [
+        notifApiSecret,
+        'https://elite-force-telegram-app.onrender.com',
+        'elite_force_secret_2024'
+      ];
 
-    const secrets = [
-      notifApiSecret,
-      'https://elite-force-telegram-app.onrender.com',
-      'elite_force_secret_2024'
-    ];
+      for (const secret of secrets) {
+        if (!secret) continue;
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${secret}`
+            },
+            body: JSON.stringify({ image: base64Image, filename })
+          });
 
-    let res: Response | null = null;
-    let lastErrorMsg = '';
+          if (res.status === 401) continue;
 
-    for (const secret of secrets) {
-      if (!secret) continue;
-      try {
-        res = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${secret}`
-          },
-          body: JSON.stringify({ image: base64Image, filename })
-        });
-
-        if (res.status === 401) {
-          continue;
+          if (res.ok) {
+            const data = await res.json();
+            if (data.secureUrl) return data.secureUrl;
+          }
+        } catch (err) {
+          console.warn('Bot API upload attempt failed, falling back to ImgBB:', err);
         }
-
-        break;
-      } catch (err: any) {
-        lastErrorMsg = err.message;
       }
     }
 
-    if (!res) {
-      throw new Error(lastErrorMsg || 'Failed to connect to Bot API server.');
+    // 2. Automatic Fallback to ImgBB free image host if Cloudinary is unconfigured
+    try {
+      const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+      const formData = new FormData();
+      formData.append('image', cleanBase64);
+
+      const imgbbRes = await fetch('https://api.imgbb.com/1/upload?key=6d70077319714757c9a96e622b78edc3', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (imgbbRes.ok) {
+        const imgbbData = await imgbbRes.json();
+        if (imgbbData.data?.url) {
+          return imgbbData.data.url;
+        }
+      }
+    } catch (fallbackErr) {
+      console.warn('ImgBB fallback upload failed:', fallbackErr);
     }
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || `Upload failed (Status ${res.status})`);
-    }
-    const data = await res.json();
-    if (!data.secureUrl) throw new Error('No secureUrl returned from server');
-    return data.secureUrl;
+    throw new Error('Cloudinary is unconfigured on your bot backend. Please paste a direct image URL (e.g. https://i.ibb.co/banner.jpg).');
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
