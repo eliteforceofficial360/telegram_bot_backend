@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Bell, Menu, RefreshCw, Zap } from 'lucide-react';
 import type { AdminTab } from './AdminSidebar';
 
@@ -14,15 +13,15 @@ interface AdminHeaderProps {
 }
 
 const tabMeta: Record<AdminTab, { title: string; sub: string; icon: string; accentColor: string }> = {
-  dashboard:     { title: 'Dashboard',        sub: "Live overview of your mining ecosystem",          icon: '📊', accentColor: '#FF8A00' },
-  users:         { title: 'User Management',  sub: 'Search, moderate and manage all members',         icon: '👥', accentColor: '#00E5FF' },
-  countries:     { title: 'Country Demographics', sub: 'Regional analytics & demographic breakdown', icon: '🌐', accentColor: '#38BDF8' },
-  tasks:         { title: 'Mission Control',  sub: 'Create and manage EForce earning tasks',          icon: '✅', accentColor: '#A3E635' },
-  withdrawals:   { title: 'Withdrawals',      sub: 'Review and process payout requests',              icon: '💸', accentColor: '#4ADE80' },
-  security:      { title: 'Security Center',  sub: 'Monitor flagged users and threats',               icon: '🛡️', accentColor: '#FB923C' },
-  notifications: { title: 'Notifications',   sub: 'Send bot messages, announcements & alerts',       icon: '📢', accentColor: '#C084FC' },
-  topminers:     { title: 'Top Miners Control',sub: 'Configure leaderboard pinned miners and ranks',       icon: '🏆', accentColor: '#FFD700' },
-  settings:      { title: 'System Settings',  sub: 'Configure app economy and global parameters',     icon: '⚙️', accentColor: '#B388FF' },
+  dashboard:     { title: 'Dashboard',        sub: "Live overview of your mining ecosystem",          icon: '📊', accentColor: '#2563EB' },
+  users:         { title: 'User Management',  sub: 'Search, moderate and manage all members',         icon: '👥', accentColor: '#0284C7' },
+  countries:     { title: 'Country Demographics', sub: 'Regional analytics & demographic breakdown', icon: '🌐', accentColor: '#0891B2' },
+  tasks:         { title: 'Mission Control',  sub: 'Create and manage EForce earning tasks',          icon: '✅', accentColor: '#059669' },
+  withdrawals:   { title: 'Withdrawals',      sub: 'Review and process payout requests',              icon: '💸', accentColor: '#16A34A' },
+  security:      { title: 'Security Center',  sub: 'Monitor flagged users and threats',               icon: '🛡️', accentColor: '#EA580C' },
+  notifications: { title: 'Notifications',   sub: 'Send bot messages, announcements & alerts',       icon: '📢', accentColor: '#7C3AED' },
+  topminers:     { title: 'Top Miners Control',sub: 'Configure leaderboard pinned miners and ranks',       icon: '🏆', accentColor: '#D97706' },
+  settings:      { title: 'System Settings',  sub: 'Configure app economy and global parameters',     icon: '⚙️', accentColor: '#4F46E5' },
 };
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
@@ -33,25 +32,13 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
 
   return (
     <header
-      className="flex items-center justify-between px-4 md:px-6 py-3.5 shrink-0 relative"
-      style={{
-        background: 'rgba(7,10,20,0.85)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
-      }}
+      className="flex items-center justify-between px-4 md:px-6 py-3.5 shrink-0 bg-white/90 backdrop-blur-md border-b border-slate-200 shadow-xs relative z-20"
     >
-      {/* Subtle top shimmer */}
-      <div className="absolute top-0 left-0 right-0 h-px"
-        style={{ background: `linear-gradient(90deg, transparent, ${meta.accentColor}22, transparent)` }} />
-
       {/* Left: burger + breadcrumb */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuClick}
-          className="lg:hidden w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-all"
-          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.09)' }}
+          className="lg:hidden w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-all border border-slate-200"
         >
           <Menu size={15} />
         </button>
@@ -59,16 +46,15 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         {/* Tab icon + title */}
         <div className="flex items-center gap-3">
           <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-sm shrink-0 hidden sm:flex"
-            style={{ background: `${meta.accentColor}15`, border: `1px solid ${meta.accentColor}25` }}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm shrink-0 hidden sm:flex bg-slate-100 border border-slate-200 text-slate-700"
           >
             {meta.icon}
           </div>
           <div>
-            <h1 className="text-sm md:text-[15px] font-black text-white tracking-tight leading-none">
+            <h1 className="text-sm md:text-[15px] font-bold text-slate-900 tracking-tight leading-none">
               {meta.title}
             </h1>
-            <p className="text-[9px] text-slate-500 mt-0.5 hidden md:block font-medium">{meta.sub}</p>
+            <p className="text-[10px] text-slate-500 mt-0.5 hidden md:block font-medium">{meta.sub}</p>
           </div>
         </div>
       </div>
@@ -76,76 +62,55 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
       {/* Right: actions */}
       <div className="flex items-center gap-2">
         {/* Refresh button */}
-        <motion.button
+        <button
           onClick={onRefresh}
-          whileTap={{ scale: 0.92 }}
-          className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-all"
-          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
+          className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-all border border-slate-200"
           title="Refresh data"
         >
-          <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-[#FF8A00]' : ''} />
-        </motion.button>
+          <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-blue-600' : ''} />
+        </button>
 
         {/* Notification bell */}
         <div className="relative">
           <button
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white transition-all"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.09)' }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-all border border-slate-200"
             title="Alerts"
           >
             <Bell size={13} />
           </button>
           {notifCount > 0 && (
-            <motion.span
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[8px] font-black text-white flex items-center justify-center"
-              style={{
-                background: 'linear-gradient(135deg, #FF5252, #FF1744)',
-                boxShadow: '0 0 8px rgba(255,82,82,0.6)',
-              }}
+            <span
+              className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[8px] font-bold text-white flex items-center justify-center bg-rose-600 shadow-xs"
             >
               {notifCount > 9 ? '9+' : notifCount}
-            </motion.span>
+            </span>
           )}
         </div>
 
         {/* Live status indicator */}
         <div
-          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-          style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}
+          className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200"
         >
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-[9px] font-bold text-green-400">LIVE</span>
+          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[9px] font-bold text-emerald-700">LIVE</span>
         </div>
 
         {/* Admin profile chip */}
         <div
-          className="flex items-center gap-2 pl-3 ml-1 border-l"
-          style={{ borderColor: 'rgba(255,255,255,0.08)' }}
+          className="flex items-center gap-2 pl-3 ml-1 border-l border-slate-200"
         >
           <div
-            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-            style={{
-              background: 'linear-gradient(135deg, #FF8A00, #FFB347)',
-              boxShadow: '0 0 12px rgba(255,138,0,0.4)',
-            }}
+            className="w-8 h-8 rounded-full bg-slate-900 flex items-center justify-center text-white shrink-0 shadow-xs"
           >
-            <Zap size={12} className="text-white fill-current" />
+            <Zap size={13} className="fill-current" />
           </div>
           <div className="hidden md:block">
-            <div
-              className="text-[10px] font-extrabold leading-none"
-              style={{
-                color: '#FF8A00',
-                textShadow: '0 0 10px rgba(255,138,0,0.5)',
-              }}
-            >
+            <div className="text-[10px] font-bold leading-none text-slate-900">
               {adminUsername
                 ? (adminUsername.startsWith('@') ? adminUsername : `@${adminUsername}`)
                 : '@admin'}
             </div>
-            <div className="text-[8px] text-slate-500 mt-0.5 font-semibold uppercase tracking-wider">Super Admin</div>
+            <div className="text-[8px] text-slate-400 mt-0.5 font-semibold uppercase tracking-wider">Super Admin</div>
           </div>
         </div>
       </div>

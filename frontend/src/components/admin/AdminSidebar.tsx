@@ -16,15 +16,15 @@ interface AdminSidebarProps {
 }
 
 const navItems: { id: AdminTab; label: string; icon: React.ReactNode; desc: string; accentColor: string }[] = [
-  { id: 'dashboard',     label: 'Dashboard',      icon: <LayoutDashboard size={15} />, desc: 'Overview & KPIs',        accentColor: '#FF8A00' },
-  { id: 'users',         label: 'Users',          icon: <Users size={15} />,           desc: 'Manage members',         accentColor: '#00E5FF' },
-  { id: 'countries',     label: 'Countries',      icon: <Globe size={15} />,           desc: 'Regional analytics',     accentColor: '#38BDF8' },
-  { id: 'tasks',         label: 'Tasks',          icon: <CheckSquare size={15} />,     desc: 'Missions & rewards',     accentColor: '#A3E635' },
-  { id: 'withdrawals',   label: 'Withdrawals',    icon: <DollarSign size={15} />,      desc: 'Payment requests',       accentColor: '#4ADE80' },
-  { id: 'security',      label: 'Security',       icon: <Shield size={15} />,          desc: 'Flags & bans',           accentColor: '#FB923C' },
-  { id: 'notifications', label: 'Notifications',  icon: <Bell size={15} />,            desc: 'Push messages & alerts', accentColor: '#C084FC' },
-  { id: 'topminers',     label: 'Top Miners',     icon: <Trophy size={15} />,          desc: 'Leaderboard setup',      accentColor: '#FFD700' },
-  { id: 'settings',      label: 'Settings',       icon: <Settings size={15} />,        desc: 'System config',          accentColor: '#B388FF' },
+  { id: 'dashboard',     label: 'Dashboard',      icon: <LayoutDashboard size={15} />, desc: 'Overview & KPIs',        accentColor: '#2563EB' },
+  { id: 'users',         label: 'Users',          icon: <Users size={15} />,           desc: 'Manage members',         accentColor: '#0284C7' },
+  { id: 'countries',     label: 'Countries',      icon: <Globe size={15} />,           desc: 'Regional analytics',     accentColor: '#0891B2' },
+  { id: 'tasks',         label: 'Tasks',          icon: <CheckSquare size={15} />,     desc: 'Missions & rewards',     accentColor: '#059669' },
+  { id: 'withdrawals',   label: 'Withdrawals',    icon: <DollarSign size={15} />,      desc: 'Payment requests',       accentColor: '#16A34A' },
+  { id: 'security',      label: 'Security',       icon: <Shield size={15} />,          desc: 'Flags & bans',           accentColor: '#EA580C' },
+  { id: 'notifications', label: 'Notifications',  icon: <Bell size={15} />,            desc: 'Push messages & alerts', accentColor: '#7C3AED' },
+  { id: 'topminers',     label: 'Top Miners',     icon: <Trophy size={15} />,          desc: 'Leaderboard setup',      accentColor: '#D97706' },
+  { id: 'settings',      label: 'Settings',       icon: <Settings size={15} />,        desc: 'System config',          accentColor: '#4F46E5' },
 ];
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -39,7 +39,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden"
             onClick={onClose}
           />
         )}
@@ -48,159 +48,96 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 h-full z-50 flex flex-col
-          w-[240px] transition-transform duration-300 ease-out
+          fixed top-0 left-0 h-full z-50 flex flex-col bg-white
+          w-[240px] transition-transform duration-300 ease-out border-r border-slate-200 shadow-sm
           lg:relative lg:translate-x-0 lg:z-auto
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
-        style={{
-          background: 'linear-gradient(180deg, #0A0D1A 0%, #070A14 50%, #050810 100%)',
-          borderRight: '1px solid rgba(255,255,255,0.055)',
-          boxShadow: '4px 0 40px rgba(0,0,0,0.5)',
-        }}
       >
         {/* Header / Logo */}
-        <div className="px-5 pt-6 pb-5 shrink-0">
+        <div className="px-5 pt-5 pb-4 shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div
-                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
-                style={{
-                  background: 'linear-gradient(135deg, #FF8A00, #FFB347)',
-                  boxShadow: '0 0 20px rgba(255,138,0,0.5), 0 4px 12px rgba(255,138,0,0.2)',
-                }}
+                className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center shrink-0 text-white shadow-sm"
               >
-                <Zap size={17} className="text-white fill-current" />
+                <Zap size={16} className="fill-current" />
               </div>
               <div>
-                <div className="text-[11px] font-black text-white tracking-widest uppercase leading-none">
+                <div className="text-[12px] font-black text-slate-900 tracking-tight leading-none">
                   Elite Force
                 </div>
-                <div
-                  className="text-[8px] font-bold uppercase tracking-[0.25em] mt-0.5"
-                  style={{ color: '#FF8A00' }}
-                >
+                <div className="text-[9px] font-bold text-blue-600 uppercase tracking-widest mt-0.5">
                   Admin Console
                 </div>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="lg:hidden w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-white hover:bg-white/8 transition-all"
+              className="lg:hidden w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <X size={14} />
             </button>
           </div>
 
-          {/* Divider */}
-          <div
-            className="mt-5 h-px w-full"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,138,0,0.3), transparent)' }}
-          />
+          <div className="mt-4 h-px w-full bg-slate-100" />
         </div>
 
         {/* Nav Items */}
         <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto pb-2">
-          <div className="text-[8px] text-slate-600 font-black uppercase tracking-[0.28em] px-3 pb-2">
+          <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider px-3 py-1">
             Navigation
           </div>
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
             return (
-              <motion.button
+              <button
                 key={item.id}
                 onClick={() => { setActiveTab(item.id); onClose(); }}
-                whileHover={{ x: isActive ? 0 : 3 }}
-                whileTap={{ scale: 0.97 }}
-                className={`w-full flex items-center gap-3 px-3.5 py-3 rounded-2xl text-xs font-semibold transition-colors cursor-pointer relative overflow-hidden text-left ${
-                  isActive ? 'text-white' : 'text-slate-400 hover:text-slate-200'
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-medium transition-all cursor-pointer text-left ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-700 font-semibold border border-blue-200/60 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                {/* Active background */}
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebar-active-bg"
-                    className="absolute inset-0 rounded-2xl"
-                    style={{
-                      background: `linear-gradient(135deg, ${item.accentColor}18 0%, ${item.accentColor}06 100%)`,
-                      border: `1px solid ${item.accentColor}28`,
-                    }}
-                    transition={{ type: 'spring', stiffness: 360, damping: 28 }}
-                  />
-                )}
-
-                {/* Hover background */}
-                {!isActive && (
-                  <div className="absolute inset-0 rounded-2xl opacity-0 hover:opacity-100 transition-opacity"
-                    style={{ background: 'rgba(255,255,255,0.03)' }} />
-                )}
-
-                {/* Left accent line */}
-                {isActive && (
-                  <div
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-full"
-                    style={{ background: item.accentColor, boxShadow: `0 0 8px ${item.accentColor}` }}
-                  />
-                )}
-
-                {/* Icon */}
                 <span
-                  className="relative z-10 w-7 h-7 rounded-xl flex items-center justify-center shrink-0 transition-all"
-                  style={{
-                    background: isActive ? `${item.accentColor}20` : 'rgba(255,255,255,0.05)',
-                    color: isActive ? item.accentColor : '#64748b',
-                    border: isActive ? `1px solid ${item.accentColor}30` : '1px solid rgba(255,255,255,0.06)',
-                  }}
+                  className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                    isActive ? 'bg-blue-600 text-white' : 'text-slate-400 bg-slate-100'
+                  }`}
                 >
                   {item.icon}
                 </span>
 
-                {/* Label + desc */}
-                <div className="relative z-10 flex-1 min-w-0">
-                  <div className="text-[11px] font-bold leading-none"
-                    style={{ color: isActive ? '#fff' : undefined }}>
-                    {item.label}
-                  </div>
-                  <div className="text-[9px] text-slate-600 mt-0.5 font-medium">{item.desc}</div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[11px] font-semibold leading-none">{item.label}</div>
+                  <div className="text-[9px] text-slate-400 mt-0.5 truncate">{item.desc}</div>
                 </div>
 
                 {isActive && (
-                  <ChevronRight size={11} className="relative z-10 shrink-0" style={{ color: item.accentColor }} />
+                  <ChevronRight size={12} className="shrink-0 text-blue-600" />
                 )}
-              </motion.button>
+              </button>
             );
           })}
         </nav>
 
         {/* Token price chip */}
         <div className="mx-3 mb-3 shrink-0">
-          <div
-            className="rounded-2xl p-3.5"
-            style={{
-              background: 'linear-gradient(135deg, rgba(255,138,0,0.1) 0%, rgba(255,138,0,0.04) 100%)',
-              border: '1px solid rgba(255,138,0,0.18)',
-            }}
-          >
-            <div className="text-[8px] text-slate-500 uppercase tracking-[0.22em] font-bold mb-2.5">
+          <div className="rounded-xl p-3 bg-slate-50 border border-slate-200">
+            <div className="text-[8px] text-slate-400 uppercase tracking-wider font-bold mb-1.5">
               EForce Token Price
             </div>
-            <div className="flex items-center gap-2.5">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center text-[9px] font-black text-white shrink-0"
-                style={{
-                  background: 'linear-gradient(135deg, #FF8A00, #FFB347)',
-                  boxShadow: '0 0 12px rgba(255,138,0,0.4)',
-                }}
-              >
-                EForce
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-[8px] font-black text-white shrink-0">
+                EFC
               </div>
               <div>
-                <div className="text-[10px] text-white font-bold leading-none">EForce Token</div>
-                <div className="text-[12px] font-black mt-0.5" style={{ color: '#FF8A00' }}>
+                <div className="text-[10px] text-slate-700 font-bold leading-none">Token Value</div>
+                <div className="text-[11px] font-black mt-0.5 text-blue-600">
                   ${eforceTokenValue.toFixed(4)}
                 </div>
               </div>
-              <div className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded-full text-green-400 bg-green-400/10 border border-green-400/20">
+              <div className="ml-auto text-[8px] font-bold px-1.5 py-0.5 rounded text-emerald-700 bg-emerald-50 border border-emerald-200">
                 LIVE
               </div>
             </div>
@@ -208,20 +145,16 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         </div>
 
         {/* View App link */}
-        <div className="px-3 pb-5 shrink-0">
+        <div className="px-3 pb-4 shrink-0">
           <a
             href="https://v4elite.vercel.app"
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-2xl text-[10px] text-slate-400 hover:text-white transition-all group"
-            style={{
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.07)',
-            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] text-slate-600 hover:text-slate-900 bg-slate-50 border border-slate-200 hover:bg-slate-100 transition-all font-semibold"
           >
-            <ExternalLink size={11} className="group-hover:text-[#FF8A00] transition-colors" />
-            <span className="font-semibold">View Mini App</span>
-            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+            <ExternalLink size={12} className="text-slate-500" />
+            <span>View Live Mini App</span>
+            <div className="ml-auto w-1.5 h-1.5 rounded-full bg-emerald-500" />
           </a>
         </div>
       </aside>

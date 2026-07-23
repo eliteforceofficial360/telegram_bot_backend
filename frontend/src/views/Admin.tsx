@@ -52,15 +52,15 @@ const Btn = {
   /** Orange gradient CTA (Save / Create) */
   primary: 'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97] disabled:opacity-40',
   /** Red danger (Delete / Ban / Reset) */
-  danger:  'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
+  danger: 'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
   /** Amber warning (Flag) */
   warning: 'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
   /** Green success (Approve / Unban) */
   success: 'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
   /** Indigo edit (Edit) */
-  edit:    'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
+  edit: 'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
   /** Ghost neutral (Cancel / Refresh) */
-  ghost:   'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
+  ghost: 'inline-flex items-center justify-center gap-2 font-bold cursor-pointer transition-all active:scale-[0.97]',
 };
 
 const btnStyle = {
@@ -204,7 +204,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
   const countryAnalytics = useMemo(() => {
     const map: Record<string, { name: string; count: number; online: number; premium: number; points: number }> = {};
-    
+
     (usersList || []).forEach((u: any) => {
       const c = u.country && u.country !== 'Unknown' ? u.country : 'Other / Unknown';
       if (!map[c]) {
@@ -268,16 +268,16 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const uploadImageToBot = async (base64Image: string, filename: string): Promise<string> => {
     if (!settings.botApiUrl) throw new Error('Please set and save Bot API URL first in Settings.');
     const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
-    
+
     const secrets = [
       notifApiSecret,
       'https://elite-force-telegram-app.onrender.com',
       'elite_force_secret_2024'
     ];
-    
+
     let res: Response | null = null;
     let lastErrorMsg = '';
-    
+
     for (const secret of secrets) {
       if (!secret) continue;
       try {
@@ -289,21 +289,21 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
           },
           body: JSON.stringify({ image: base64Image, filename })
         });
-        
+
         if (res.status === 401) {
           continue;
         }
-        
+
         break;
       } catch (err: any) {
         lastErrorMsg = err.message;
       }
     }
-    
+
     if (!res) {
       throw new Error(lastErrorMsg || 'Failed to connect to Bot API server.');
     }
-    
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || `Upload failed (Status ${res.status})`);
@@ -354,7 +354,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     if (ok) {
       const sessionStr = localStorage.getItem('admin_session');
       let adminId = 'unknown'; let adminUsername = 'Admin';
-      if (sessionStr) { try { const p = JSON.parse(sessionStr); adminId = p.uid || 'unknown'; adminUsername = p.email || 'Admin'; } catch {} }
+      if (sessionStr) { try { const p = JSON.parse(sessionStr); adminId = p.uid || 'unknown'; adminUsername = p.email || 'Admin'; } catch { } }
       const changes: string[] = [];
       if (editingUser.points !== editPoints) changes.push(`Points: ${editingUser.points} -> ${editPoints}`);
       if (editingUser.tokens !== editTokens) changes.push(`Tokens: ${editingUser.tokens} -> ${editTokens}`);
@@ -365,7 +365,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       if ((editingUser.leaderboardPinned ?? false) !== editLeaderboardPinned) changes.push(`Pinned: ${editingUser.leaderboardPinned ?? false} -> ${editLeaderboardPinned}`);
       if ((editingUser.leaderboardHidden ?? false) !== editLeaderboardHidden) changes.push(`Hidden: ${editingUser.leaderboardHidden ?? false} -> ${editLeaderboardHidden}`);
       if ((editingUser.isVerified ?? false) !== editIsVerified) changes.push(`Verified: ${editingUser.isVerified ?? false} -> ${editIsVerified}`);
-      if (changes.length > 0) await logAdminAction(typeof adminId === 'number' ? adminId : 0, adminUsername, 'Edit User Profile & Leaderboard', editingUser.telegramId, changes.join(', ')).catch(() => {});
+      if (changes.length > 0) await logAdminAction(typeof adminId === 'number' ? adminId : 0, adminUsername, 'Edit User Profile & Leaderboard', editingUser.telegramId, changes.join(', ')).catch(() => { });
       showToast(`✅ ${editingUser.firstName} updated.`, 'success'); fetchUsers(); setEditingUser(null);
     } else { showToast('Error updating user.', 'error'); }
     setSavingUser(false);
@@ -455,8 +455,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     switch (userFilter) {
       case 'premium': list = list.filter(u => u.isTelegramPremium); break;
       case 'flagged': list = list.filter(u => u.flagCount > 0); break;
-      case 'banned':  list = list.filter(u => (u.banStatus ?? 'none') !== 'none'); break;
-      case 'online':  list = list.filter(u => u.isOnline); break;
+      case 'banned': list = list.filter(u => (u.banStatus ?? 'none') !== 'none'); break;
+      case 'online': list = list.filter(u => u.isOnline); break;
     }
     list.sort((a, b) => {
       let av = (a as any)[sortField];
@@ -528,20 +528,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [withdrawNote, setWithdrawNote] = useState('');
   useEffect(() => { const unsub = subscribeToWithdrawRequests(setWithdrawals); return unsub; }, []);
   // --- Notifications tab ---
-  const [notifMessage, setNotifMessage]     = useState('');
-  const [notifTarget, setNotifTarget]       = useState<'all' | 'user'>('all');
-  const [notifUserId, setNotifUserId]       = useState('');
+  const [notifMessage, setNotifMessage] = useState('');
+  const [notifTarget, setNotifTarget] = useState<'all' | 'user'>('all');
+  const [notifUserId, setNotifUserId] = useState('');
   const [notifUserSearch, setNotifUserSearch] = useState('');
   const [notifUserDropdown, setNotifUserDropdown] = useState(false);
-  const [notifSending, setNotifSending]     = useState(false);
+  const [notifSending, setNotifSending] = useState(false);
   const [notifApiSecret, setNotifApiSecret] = useState(() => {
     const saved = localStorage.getItem('admin_api_secret');
     return (saved && saved.trim() !== '') ? saved : 'https://elite-force-telegram-app.onrender.com';
   });
-  const [notifImageUrl, setNotifImageUrl]   = useState('');
-  const [notifBtnText, setNotifBtnText]     = useState('');
+  const [notifImageUrl, setNotifImageUrl] = useState('');
+  const [notifBtnText, setNotifBtnText] = useState('');
   const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
-  const [notifBtnUrl, setNotifBtnUrl]       = useState('');
+  const [notifBtnUrl, setNotifBtnUrl] = useState('');
 
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingCoin, setUploadingCoin] = useState(false);
@@ -662,7 +662,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
           const secureUrl = await uploadImageToBot(reader.result as string, `${targetField}_${Date.now()}`);
           setSettings(prev => {
             const updated = { ...prev, [targetField]: secureUrl };
-            saveAdminSettings(updated).catch(() => {});
+            saveAdminSettings(updated).catch(() => { });
             return updated;
           });
           showToast('✅ Branding image uploaded & saved successfully!', 'success');
@@ -682,20 +682,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     }
   };
 
-  // Task type color map
+  // Task type color map (Light Corporate)
   const TASK_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-    channel: { bg: 'rgba(0,229,255,0.1)',   text: '#00E5FF', border: 'rgba(0,229,255,0.25)' },
-    group:   { bg: 'rgba(56,189,248,0.1)',   text: '#38BDF8', border: 'rgba(56,189,248,0.25)' },
-    x:       { bg: 'rgba(255,255,255,0.08)', text: '#ffffff', border: 'rgba(255,255,255,0.2)' },
-    website: { bg: 'rgba(163,230,53,0.1)',   text: '#A3E635', border: 'rgba(163,230,53,0.25)' },
-    video:   { bg: 'rgba(248,113,113,0.1)',  text: '#F87171', border: 'rgba(248,113,113,0.25)' },
-    daily:   { bg: 'rgba(255,138,0,0.1)',    text: '#FF8A00', border: 'rgba(255,138,0,0.25)' },
-    ad:      { bg: 'rgba(179,136,255,0.1)',  text: '#B388FF', border: 'rgba(179,136,255,0.25)' },
+    channel: { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
+    group:   { bg: '#F0F9FF', text: '#0369A1', border: '#BAE6FD' },
+    x:       { bg: '#F8FAFC', text: '#0F172A', border: '#E2E8F0' },
+    website: { bg: '#ECFDF5', text: '#047857', border: '#A7F3D0' },
+    video:   { bg: '#FEF2F2', text: '#B91C1C', border: '#FECDD3' },
+    daily:   { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
+    ad:      { bg: '#F5F3FF', text: '#6D28D9', border: '#DDD6FE' },
   };
 
   // ============ RENDER ============
   return (
-    <div className="flex h-full overflow-hidden" style={{ background: '#040810' }}>
+    <div className="flex h-full overflow-hidden bg-slate-50">
       <AdminSidebar
         activeTab={activeTab}
         setActiveTab={tab => { setActiveTab(tab); setPage(1); }}
@@ -704,7 +704,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         eforceTokenValue={settings.eforceTokenValue}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
         <AdminHeader
           activeTab={activeTab}
           onMenuClick={() => setSidebarOpen(true)}
@@ -716,8 +716,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         />
 
         <main
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5"
-          style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.07) transparent' }}
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-slate-50"
         >
 
           {/* ════════════════════ DASHBOARD ════════════════════ */}
@@ -758,10 +757,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     {/* Mini KPI chips */}
                     <div className="grid grid-cols-4 gap-2 xl:shrink-0">
                       {[
-                        { label: 'Total',   value: usersList.length,          color: '#fff',     bg: 'rgba(255,255,255,0.05)',  border: 'rgba(255,255,255,0.1)' },
-                        { label: 'Online',  value: filterCounts.online,       color: '#4ADE80',  bg: 'rgba(74,222,128,0.08)',   border: 'rgba(74,222,128,0.2)' },
-                        { label: 'Flagged', value: filterCounts.flagged,      color: '#FBBF24',  bg: 'rgba(251,191,36,0.08)',   border: 'rgba(251,191,36,0.2)' },
-                        { label: 'Banned',  value: filterCounts.banned,       color: '#F87171',  bg: 'rgba(248,113,113,0.08)',  border: 'rgba(248,113,113,0.2)' },
+                        { label: 'Total', value: usersList.length, color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' },
+                        { label: 'Online', value: filterCounts.online, color: '#4ADE80', bg: 'rgba(74,222,128,0.08)', border: 'rgba(74,222,128,0.2)' },
+                        { label: 'Flagged', value: filterCounts.flagged, color: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.2)' },
+                        { label: 'Banned', value: filterCounts.banned, color: '#F87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)' },
                       ].map(s => (
                         <div key={s.label} className="rounded-2xl px-3 py-2.5 text-center" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
                           <div className="text-lg font-black leading-none" style={{ color: s.color }}>{s.value}</div>
@@ -832,10 +831,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             <span className="text-[10px] font-black text-[#FF8A00] uppercase tracking-widest">Add User Manually</span>
                           </div>
                           <div className="grid grid-cols-2 gap-2">
-                            <input value={addUserId}    onChange={e => setAddUserId(e.target.value)}    placeholder="Telegram ID *"     type="number" className={inputCls} style={inputStyle} />
-                            <input value={addFirstName} onChange={e => setAddFirstName(e.target.value)} placeholder="First Name *"      className={inputCls} style={inputStyle} />
-                            <input value={addUserName}  onChange={e => setAddUserName(e.target.value)}  placeholder="Username (opt.)"   className={inputCls} style={inputStyle} />
-                            <input value={addPoints}    onChange={e => setAddPoints(e.target.value)}    placeholder="Starting Points"   type="number" className={inputCls} style={inputStyle} />
+                            <input value={addUserId} onChange={e => setAddUserId(e.target.value)} placeholder="Telegram ID *" type="number" className={inputCls} style={inputStyle} />
+                            <input value={addFirstName} onChange={e => setAddFirstName(e.target.value)} placeholder="First Name *" className={inputCls} style={inputStyle} />
+                            <input value={addUserName} onChange={e => setAddUserName(e.target.value)} placeholder="Username (opt.)" className={inputCls} style={inputStyle} />
+                            <input value={addPoints} onChange={e => setAddPoints(e.target.value)} placeholder="Starting Points" type="number" className={inputCls} style={inputStyle} />
                           </div>
                           <div className="flex gap-2">
                             <button onClick={handleAddUser} disabled={addingUser} className={`${Btn.primary} h-9 px-5 rounded-xl text-xs`} style={btnStyle.primary}>
@@ -855,11 +854,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     {(['all', 'online', 'premium', 'flagged', 'banned'] as UserFilter[]).map(f => {
                       const isSelected = userFilter === f;
                       const meta: Record<UserFilter, { emoji: string; color: string; border: string; activeBg: string }> = {
-                        all:     { emoji: '●', color: '#fff',    border: 'rgba(255,255,255,0.15)', activeBg: 'linear-gradient(135deg,#FF8A00,#FFB347)' },
-                        online:  { emoji: '🟢', color: '#4ADE80', border: 'rgba(74,222,128,0.3)',   activeBg: 'rgba(74,222,128,0.18)' },
-                        premium: { emoji: '⭐', color: '#00E5FF', border: 'rgba(0,229,255,0.3)',    activeBg: 'rgba(0,229,255,0.12)' },
-                        flagged: { emoji: '🚩', color: '#FBBF24', border: 'rgba(251,191,36,0.3)',   activeBg: 'rgba(251,191,36,0.12)' },
-                        banned:  { emoji: '🚫', color: '#F87171', border: 'rgba(248,113,113,0.3)',  activeBg: 'rgba(248,113,113,0.12)' },
+                        all: { emoji: '●', color: '#fff', border: 'rgba(255,255,255,0.15)', activeBg: 'linear-gradient(135deg,#FF8A00,#FFB347)' },
+                        online: { emoji: '🟢', color: '#4ADE80', border: 'rgba(74,222,128,0.3)', activeBg: 'rgba(74,222,128,0.18)' },
+                        premium: { emoji: '⭐', color: '#00E5FF', border: 'rgba(0,229,255,0.3)', activeBg: 'rgba(0,229,255,0.12)' },
+                        flagged: { emoji: '🚩', color: '#FBBF24', border: 'rgba(251,191,36,0.3)', activeBg: 'rgba(251,191,36,0.12)' },
+                        banned: { emoji: '🚫', color: '#F87171', border: 'rgba(248,113,113,0.3)', activeBg: 'rgba(248,113,113,0.12)' },
                       };
                       const m = meta[f];
                       return (
@@ -888,10 +887,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 <div className="grid items-center gap-2 px-5 py-3 border-b sticky top-0 z-10 backdrop-blur"
                   style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(4,8,16,0.92)', gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}>
                   <div />
-                  <SortBtn field="firstName" label="User"   sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
-                  <SortBtn field="points"    label="Points" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
-                  <SortBtn field="tokens"    label="Tokens" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
-                  <SortBtn field="referrals" label="Refs"   sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
+                  <SortBtn field="firstName" label="User" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
+                  <SortBtn field="points" label="Points" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
+                  <SortBtn field="tokens" label="Tokens" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
+                  <SortBtn field="referrals" label="Refs" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <span className="text-[9px] font-black uppercase tracking-wider text-slate-600">Status</span>
                   <span className="text-[9px] font-black uppercase tracking-wider text-slate-600 text-right">Actions</span>
                 </div>
@@ -1034,23 +1033,23 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                     <div className="flex-1 min-w-0">
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">User Photo/Avatar</label>
                                       <div className="flex items-center gap-2">
-                                        <input 
-                                          type="text" 
-                                          value={editPhotoUrl} 
-                                          onChange={e => setEditPhotoUrl(e.target.value)} 
-                                          placeholder="Enter Image URL or Upload below" 
-                                          className={`${inputCls} flex-1 text-[10px] h-8`} 
-                                          style={inputStyle} 
+                                        <input
+                                          type="text"
+                                          value={editPhotoUrl}
+                                          onChange={e => setEditPhotoUrl(e.target.value)}
+                                          placeholder="Enter Image URL or Upload below"
+                                          className={`${inputCls} flex-1 text-[10px] h-8`}
+                                          style={inputStyle}
                                         />
                                         <label className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold cursor-pointer transition-all shrink-0 select-none"
                                           style={{ background: 'rgba(255,138,0,0.12)', border: '1px solid rgba(255,138,0,0.22)', color: '#FF8A00' }}>
                                           {uploadingAvatar ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />} Upload Image
-                                          <input 
-                                            type="file" 
-                                            accept="image/*" 
-                                            onChange={e => handleAvatarUpload(e, u.telegramId)} 
-                                            className="hidden" 
-                                            disabled={uploadingAvatar} 
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={e => handleAvatarUpload(e, u.telegramId)}
+                                            className="hidden"
+                                            disabled={uploadingAvatar}
                                           />
                                         </label>
                                       </div>
@@ -1523,7 +1522,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
               {/* Stats strip */}
               <div className="grid grid-cols-3 gap-4">
                 {[
-                  { label: 'Total Users',   value: usersList.length,           color: '#C084FC', bg: 'rgba(192,132,252,0.08)', border: 'rgba(192,132,252,0.22)' },
+                  { label: 'Total Users', value: usersList.length, color: '#C084FC', bg: 'rgba(192,132,252,0.08)', border: 'rgba(192,132,252,0.22)' },
                   { label: 'Pending Alerts', value: withdrawals.filter(w => w.status === 'Pending').length, color: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.22)' },
                   { label: 'Bot Connected', value: settings.botApiUrl ? '✓' : '✗', color: settings.botApiUrl ? '#4ADE80' : '#F87171', bg: settings.botApiUrl ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)', border: settings.botApiUrl ? 'rgba(74,222,128,0.22)' : 'rgba(248,113,113,0.22)' },
                 ].map(s => (
@@ -1716,10 +1715,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   {[
                     { icon: '✅', label: 'Withdrawal Approved', desc: 'Auto-sent when you approve a withdrawal in the Withdrawals tab', color: '#4ADE80' },
                     { icon: '❌', label: 'Withdrawal Rejected', desc: 'Auto-sent when you reject a withdrawal request', color: '#F87171' },
-                    { icon: '🚫', label: 'Account Banned',      desc: 'Auto-sent when you ban a user from a withdrawal', color: '#FB923C' },
+                    { icon: '🚫', label: 'Account Banned', desc: 'Auto-sent when you ban a user from a withdrawal', color: '#FB923C' },
                     { icon: '🎉', label: 'Referral Notification', desc: 'Auto-sent by bot when a new user joins via referral link', color: '#C084FC' },
                     { icon: '📢', label: 'Custom Announcement', desc: 'Manual broadcast using the form above', color: '#60A5FA' },
-                    { icon: '📩', label: 'Custom User Message',  desc: 'Direct message to a specific user using the form above', color: '#34D399' },
+                    { icon: '📩', label: 'Custom User Message', desc: 'Direct message to a specific user using the form above', color: '#34D399' },
                   ].map(n => (
                     <div key={n.label} className="flex items-start gap-3 py-2.5 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                       <div className="text-lg w-7 shrink-0">{n.icon}</div>
@@ -1741,10 +1740,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
               {/* Stats row */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { label: 'Flagged',     value: kpi.flagged,    icon: '🚩', color: '#FBBF24', bg: 'rgba(251,191,36,0.08)',   border: 'rgba(251,191,36,0.22)',   glow: 'rgba(251,191,36,0.3)' },
-                  { label: 'Banned',      value: kpi.banned,     icon: '🚫', color: '#F87171', bg: 'rgba(248,113,113,0.08)',  border: 'rgba(248,113,113,0.22)',  glow: 'rgba(248,113,113,0.3)' },
-                  { label: 'Auto Miners', value: kpi.autoMiners, icon: '⛏️', color: '#FF8A00', bg: 'rgba(255,138,0,0.08)',    border: 'rgba(255,138,0,0.22)',    glow: 'rgba(255,138,0,0.3)' },
-                  { label: 'Total Users', value: kpi.total,      icon: '👥', color: '#B388FF', bg: 'rgba(179,136,255,0.08)', border: 'rgba(179,136,255,0.22)', glow: 'rgba(179,136,255,0.3)' },
+                  { label: 'Flagged', value: kpi.flagged, icon: '🚩', color: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.22)', glow: 'rgba(251,191,36,0.3)' },
+                  { label: 'Banned', value: kpi.banned, icon: '🚫', color: '#F87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.22)', glow: 'rgba(248,113,113,0.3)' },
+                  { label: 'Auto Miners', value: kpi.autoMiners, icon: '⛏️', color: '#FF8A00', bg: 'rgba(255,138,0,0.08)', border: 'rgba(255,138,0,0.22)', glow: 'rgba(255,138,0,0.3)' },
+                  { label: 'Total Users', value: kpi.total, icon: '👥', color: '#B388FF', bg: 'rgba(179,136,255,0.08)', border: 'rgba(179,136,255,0.22)', glow: 'rgba(179,136,255,0.3)' },
                 ].map(item => (
                   <motion.div key={item.label} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                     className="rounded-[22px] p-5 flex flex-col gap-2 relative overflow-hidden"
@@ -1792,7 +1791,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <button onClick={() => handleUnbanUser(u)} className={`${Btn.success} h-8 px-3 rounded-xl text-[9px]`} style={btnStyle.success}><Check size={11} /> Unban</button>
-                      <button onClick={() => handleBanUser(u)}   className={`${Btn.danger}  h-8 px-3 rounded-xl text-[9px]`} style={btnStyle.danger}><Ban size={11} /> Ban</button>
+                      <button onClick={() => handleBanUser(u)} className={`${Btn.danger}  h-8 px-3 rounded-xl text-[9px]`} style={btnStyle.danger}><Ban size={11} /> Ban</button>
                     </div>
                   </motion.div>
                 ))}
@@ -2367,7 +2366,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           req.amount ?? 0,
                           req.type ?? 'usdt',
                           withdrawNote
-                        ).catch(() => {});
+                        ).catch(() => { });
                       }
                       setWithdrawModal(null);
                       setWithdrawNote('');
