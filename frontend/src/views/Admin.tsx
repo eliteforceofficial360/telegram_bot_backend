@@ -2323,8 +2323,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               type="text"
                               placeholder={item.defaultVal}
                               value={(settings as any)[item.key] || ''}
-                              onChange={e => setSettings(prev => ({ ...prev, [item.key]: e.target.value }))}
-                              className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                              onChange={e => {
+                                const val = e.target.value;
+                                setSettings(prev => {
+                                  const updated = { ...prev, [item.key]: val };
+                                  saveAdminSettings(updated).catch(() => {});
+                                  return updated;
+                                });
+                              }}
+                              onBlur={() => {
+                                saveAdminSettings(settings);
+                                showToast(`⚡ ${item.label} saved & synced live!`, 'success');
+                              }}
+                              className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono transition-all focus:border-[#FF8A00]"
                               style={inputStyle}
                             />
                             <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all shrink-0 select-none">
