@@ -374,6 +374,17 @@ export const syncPointsToFirestore = async (telegramId: number, points: number):
 };
 
 /**
+ * Syncs EST tokens balance to Firestore.
+ */
+export const syncTokensToFirestore = async (telegramId: number, tokens: number): Promise<void> => {
+  if (!isFirebaseConfigured()) return;
+  const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+  try {
+    await updateDoc(userRef, { tokens });
+  } catch { /* noop */ }
+};
+
+/**
  * Claims a rewarded ad watch tokens reward.
  * Normal limit is 10, premium is 20. Reward token count is loaded from settings.
  */

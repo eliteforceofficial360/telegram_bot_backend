@@ -629,7 +629,9 @@ export default function App() {
         return (
           <Tasks 
             efcBalance={efcBalance}
-            setEfcBalance={setEfcBalance} 
+            setEfcBalance={setEfcBalance}
+            eforceTokens={eforceTokens}
+            setEforceTokens={setEforceTokens}
             showToast={showToast}
             telegramUser={telegramUser}
             adminSettings={adminSettings}

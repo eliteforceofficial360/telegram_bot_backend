@@ -24,11 +24,13 @@ import {
 import type { TelegramUser } from '../lib/telegramUser';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { showRewardedAd } from '../lib/monetag';
-import { claimDailyAdVideoReward, syncPointsToFirestore, type FirestoreUser } from '../lib/userService';
+import { claimDailyAdVideoReward, syncPointsToFirestore, syncTokensToFirestore, type FirestoreUser } from '../lib/userService';
 
 interface TasksProps {
   efcBalance: number;
   setEfcBalance: (val: number | ((prev: number) => number)) => void;
+  eforceTokens?: number;
+  setEforceTokens?: (val: number | ((prev: number) => number)) => void;
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   telegramUser: TelegramUser | null;
   adminSettings: AdminSettings;
@@ -39,6 +41,7 @@ type TaskStatus = 'idle' | 'verifying' | 'completed';
 
 export const Tasks = ({
   setEfcBalance,
+  setEforceTokens,
   showToast,
   telegramUser,
   adminSettings,
@@ -157,7 +160,14 @@ export const Tasks = ({
         syncPointsToFirestore(telegramUser.id, newVal).catch(() => {});
         return newVal;
       });
-      showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points earned!`, 'success');
+      if (task.tokenReward > 0 && setEforceTokens) {
+        setEforceTokens((tok) => {
+          const newTok = tok + task.tokenReward;
+          syncTokensToFirestore(telegramUser.id, newTok).catch(() => {});
+          return newTok;
+        });
+      }
+      showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points${task.tokenReward > 0 ? ` & +${task.tokenReward} EST Tokens` : ''} earned!`, 'success');
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
     } else {
       setTaskStatus((prev) => ({ ...prev, [task.id]: 'idle' }));
@@ -216,7 +226,14 @@ export const Tasks = ({
         syncPointsToFirestore(telegramUser.id, newVal).catch(() => {});
         return newVal;
       });
-      showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points earned!`, 'success');
+      if (task.tokenReward > 0 && setEforceTokens) {
+        setEforceTokens((tok) => {
+          const newTok = tok + task.tokenReward;
+          syncTokensToFirestore(telegramUser.id, newTok).catch(() => {});
+          return newTok;
+        });
+      }
+      showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points${task.tokenReward > 0 ? ` & +${task.tokenReward} EST Tokens` : ''} earned!`, 'success');
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
     } else {
       setTaskStatus((prev) => ({ ...prev, [task.id]: 'idle' }));
@@ -579,33 +596,66 @@ export const Tasks = ({
                                       return (
                                         <div
                                           key={task.id}
-                                          className={`glass-panel p-3.5 rounded-[16px] border-white/6 flex flex-col gap-3 transition-all ${
-                                            done ? 'opacity-60 bg-white/[0.01]' : expired || limitHit ? 'opacity-40' : ''
+                                          className={`p-4 rounded-[20px] bg-[#1a1a1a] border border-[#2a2a2a] flex flex-col gap-3 transition-all relative ${
+                                            done ? 'opacity-60' : expired || limitHit ? 'opacity-40' : ''
                                           }`}
                                         >
-                                          <div className="flex items-center justify-between gap-3">
-                                            <div className="flex-1 min-w-0">
-                                              <div className="flex items-center gap-1.5 mb-1">
-                                                <span className="text-[11px] font-bold text-white truncate">
-                                                  {task.title}
+                                          {/* Card Header Row */}
+                                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#34d399]" />
+                                              <span className="text-sm font-extrabold text-white truncate">
+                                                {task.title}
+                                              </span>
+                                              {task.url && !done && (
+                                                <ExternalLink size={11} className="text-slate-400 shrink-0" />
+                                              )}
+                                            </div>
+
+                                            <div className="flex items-center gap-1.5 shrink-0">
+                                              {task.isMandatory && (
+                                                <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                                                  🔒 REQUIRED
                                                 </span>
-                                                {task.url && !done && (
-                                                  <ExternalLink size={10} className="text-slate-500 shrink-0" />
-                                                )}
-                                              </div>
-                                              <div className="flex items-center gap-2">
-                                                <span className="text-[10px] font-black text-[#FF8A00]">
-                                                  +{task.reward.toLocaleString()} EFORCE
-                                                </span>
-                                                {expired && (
-                                                  <span className="text-[9px] text-rose-400 font-semibold">Expired</span>
-                                                )}
-                                                {limitHit && !expired && (
-                                                  <span className="text-[9px] text-slate-500 font-semibold">
-                                                    Limit reached
-                                                  </span>
-                                                )}
-                                              </div>
+                                              )}
+                                              <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                                {task.type}
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          {task.description && (
+                                            <p className="text-[10px] text-slate-400 line-clamp-2">{task.description}</p>
+                                          )}
+
+                                          {/* Dual Reward Boxes (EFORCE REWARD & TOKEN) */}
+                                          <div className="grid grid-cols-2 gap-2.5 my-0.5">
+                                            {/* EFORCE REWARD Box */}
+                                            <div className="p-3 rounded-xl bg-[#242424] border border-[#333333] flex flex-col gap-0.5">
+                                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
+                                                Eforce Reward
+                                              </span>
+                                              <span className="text-base font-black text-[#FF8A00]">
+                                                {task.reward.toLocaleString()}
+                                              </span>
+                                            </div>
+
+                                            {/* TOKEN Box */}
+                                            <div className="p-3 rounded-xl bg-[#242424] border border-[#333333] flex flex-col gap-0.5">
+                                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
+                                                Token
+                                              </span>
+                                              <span className="text-base font-black text-indigo-400">
+                                                +{task.tokenReward || 100}
+                                              </span>
+                                            </div>
+                                          </div>
+
+                                          {/* Status & Action Bar */}
+                                          <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/5">
+                                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                              Active
                                             </div>
 
                                             {/* Action Button */}
@@ -613,28 +663,28 @@ export const Tasks = ({
                                               (done ? (
                                                 <button
                                                   disabled
-                                                  className="shrink-0 h-8 px-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
+                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
                                                 >
                                                   <Check size={12} /> Done
                                                 </button>
                                               ) : expired || limitHit ? (
                                                 <button
                                                   disabled
-                                                  className="shrink-0 h-8 px-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
+                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
                                                 >
                                                   <Lock size={11} /> Closed
                                                 </button>
                                               ) : status === 'verifying' ? (
                                                 <button
                                                   disabled
-                                                  className="shrink-0 h-8 px-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-400 border border-white/10 cursor-wait"
+                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-400 border border-white/10 cursor-wait"
                                                 >
                                                   <Loader2 size={12} className="animate-spin" /> Verifying
                                                 </button>
                                               ) : (
                                                 <button
                                                   onClick={() => handleTaskClick(task)}
-                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-extrabold transition-all flex items-center justify-center gap-1 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer"
+                                                  className="shrink-0 h-8 px-5 rounded-xl text-[10px] font-extrabold transition-all flex items-center justify-center gap-1 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer hover:scale-105"
                                                 >
                                                   Go
                                                 </button>
@@ -644,7 +694,7 @@ export const Tasks = ({
                                             {isForceJoin && done && (
                                               <button
                                                 disabled
-                                                className="shrink-0 h-8 px-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
+                                                className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
                                               >
                                                 <Check size={12} /> Done
                                               </button>
