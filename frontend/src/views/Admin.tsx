@@ -571,12 +571,41 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
   useEffect(() => { const unsub = subscribeToWithdrawRequests(setWithdrawals); return unsub; }, []);
 
-  const handleCopyWallet = (addr: string) => {
+  const handleCopyWallet = async (addr: string) => {
     if (!addr) return;
-    navigator.clipboard.writeText(addr);
-    setCopiedAddress(addr);
-    showToast('📋 BEP-20 Wallet copied to clipboard!', 'info');
-    setTimeout(() => setCopiedAddress(null), 2000);
+    let copied = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(addr);
+        copied = true;
+      } catch (err) {
+        console.warn('navigator.clipboard failed, trying fallback:', err);
+      }
+    }
+    if (!copied) {
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = addr;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        copied = document.execCommand('copy');
+        textArea.remove();
+      } catch (execErr) {
+        console.warn('execCommand copy failed:', execErr);
+      }
+    }
+
+    if (copied) {
+      setCopiedAddress(addr);
+      showToast('📋 BEP-20 Wallet copied to clipboard!', 'success');
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } else {
+      showToast('⚠️ Copy blocked by browser permissions. Direct text selection enabled.', 'warning');
+    }
   };
 
   const withdrawMetrics = useMemo(() => {
@@ -1814,7 +1843,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       {/* Wallet Address */}
                       <div className="min-w-0">
                         <div className="flex items-center gap-1">
-                          <span className="text-[10px] text-slate-300 font-mono truncate max-w-[110px]" title={req.walletAddress}>
+                          <span
+                            onClick={() => req.walletAddress && handleCopyWallet(req.walletAddress)}
+                            className="text-[10px] text-slate-300 font-mono truncate max-w-[110px] cursor-pointer hover:text-amber-400 select-all transition-all"
+                            title={`Click to copy: ${req.walletAddress}`}
+                          >
                             {req.walletAddress ? `${req.walletAddress.substring(0, 6)}...${req.walletAddress.substring(req.walletAddress.length - 4)}` : 'No Wallet'}
                           </span>
                           {req.walletAddress && (
