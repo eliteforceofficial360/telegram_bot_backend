@@ -254,14 +254,14 @@ export const Connections = ({
 
                 <div>
                   {isConnected ? (
-                    <div className="flex items-center gap-2">
-                      <span className="w-4 h-4 rounded-full bg-[#E5A338]/20 border border-[#E5A338]/50 flex items-center justify-center text-[#E5A338]">
-                        <Check size={10} />
+                    <div className="flex items-center gap-2.5">
+                      <span className="w-5 h-5 rounded-full bg-[#E5A338]/25 border border-[#E5A338]/60 flex items-center justify-center text-[#E5A338] shrink-0 shadow-sm">
+                        <Check size={11} strokeWidth={3} />
                       </span>
                       <button
                         onClick={() => handleDisconnect(plat.id)}
                         disabled={saving}
-                        className="text-xs font-semibold text-slate-300 hover:text-white underline underline-offset-2 cursor-pointer transition-all disabled:opacity-50"
+                        className="text-xs font-semibold text-slate-300 hover:text-white underline underline-offset-4 cursor-pointer transition-all disabled:opacity-50"
                       >
                         Disconnect
                       </button>
