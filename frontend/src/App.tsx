@@ -144,7 +144,7 @@ export default function App() {
     if (adminSettings.adEnabled) {
       try {
         showToast('Loading verification sponsor ad...', 'info');
-        await showRewardedAd(adminSettings.monetagZoneId);
+        await showRewardedAd(adminSettings.monetagZoneId, adminSettings.monetagDirectLink);
       } catch (err: any) {
         showToast(err.message || 'Ad dismissed. Complete the ad to verify!', 'error');
         return;

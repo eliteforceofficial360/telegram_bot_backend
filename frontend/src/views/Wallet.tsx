@@ -75,7 +75,7 @@ export const Wallet: React.FC<WalletProps> = ({
     if (settings.adEnabled) {
       try {
         showToast('Loading sponsored video...', 'info');
-        await showRewardedAd(settings.monetagZoneId);
+        await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
       } catch (err: any) {
         showToast(err.message || 'Ad dismissed. Complete the ad to save address!', 'error');
         return;
@@ -113,7 +113,7 @@ export const Wallet: React.FC<WalletProps> = ({
     if (settings.adEnabled) {
       try {
         showToast('Loading sponsored video...', 'info');
-        await showRewardedAd(settings.monetagZoneId);
+        await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
       } catch (err: any) {
         showToast(err.message || 'Ad dismissed. Complete the ad to open withdrawals!', 'error');
         return;
@@ -132,7 +132,7 @@ export const Wallet: React.FC<WalletProps> = ({
     if (settings.adEnabled) {
       try {
         showToast('Loading sponsored video...', 'info');
-        await showRewardedAd(settings.monetagZoneId);
+        await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
       } catch (err: any) {
         setIsVerifying(false);
         showToast(err.message || 'Ad dismissed. Complete the ad to confirm withdrawal!', 'error');
@@ -414,7 +414,7 @@ export const Wallet: React.FC<WalletProps> = ({
                   if (settings.adEnabled) {
                     try {
                       showToast('Loading sponsored video...', 'info');
-                      await showRewardedAd(settings.monetagZoneId);
+                      await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
                     } catch (err: any) {
                       showToast(err.message || 'Ad dismissed. Complete the ad to configure swap!', 'error');
                       return;

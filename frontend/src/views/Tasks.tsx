@@ -91,7 +91,7 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     if (adminSettings.adEnabled) {
       try {
         showToast('Loading sponsored video...', 'info');
-        await showRewardedAd(adminSettings.monetagZoneId);
+        await showRewardedAd(adminSettings.monetagZoneId, adminSettings.monetagDirectLink);
       } catch (err: any) {
         showToast(err.message || 'Ad dismissed. Complete the ad to start task!', 'error');
         return;
@@ -115,7 +115,7 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     if (adminSettings.adEnabled) {
       try {
         showToast('Loading sponsored video...', 'info');
-        await showRewardedAd(adminSettings.monetagZoneId);
+        await showRewardedAd(adminSettings.monetagZoneId, adminSettings.monetagDirectLink);
       } catch (err: any) {
         showToast(err.message || 'Ad dismissed. Complete the ad to verify!', 'error');
         return;
@@ -167,7 +167,7 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     if (!telegramUser) return;
     try {
       showToast('Loading sponsored video...', 'info');
-      const completed = await showRewardedAd(adminSettings.monetagZoneId);
+      const completed = await showRewardedAd(adminSettings.monetagZoneId, adminSettings.monetagDirectLink);
       if (completed) {
         setTaskSteps(prev => ({ ...prev, [task.id]: 2 }));
         showToast('Ad completed! Telegram link unlocked.', 'success');
@@ -251,7 +251,7 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
     setWatchingDailyVideo(true);
     try {
       showToast('Loading sponsored video ad...', 'info');
-      const completed = await showRewardedAd(adminSettings.monetagZoneId);
+      const completed = await showRewardedAd(adminSettings.monetagZoneId, adminSettings.monetagDirectLink);
       if (completed) {
         // Securely claim tokens from Firestore backend
         const result = await claimDailyAdVideoReward(

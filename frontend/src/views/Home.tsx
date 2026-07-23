@@ -140,7 +140,7 @@ export const Home: React.FC<HomeProps> = ({
     if (settings.adEnabled) {
       try {
         showToast('Loading Daily Claim Sponsor Ad...', 'info');
-        await showRewardedAd(settings.monetagZoneId);
+        await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
       } catch (err: any) {
         showToast(err.message || 'Ad dismissed. Complete the ad to claim daily reward!', 'error');
         return;
@@ -216,7 +216,7 @@ export const Home: React.FC<HomeProps> = ({
     setWatchingAd(true);
     try {
       showToast('Loading sponsored video...', 'info');
-      const completed = await showRewardedAd(settings.monetagZoneId);
+      const completed = await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
       if (completed) {
         // Add point reward to user
         const reward = settings.adRewardAmount || 100;

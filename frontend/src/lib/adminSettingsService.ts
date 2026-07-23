@@ -38,6 +38,7 @@ export interface AdminSettings {
   adDailyLimit: number;
   adRewardAmount: number;   // EForce per ad watch
   monetagZoneId: string;    // Monetag Zone ID (e.g. '11271101')
+  monetagDirectLink?: string; // Optional Monetag Direct Smartlink fallback URL
   adRequireDailyClaim: boolean;
   adRequireTasks: boolean;
   adRequireAutoMiner: boolean;
@@ -95,6 +96,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   adDailyLimit: 5,
   adRewardAmount: 100,
   monetagZoneId: '11271101',
+  monetagDirectLink: '',
   adRequireDailyClaim: false,
   adRequireTasks: false,
   adRequireAutoMiner: false,
