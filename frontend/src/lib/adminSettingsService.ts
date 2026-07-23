@@ -71,9 +71,18 @@ export interface AdminSettings {
   // Custom Top Miners (shown as pinned entries on Leaderboard)
   customTopMiners: { name: string; score: number; badge: string }[];
 
-  // App Customization / Branding
+  // App Customization / Branding Images
   loadingLogoUrl: string;
   coinIconUrl: string;
+  faviconUrl: string;
+  appHeaderLogoUrl: string;
+  welcomeBannerUrl: string;
+  referralBannerUrl: string;
+  tasksBannerUrl: string;
+  walletBannerUrl: string;
+  leaderboardBannerUrl: string;
+  usdtIconUrl: string;
+  eforceTokenIconUrl: string;
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -120,6 +129,15 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   customTopMiners: [],
   loadingLogoUrl: '/loading-logo.png',
   coinIconUrl: '/coin.png',
+  faviconUrl: '/favicon.ico',
+  appHeaderLogoUrl: '/loading-logo.png',
+  welcomeBannerUrl: '',
+  referralBannerUrl: '',
+  tasksBannerUrl: '',
+  walletBannerUrl: '',
+  leaderboardBannerUrl: '',
+  usdtIconUrl: '',
+  eforceTokenIconUrl: '',
 };
 
 const SETTINGS_DOC = 'adminSettings/config';

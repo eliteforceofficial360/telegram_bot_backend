@@ -692,14 +692,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
   const [notifBtnUrl, setNotifBtnUrl] = useState('');
 
-  const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [uploadingCoin, setUploadingCoin] = useState(false);
+  const [uploadingImageField, setUploadingImageField] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('admin_api_secret', notifApiSecret);
   }, [notifApiSecret]);
 
-  // Filtered user list for notification picker
   const notifUserOptions = useMemo(() => {
     if (!notifUserSearch.trim()) return usersList.slice(0, 50);
     const q = notifUserSearch.toLowerCase();
@@ -796,38 +794,37 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setSettings(s => ({ ...s, customTopMiners: updated }));
   };
 
-  const handleBrandingUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: 'loadingLogoUrl' | 'coinIconUrl') => {
+  const handleBrandingUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: keyof AdminSettings) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const setUploading = targetField === 'loadingLogoUrl' ? setUploadingLogo : setUploadingCoin;
-    setUploading(true);
+    setUploadingImageField(String(targetField));
 
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         try {
-          const secureUrl = await uploadImageToBot(reader.result as string, `${targetField}_${Date.now()}`);
+          const secureUrl = await uploadImageToBot(reader.result as string, `${String(targetField)}_${Date.now()}`);
           setSettings(prev => {
             const updated = { ...prev, [targetField]: secureUrl };
             saveAdminSettings(updated).catch(() => { });
             return updated;
           });
-          showToast('✅ Branding image uploaded & saved successfully!', 'success');
+          showToast('✅ System image uploaded & saved successfully!', 'success');
         } catch (err: any) {
           showToast(err.message || 'Upload failed.', 'error');
         } finally {
-          setUploading(false);
+          setUploadingImageField(null);
         }
       };
       reader.onerror = () => {
         showToast('Failed to read file.', 'error');
-        setUploading(false);
+        setUploadingImageField(null);
       };
     } catch (err) {
       showToast('File processing error.', 'error');
-      setUploading(false);
+      setUploadingImageField(null);
     }
   };
 
@@ -2282,55 +2279,73 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
-                {/* App Customization & Branding */}
-                <SectionCard accentColor="#FF8A0055">
-                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base">🎨</span>
-                      <span className="text-sm font-black text-white">App Branding</span>
+                {/* System Branding & All Image Settings */}
+                <SectionCard accentColor="#FF8A0088">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🎨</span>
+                        <span className="text-sm font-black text-white">System Image Assets & Branding</span>
+                      </div>
+                      <p className="text-[9px] text-slate-500 mt-0.5">Customize all logos, icons, hero banners, and token badges across the entire app</p>
                     </div>
-                    <p className="text-[9px] text-slate-500 mt-0.5">Customize loading screen logo and central mining coin icon</p>
                   </div>
+
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                    <div className="flex items-center justify-between gap-4 py-3">
-                      <div>
-                        <label className="text-xs text-slate-400 block font-semibold">Loading Screen Logo URL</label>
-                        <span className="text-[9px] text-slate-600">Enter image URL or select local file</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {settings.loadingLogoUrl && (
-                          <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
-                            <img src={settings.loadingLogoUrl} alt="" className="w-full h-full object-contain" />
+                    {[
+                      { key: 'loadingLogoUrl', label: 'Loading Screen / Splash Logo', desc: 'Main logo shown during app startup loading screen' },
+                      { key: 'coinIconUrl', label: 'Mining Coin Icon (Center Tap)', desc: 'Central mining coin icon on Home screen' },
+                      { key: 'appHeaderLogoUrl', label: 'App Top Header Logo', desc: 'Logo image in top navigation header bar' },
+                      { key: 'faviconUrl', label: 'Browser Tab Favicon Icon', desc: 'Favicon icon shown on browser tabs (.ico/.png)' },
+                      { key: 'welcomeBannerUrl', label: 'Home Dashboard Hero Banner', desc: 'Top banner image on Home screen' },
+                      { key: 'tasksBannerUrl', label: 'Tasks & Missions Header Banner', desc: 'Header banner image on Tasks page' },
+                      { key: 'referralBannerUrl', label: 'Referral & Earn Header Banner', desc: 'Header banner image on Referral page' },
+                      { key: 'walletBannerUrl', label: 'Wallet & Payout Header Banner', desc: 'Header banner image on Wallet page' },
+                      { key: 'leaderboardBannerUrl', label: 'Leaderboard Header Banner', desc: 'Top banner image on Leaderboard page' },
+                      { key: 'usdtIconUrl', label: 'USDT Currency Badge Icon', desc: 'Custom badge icon for USDT balance and rewards' },
+                      { key: 'eforceTokenIconUrl', label: 'EForce Token Badge Icon', desc: 'Custom badge icon for EForce token balance' },
+                    ].map(item => {
+                      const val = (settings as any)[item.key] || '';
+                      const isUploading = uploadingImageField === item.key;
+                      return (
+                        <div key={item.key} className="flex items-center justify-between gap-4 py-3">
+                          <div className="min-w-0 flex-1">
+                            <label className="text-xs text-slate-300 block font-bold">{item.label}</label>
+                            <span className="text-[9px] text-slate-500 block truncate">{item.desc}</span>
                           </div>
-                        )}
-                        <input type="text" value={settings.loadingLogoUrl || ''} onChange={e => setSettings(prev => ({ ...prev, loadingLogoUrl: e.target.value }))} className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
-                        <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center cursor-pointer transition-all shrink-0">
-                          {uploadingLogo ? '...' : 'Upload'}
-                          <input type="file" accept="image/*" onChange={e => handleBrandingUpload(e, 'loadingLogoUrl')} className="hidden" />
-                        </label>
-                      </div>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 py-3">
-                      <div>
-                        <label className="text-xs text-slate-400 block font-semibold">Mining Coin Icon URL</label>
-                        <span className="text-[9px] text-slate-600">Enter image URL or select local file</span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {settings.coinIconUrl && (
-                          <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
-                            <img src={settings.coinIconUrl} alt="" className="w-full h-full object-contain" />
+                          <div className="flex items-center gap-2.5 shrink-0">
+                            {val && (
+                              <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
+                                <img src={val} alt="" className="w-full h-full object-contain" />
+                              </div>
+                            )}
+                            <input
+                              type="text"
+                              placeholder="Enter image URL..."
+                              value={val}
+                              onChange={e => setSettings(prev => ({ ...prev, [item.key]: e.target.value }))}
+                              className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                              style={inputStyle}
+                            />
+                            <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all shrink-0 select-none">
+                              {isUploading ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />}
+                              {isUploading ? 'Uploading...' : 'Upload'}
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={e => handleBrandingUpload(e, item.key as any)}
+                                className="hidden"
+                                disabled={isUploading}
+                              />
+                            </label>
                           </div>
-                        )}
-                        <input type="text" value={settings.coinIconUrl || ''} onChange={e => setSettings(prev => ({ ...prev, coinIconUrl: e.target.value }))} className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
-                        <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center cursor-pointer transition-all shrink-0">
-                          {uploadingCoin ? '...' : 'Upload'}
-                          <input type="file" accept="image/*" onChange={e => handleBrandingUpload(e, 'coinIconUrl')} className="hidden" />
-                        </label>
-                      </div>
-                    </div>
-                    <div className="p-4 pt-0 border-t border-white/[0.03]">
+                        </div>
+                      );
+                    })}
+
+                    <div className="p-4 pt-3 border-t border-white/[0.03]">
                       <p className="text-[9px] text-slate-500">
-                        ℹ️ Image uploading uses the Bot API server. Make sure the <b>Bot API URL</b> (above) and <b>API Secret</b> (in Notifications tab) are configured correctly.
+                        ℹ️ Uploads automatically handle local device files via Bot API & ImgBB/Cloudinary fallbacks. Direct image URLs (e.g., <code>https://i.ibb.co/banner.jpg</code>) can also be pasted directly.
                       </p>
                     </div>
                   </div>
