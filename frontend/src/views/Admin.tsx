@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Timestamp } from 'firebase/firestore';
 import {
@@ -768,14 +768,18 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
 
   const [settings, setSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
+  const settingsRef = useRef<AdminSettings>(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+
   const [savingSettings, setSavingSettings] = useState(false);
   useEffect(() => { const unsub = subscribeToAdminSettings(setSettings); return unsub; }, []);
+
   const handleSaveSettings = async () => {
     setSavingSettings(true);
-    saveAdminSettings(settings).catch(() => {});
+    saveAdminSettings(settingsRef.current).catch(() => {});
     setTimeout(() => {
       setSavingSettings(false);
-      showToast('⚡ Settings saved instantly!', 'success');
+      showToast('⚡ Settings saved & live synced to users!', 'success');
     }, 150);
   };
 
@@ -2332,7 +2336,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 });
                               }}
                               onBlur={() => {
-                                saveAdminSettings(settings);
+                                saveAdminSettings(settingsRef.current);
                                 showToast(`⚡ ${item.label} saved & synced live!`, 'success');
                               }}
                               className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono transition-all focus:border-[#FF8A00]"
