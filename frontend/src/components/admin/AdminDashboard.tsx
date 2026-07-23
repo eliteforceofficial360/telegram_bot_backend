@@ -17,7 +17,7 @@ interface AdminDashboardProps {
   eforceTokenValue?: number;
 }
 
-const COUNTRY_COLORS = ['#2563EB', '#0284C7', '#0891B2', '#059669', '#D97706', '#DC2626'];
+const COUNTRY_COLORS = ['#38BDF8', '#60A5FA', '#22D3EE', '#34D399', '#FBBF24', '#F87171'];
 
 const generateGrowthData = () => {
   const days = [];
@@ -60,13 +60,13 @@ const staggerItem = {
 const CustomChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-lg text-xs font-sans">
+    <div className="bg-[#0B0E14] border border-slate-800 p-3 rounded-xl shadow-xl text-xs font-sans">
       <div className="text-[10px] text-slate-400 font-mono font-bold mb-1.5 uppercase tracking-wider">{label}</div>
       {payload.map((entry: any, index: number) => (
         <div key={index} className="flex items-center gap-2 py-0.5">
           <div className="w-2 h-2 rounded-full shrink-0" style={{ background: entry.color }} />
-          <span className="text-slate-600 font-medium">{entry.name}:</span>
-          <span className="text-slate-900 font-bold ml-auto">{entry.value.toLocaleString()}</span>
+          <span className="text-slate-300 font-medium">{entry.name}:</span>
+          <span className="text-white font-bold ml-auto">{entry.value.toLocaleString()}</span>
         </div>
       ))}
     </div>
@@ -117,10 +117,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     .slice(0, 6);
 
   const kpiCards = [
-    { title: 'Total Members', value: kpi.total, sub: `+${kpi.newToday} joined today`, faIcon: 'fa-solid fa-users', color: '#2563EB', bg: 'bg-blue-50', border: 'border-blue-200' },
-    { title: 'Live Active Miners', value: liveUserCount || kpi.online, sub: 'Mining currently online', faIcon: 'fa-solid fa-bolt', color: '#059669', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-    { title: 'Telegram Premium', value: kpi.premium, sub: 'Star Supporters', faIcon: 'fa-solid fa-star', color: '#0284C7', bg: 'bg-sky-50', border: 'border-sky-200' },
-    { title: 'Auto Miners Active', value: kpi.autoMiners, sub: 'Automated sessions', faIcon: 'fa-solid fa-robot', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200' },
+    { title: 'Total Members', value: kpi.total, sub: `+${kpi.newToday} joined today`, faIcon: 'fa-solid fa-users', color: '#60A5FA', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+    { title: 'Live Active Miners', value: liveUserCount || kpi.online, sub: 'Mining currently online', faIcon: 'fa-solid fa-bolt', color: '#34D399', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+    { title: 'Telegram Premium', value: kpi.premium, sub: 'Star Supporters', faIcon: 'fa-solid fa-star', color: '#38BDF8', bg: 'bg-sky-500/10', border: 'border-sky-500/20' },
+    { title: 'Auto Miners Active', value: kpi.autoMiners, sub: 'Automated sessions', faIcon: 'fa-solid fa-robot', color: '#C084FC', bg: 'bg-purple-500/10', border: 'border-purple-500/20' },
   ];
 
   return (
@@ -136,13 +136,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <motion.div
             key={idx}
             variants={staggerItem}
-            className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between"
+            className="bg-[#131824] rounded-2xl p-5 border border-slate-800/80 shadow-xs flex items-center justify-between"
           >
             <div>
               <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">{card.title}</div>
-              <div className="text-2xl font-black text-slate-900 mt-1.5">{card.value.toLocaleString()}</div>
-              <div className="text-[10.5px] font-semibold text-slate-500 mt-1 flex items-center gap-1">
-                <i className="fa-solid fa-chart-line text-[10px] text-emerald-600"></i>
+              <div className="text-2xl font-black text-white mt-1.5">{card.value.toLocaleString()}</div>
+              <div className="text-[10.5px] font-semibold text-slate-400 mt-1 flex items-center gap-1">
+                <i className="fa-solid fa-chart-line text-[10px] text-emerald-400"></i>
                 <span>{card.sub}</span>
               </div>
             </div>
@@ -156,16 +156,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Main Charts & Demographics grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* User Growth Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+        <div className="lg:col-span-2 bg-[#131824] rounded-2xl p-5 border border-slate-800/80 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
-                <i className="fa-solid fa-chart-area text-blue-600"></i>
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-2">
+                <i className="fa-solid fa-chart-area text-blue-400"></i>
                 <span>User Growth & Acquisition</span>
               </h3>
-              <p className="text-[10.5px] text-slate-500 font-medium mt-0.5">7-day active registration & user telemetry trajectory</p>
+              <p className="text-[10.5px] text-slate-400 font-medium mt-0.5">7-day active registration & user telemetry trajectory</p>
             </div>
-            <span className="text-[9.5px] font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
+            <span className="text-[9.5px] font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20">
               <i className="fa-solid fa-calendar-days mr-1.5"></i>7 Days
             </span>
           </div>
@@ -173,26 +173,26 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={GROWTH_DATA}>
               <defs>
-                <linearGradient id="gradTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#2563EB" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#2563EB" stopOpacity={0} />
+                <linearGradient id="gradTotalDark" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#38BDF8" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#38BDF8" stopOpacity={0} />
                 </linearGradient>
-                <linearGradient id="gradNew" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#0891B2" stopOpacity={0.12} />
-                  <stop offset="95%" stopColor="#0891B2" stopOpacity={0} />
+                <linearGradient id="gradNewDark" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="#22D3EE" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} width={35} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#1E293B" />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} width={35} />
               <Tooltip content={<CustomChartTooltip />} />
               <Area
-                type="monotone" dataKey="users" name="Total Users" stroke="#2563EB" strokeWidth={2}
-                fill="url(#gradTotal)" dot={false}
+                type="monotone" dataKey="users" name="Total Users" stroke="#38BDF8" strokeWidth={2}
+                fill="url(#gradTotalDark)" dot={false}
               />
               <Area
-                type="monotone" dataKey="newUsers" name="New Users" stroke="#0891B2" strokeWidth={1.5}
-                fill="url(#gradNew)" dot={false} strokeDasharray="4 2"
+                type="monotone" dataKey="newUsers" name="New Users" stroke="#22D3EE" strokeWidth={1.5}
+                fill="url(#gradNewDark)" dot={false} strokeDasharray="4 2"
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -200,13 +200,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Country Demographics */}
         <div className="flex flex-col gap-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex-1">
+          <div className="bg-[#131824] rounded-2xl p-5 border border-slate-800/80 shadow-xs flex-1">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <i className="fa-solid fa-globe text-cyan-600"></i>
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                <i className="fa-solid fa-globe text-cyan-400"></i>
                 <span>Users By Geo Location</span>
               </span>
-              <span className="text-[9.5px] font-mono font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200">
+              <span className="text-[9.5px] font-mono font-bold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-500/20">
                 LIVE
               </span>
             </div>
@@ -228,16 +228,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <div key={i} className="flex items-center justify-between text-[11px]">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="text-xs shrink-0">{c.flag}</span>
-                    <span className="text-slate-700 font-bold truncate max-w-[90px]">{c.name}</span>
+                    <span className="text-slate-200 font-bold truncate max-w-[90px]">{c.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-14 h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="w-14 h-1.5 rounded-full bg-slate-800 overflow-hidden">
                       <div
                         className="h-full rounded-full"
                         style={{ width: `${c.value}%`, background: COUNTRY_COLORS[i % COUNTRY_COLORS.length] }}
                       />
                     </div>
-                    <span className="text-slate-900 font-extrabold w-12 text-right">{c.count} ({c.value}%)</span>
+                    <span className="text-white font-extrabold w-12 text-right">{c.count} ({c.value}%)</span>
                   </div>
                 </div>
               ))}

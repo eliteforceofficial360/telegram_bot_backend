@@ -83,21 +83,19 @@ const btnStyle = {
     boxShadow: '0 0 10px rgba(251,191,36,0.15)',
   } as React.CSSProperties,
   success: {
-    background: 'rgba(74,222,128,0.12)',
-    border: '1px solid rgba(74,222,128,0.35)',
-    color: '#4ADE80',
-    boxShadow: '0 0 12px rgba(74,222,128,0.15)',
+    background: 'rgba(16,185,129,0.12)',
+    border: '1px solid rgba(16,185,129,0.3)',
+    color: '#34D399',
   } as React.CSSProperties,
   edit: {
-    background: 'rgba(139,92,246,0.14)',
-    border: '1px solid rgba(139,92,246,0.35)',
-    color: '#A78BFA',
-    boxShadow: '0 0 10px rgba(139,92,246,0.15)',
+    background: 'rgba(59,130,246,0.12)',
+    border: '1px solid rgba(59,130,246,0.3)',
+    color: '#60A5FA',
   } as React.CSSProperties,
   ghost: {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: '#94A3B8',
+    background: '#181F2E',
+    border: '1px solid #1E293B',
+    color: '#CBD5E1',
   } as React.CSSProperties,
 };
 
@@ -120,13 +118,13 @@ const ImageWithFallback = ({ src, fallbackLetter, className }: { src: string; fa
   );
 };
 
-// ── Sort button (module-scoped so it's not recreated on every render) ─────────
+// ── Sort button (module-scoped) ───────────────────────────────────────────────
 const SortBtn = ({ field, label, sortField, sortDir, handleSort }: { field: SortField; label: string; sortField: SortField; sortDir: SortDir; handleSort: (f: SortField) => void }) => (
-  <button onClick={() => handleSort(field)} className="flex items-center gap-1 text-[9px] font-black uppercase tracking-wider text-slate-500 hover:text-white transition-all cursor-pointer group">
-    {label}
+  <button onClick={() => handleSort(field)} className="flex items-center gap-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 hover:text-white transition-colors cursor-pointer group">
+    <span>{label}</span>
     {sortField === field
-      ? (sortDir === 'asc' ? <ChevronUp size={10} className="text-[#FF8A00]" /> : <ChevronDown size={10} className="text-[#FF8A00]" />)
-      : <ArrowUpDown size={9} className="opacity-25 group-hover:opacity-60" />}
+      ? (sortDir === 'asc' ? <ChevronUp size={10} className="text-blue-400" /> : <ChevronDown size={10} className="text-blue-400" />)
+      : <ArrowUpDown size={9} className="opacity-40 group-hover:opacity-80" />}
   </button>
 );
 
@@ -682,20 +680,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     }
   };
 
-  // Task type color map (Light Corporate)
+  // Task type color map (Dark Corporate)
   const TASK_TYPE_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-    channel: { bg: '#EFF6FF', text: '#1D4ED8', border: '#BFDBFE' },
-    group:   { bg: '#F0F9FF', text: '#0369A1', border: '#BAE6FD' },
-    x:       { bg: '#F8FAFC', text: '#0F172A', border: '#E2E8F0' },
-    website: { bg: '#ECFDF5', text: '#047857', border: '#A7F3D0' },
-    video:   { bg: '#FEF2F2', text: '#B91C1C', border: '#FECDD3' },
-    daily:   { bg: '#FFFBEB', text: '#B45309', border: '#FDE68A' },
-    ad:      { bg: '#F5F3FF', text: '#6D28D9', border: '#DDD6FE' },
+    channel: { bg: 'rgba(59,130,246,0.12)', text: '#60A5FA', border: 'rgba(59,130,246,0.3)' },
+    group:   { bg: 'rgba(14,165,233,0.12)', text: '#38BDF8', border: 'rgba(14,165,233,0.3)' },
+    x:       { bg: 'rgba(255,255,255,0.06)', text: '#FFFFFF', border: 'rgba(255,255,255,0.2)' },
+    website: { bg: 'rgba(16,185,129,0.12)', text: '#34D399', border: 'rgba(16,185,129,0.3)' },
+    video:   { bg: 'rgba(244,63,94,0.12)',  text: '#FB7185', border: 'rgba(244,63,94,0.3)' },
+    daily:   { bg: 'rgba(245,158,11,0.12)',  text: '#FBBF24', border: 'rgba(245,158,11,0.3)' },
+    ad:      { bg: 'rgba(168,85,247,0.12)',  text: '#C084FC', border: 'rgba(168,85,247,0.3)' },
   };
 
   // ============ RENDER ============
   return (
-    <div className="flex h-full overflow-hidden bg-slate-50">
+    <div className="flex h-full overflow-hidden bg-[#090D16]">
       <AdminSidebar
         activeTab={activeTab}
         setActiveTab={tab => { setActiveTab(tab); setPage(1); }}
@@ -704,7 +702,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         eforceTokenValue={settings.eforceTokenValue}
       />
 
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-slate-50">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#090D16]">
         <AdminHeader
           activeTab={activeTab}
           onMenuClick={() => setSidebarOpen(true)}
@@ -716,7 +714,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         />
 
         <main
-          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-slate-50"
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5 bg-[#090D16]"
         >
 
           {/* ════════════════════ DASHBOARD ════════════════════ */}
@@ -743,15 +741,15 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div>
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-                          <i className="fa-solid fa-users-gear text-blue-600"></i>
+                        <h2 className="text-base font-extrabold text-white flex items-center gap-2">
+                          <i className="fa-solid fa-users-gear text-blue-400"></i>
                           <span>User Roster Management</span>
                         </h2>
-                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
                           LIVE ROSTER
                         </span>
                       </div>
-                      <p className="text-xs text-slate-500 mt-1 max-w-lg font-medium">
+                      <p className="text-xs text-slate-400 mt-1 max-w-lg font-medium">
                         Search, review, and moderate active ecosystem members. Use filters to isolate online, premium, flagged or banned accounts.
                       </p>
                     </div>
@@ -759,10 +757,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     {/* Mini KPI chips */}
                     <div className="grid grid-cols-4 gap-2 xl:shrink-0">
                       {[
-                        { label: 'Total', value: usersList.length, color: 'text-slate-900', bg: 'bg-slate-50', border: 'border-slate-200' },
-                        { label: 'Online', value: filterCounts.online, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-                        { label: 'Flagged', value: filterCounts.flagged, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' },
-                        { label: 'Banned', value: filterCounts.banned, color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' },
+                        { label: 'Total', value: usersList.length, color: 'text-white', bg: 'bg-[#181F2E]', border: 'border-slate-700/80' },
+                        { label: 'Online', value: filterCounts.online, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
+                        { label: 'Flagged', value: filterCounts.flagged, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
+                        { label: 'Banned', value: filterCounts.banned, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
                       ].map(s => (
                         <div key={s.label} className={`rounded-xl px-3 py-2 text-center ${s.bg} border ${s.border}`}>
                           <div className={`text-base font-extrabold leading-none ${s.color}`}>{s.value}</div>
@@ -780,11 +778,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         value={userSearch}
                         onChange={e => { setUserSearch(e.target.value); setPage(1); }}
                         placeholder="Search name, @username, Telegram ID…"
-                        className="w-full pl-9 pr-9 h-10 rounded-xl text-xs text-slate-900 bg-white border border-slate-300 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 placeholder-slate-400 font-medium"
+                        className="w-full pl-9 pr-9 h-10 rounded-xl text-xs text-white bg-[#181F2E] border border-slate-700/80 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 placeholder-slate-500 font-medium"
                       />
                       {userSearch && (
                         <button onClick={() => { setUserSearch(''); setPage(1); }}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md flex items-center justify-center text-slate-400 hover:text-white transition-colors">
                           <i className="fa-solid fa-xmark text-xs"></i>
                         </button>
                       )}
@@ -793,7 +791,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       {/* Add User */}
                       <button
                         onClick={() => setShowAddUserForm(v => !v)}
-                        className="inline-flex items-center gap-2 px-3.5 h-10 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
+                        className="inline-flex items-center gap-2 px-3.5 h-10 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 transition-colors cursor-pointer shadow-xs"
                       >
                         <i className="fa-solid fa-user-plus text-xs"></i>
                         <span>Add User</span>
@@ -882,67 +880,67 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
               </SectionCard>
 
               {/* ── Users table ── */}
-              <SectionCard accentColor="#0284C7">
+              <SectionCard accentColor="#38BDF8">
                 {/* Table header */}
-                <div className="grid items-center gap-2 px-5 py-3 border-b border-slate-200 bg-slate-50 sticky top-0 z-10"
+                <div className="grid items-center gap-2 px-5 py-3 border-b border-slate-800 bg-[#0E121B] sticky top-0 z-10"
                   style={{ gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}>
                   <div />
                   <SortBtn field="firstName" label="User" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <SortBtn field="points" label="Points" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <SortBtn field="tokens" label="Tokens" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <SortBtn field="referrals" label="Refs" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
-                  <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-500">Status</span>
-                  <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-500 text-right">Actions</span>
+                  <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400">Status</span>
+                  <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-400 text-right">Actions</span>
                 </div>
 
                 {/* Table rows */}
                 {loadingUsers ? (
-                  <div className="flex flex-col bg-white">
+                  <div className="flex flex-col bg-[#131824]">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="grid items-center gap-2 px-5 py-4 border-b border-slate-100"
+                      <div key={i} className="grid items-center gap-2 px-5 py-4 border-b border-slate-800/80"
                         style={{ gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}>
-                        <div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />
-                        <div className="space-y-1.5"><div className="h-3 w-28 bg-slate-100 rounded animate-pulse" /><div className="h-2 w-20 bg-slate-100/70 rounded animate-pulse" /></div>
-                        {Array.from({ length: 5 }).map((_, j) => <div key={j} className="h-3 bg-slate-100 rounded animate-pulse" />)}
+                        <div className="w-9 h-9 rounded-full bg-slate-800 animate-pulse" />
+                        <div className="space-y-1.5"><div className="h-3 w-28 bg-slate-800 rounded animate-pulse" /><div className="h-2 w-20 bg-slate-800/60 rounded animate-pulse" /></div>
+                        {Array.from({ length: 5 }).map((_, j) => <div key={j} className="h-3 bg-slate-800 rounded animate-pulse" />)}
                       </div>
                     ))}
                   </div>
                 ) : pagedUsers.length === 0 ? (
-                  <div className="text-center py-16 text-slate-400 text-xs bg-white font-medium">No users match your filters.</div>
+                  <div className="text-center py-16 text-slate-400 text-xs bg-[#131824] font-medium">No users match your filters.</div>
                 ) : (
                   <AnimatePresence mode="wait">
-                    <motion.div key={`${userFilter}-${page}-${sortField}-${sortDir}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="bg-white">
+                    <motion.div key={`${userFilter}-${page}-${sortField}-${sortDir}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="bg-[#131824]">
                       {pagedUsers.map((u, idx) => (
                         <React.Fragment key={u.telegramId}>
                           <motion.div
                             initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.025 }}
-                            className="grid items-center gap-2 px-5 py-3.5 border-b border-slate-100 transition-all hover:bg-slate-50/80 cursor-default group"
+                            className="grid items-center gap-2 px-5 py-3.5 border-b border-slate-800/80 transition-all hover:bg-[#182030] cursor-default group"
                             style={{ gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}
                           >
                             {/* Avatar */}
                             <div className="relative">
-                              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-xs font-extrabold bg-slate-100 border border-slate-200 text-slate-700 shrink-0">
+                              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-xs font-extrabold bg-[#182030] border border-slate-700 text-slate-200 shrink-0">
                                 <ImageWithFallback src={u.photoUrl ?? ''} fallbackLetter={(u.firstName?.[0] ?? 'U')} className="w-full h-full object-cover" />
                               </div>
-                              {u.isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />}
+                              {u.isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-[#131824]" />}
                             </div>
 
                             {/* Name */}
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-extrabold text-slate-900 truncate max-w-[130px]">{u.firstName} {u.lastName}</span>
+                                <span className="text-xs font-extrabold text-white truncate max-w-[130px]">{u.firstName} {u.lastName}</span>
                                 {u.isVerified && <VerifiedBadge size={10} />}
-                                {u.isTelegramPremium && <i className="fa-solid fa-star text-sky-500 text-[10px]" title="Telegram Premium"></i>}
-                                {u.leaderboardHidden && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase bg-slate-100 text-slate-500 border border-slate-200">Hidden</span>}
-                                {(u.banStatus ?? 'none') !== 'none' && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase bg-rose-50 text-rose-700 border border-rose-200">Banned</span>}
-                                {u.flagCount > 0 && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">🚩{u.flagCount}</span>}
+                                {u.isTelegramPremium && <i className="fa-solid fa-star text-sky-400 text-[10px]" title="Telegram Premium"></i>}
+                                {u.leaderboardHidden && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase bg-slate-800 text-slate-400 border border-slate-700">Hidden</span>}
+                                {(u.banStatus ?? 'none') !== 'none' && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase bg-rose-500/10 text-rose-400 border border-rose-500/20">Banned</span>}
+                                {u.flagCount > 0 && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">🚩{u.flagCount}</span>}
                               </div>
-                              <span className="text-[10px] text-slate-400 font-medium">@{u.username || 'no_username'} · {u.telegramId} · <span className="text-slate-600 font-bold" title={u.country || 'Unknown'}>{getCountryFlag(u.country)} {u.country && u.country !== 'Unknown' ? u.country : 'Unknown'}</span></span>
+                              <span className="text-[10px] text-slate-400 font-medium">@{u.username || 'no_username'} · {u.telegramId} · <span className="text-slate-300 font-bold" title={u.country || 'Unknown'}>{getCountryFlag(u.country)} {u.country && u.country !== 'Unknown' ? u.country : 'Unknown'}</span></span>
                             </div>
 
                             {/* Points */}
                             <div>
-                              <span className="text-xs font-black text-blue-600">{(u.points || 0).toLocaleString()}</span>
+                              <span className="text-xs font-black text-blue-400">{(u.points || 0).toLocaleString()}</span>
                               <div className="text-[8.5px] font-mono uppercase tracking-wider text-slate-400">EForce</div>
                             </div>
 
