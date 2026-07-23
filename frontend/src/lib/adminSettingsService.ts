@@ -129,15 +129,15 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   customTopMiners: [],
   loadingLogoUrl: '/loading-logo.png',
   coinIconUrl: '/coin.png',
-  faviconUrl: '/favicon.ico',
+  faviconUrl: '/loading-logo.png',
   appHeaderLogoUrl: '/loading-logo.png',
-  welcomeBannerUrl: '',
-  referralBannerUrl: '',
-  tasksBannerUrl: '',
-  walletBannerUrl: '',
-  leaderboardBannerUrl: '',
-  usdtIconUrl: '',
-  eforceTokenIconUrl: '',
+  welcomeBannerUrl: '/coin-logo.jpg',
+  referralBannerUrl: '/coin-logo.jpg',
+  tasksBannerUrl: '/coin-logo.jpg',
+  walletBannerUrl: '/coin.jpg',
+  leaderboardBannerUrl: '/coin-logo.jpg',
+  usdtIconUrl: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+  eforceTokenIconUrl: '/coin.png',
 };
 
 const SETTINGS_DOC = 'adminSettings/config';

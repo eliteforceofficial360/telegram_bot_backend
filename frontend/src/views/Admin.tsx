@@ -2293,19 +2293,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                     {[
-                      { key: 'loadingLogoUrl', label: 'Loading Screen / Splash Logo', desc: 'Main logo shown during app startup loading screen' },
-                      { key: 'coinIconUrl', label: 'Mining Coin Icon (Center Tap)', desc: 'Central mining coin icon on Home screen' },
-                      { key: 'appHeaderLogoUrl', label: 'App Top Header Logo', desc: 'Logo image in top navigation header bar' },
-                      { key: 'faviconUrl', label: 'Browser Tab Favicon Icon', desc: 'Favicon icon shown on browser tabs (.ico/.png)' },
-                      { key: 'welcomeBannerUrl', label: 'Home Dashboard Hero Banner', desc: 'Top banner image on Home screen' },
-                      { key: 'tasksBannerUrl', label: 'Tasks & Missions Header Banner', desc: 'Header banner image on Tasks page' },
-                      { key: 'referralBannerUrl', label: 'Referral & Earn Header Banner', desc: 'Header banner image on Referral page' },
-                      { key: 'walletBannerUrl', label: 'Wallet & Payout Header Banner', desc: 'Header banner image on Wallet page' },
-                      { key: 'leaderboardBannerUrl', label: 'Leaderboard Header Banner', desc: 'Top banner image on Leaderboard page' },
-                      { key: 'usdtIconUrl', label: 'USDT Currency Badge Icon', desc: 'Custom badge icon for USDT balance and rewards' },
-                      { key: 'eforceTokenIconUrl', label: 'EForce Token Badge Icon', desc: 'Custom badge icon for EForce token balance' },
+                      { key: 'loadingLogoUrl', label: 'Loading Screen / Splash Logo', desc: 'Main logo shown during app startup loading screen', defaultVal: '/loading-logo.png' },
+                      { key: 'coinIconUrl', label: 'Mining Coin Icon (Center Tap)', desc: 'Central mining coin icon on Home screen', defaultVal: '/coin.png' },
+                      { key: 'appHeaderLogoUrl', label: 'App Top Header Logo', desc: 'Logo image in top navigation header bar', defaultVal: '/loading-logo.png' },
+                      { key: 'faviconUrl', label: 'Browser Tab Favicon Icon', desc: 'Favicon icon shown on browser tabs', defaultVal: '/loading-logo.png' },
+                      { key: 'welcomeBannerUrl', label: 'Home Dashboard Hero Banner', desc: 'Top banner image on Home screen', defaultVal: '/coin-logo.jpg' },
+                      { key: 'tasksBannerUrl', label: 'Tasks & Missions Header Banner', desc: 'Header banner image on Tasks page', defaultVal: '/coin-logo.jpg' },
+                      { key: 'referralBannerUrl', label: 'Referral & Earn Header Banner', desc: 'Header banner image on Referral page', defaultVal: '/coin-logo.jpg' },
+                      { key: 'walletBannerUrl', label: 'Wallet & Payout Header Banner', desc: 'Header banner image on Wallet page', defaultVal: '/coin.jpg' },
+                      { key: 'leaderboardBannerUrl', label: 'Leaderboard Header Banner', desc: 'Top banner image on Leaderboard page', defaultVal: '/coin-logo.jpg' },
+                      { key: 'usdtIconUrl', label: 'USDT Currency Badge Icon', desc: 'Custom badge icon for USDT balance and rewards', defaultVal: 'https://cryptologos.cc/logos/tether-usdt-logo.png' },
+                      { key: 'eforceTokenIconUrl', label: 'EForce Token Badge Icon', desc: 'Custom badge icon for EForce token balance', defaultVal: '/coin.png' },
                     ].map(item => {
-                      const val = (settings as any)[item.key] || '';
+                      const displayUrl = (settings as any)[item.key] || item.defaultVal;
                       const isUploading = uploadingImageField === item.key;
                       return (
                         <div key={item.key} className="flex items-center justify-between gap-4 py-3">
@@ -2314,15 +2314,13 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                             <span className="text-[9px] text-slate-500 block truncate">{item.desc}</span>
                           </div>
                           <div className="flex items-center gap-2.5 shrink-0">
-                            {val && (
-                              <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
-                                <img src={val} alt="" className="w-full h-full object-contain" />
-                              </div>
-                            )}
+                            <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
+                              <ImageWithFallback src={displayUrl} fallbackLetter="🖼️" className="w-full h-full object-contain" />
+                            </div>
                             <input
                               type="text"
-                              placeholder="Enter image URL..."
-                              value={val}
+                              placeholder={item.defaultVal}
+                              value={(settings as any)[item.key] || ''}
                               onChange={e => setSettings(prev => ({ ...prev, [item.key]: e.target.value }))}
                               className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
                               style={inputStyle}
