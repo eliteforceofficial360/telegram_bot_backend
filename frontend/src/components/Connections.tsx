@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, X as CloseIcon, ExternalLink } from 'lucide-react';
+import { Check, X as CloseIcon } from 'lucide-react';
 import { type TelegramUser } from '../lib/telegramUser';
 import { type FirestoreUser, saveSocialConnection, removeSocialConnection, type SocialConnections } from '../lib/userService';
 import { type AdminSettings } from '../lib/adminSettingsService';
@@ -12,7 +12,7 @@ interface ConnectionsProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
-type PlatformType = 'x' | 'discord' | 'tiktok' | 'instagram' | 'youtube' | 'reddit' | 'whatsapp';
+type PlatformType = 'x' | 'discord' | 'tiktok' | 'instagram' | 'youtube' | 'reddit';
 
 interface PlatformConfig {
   id: PlatformType;
@@ -34,19 +34,8 @@ export const Connections = ({
   const [activeModal, setActiveModal] = useState<PlatformType | null>(null);
   const [handleInput, setHandleInput] = useState('');
   const [saving, setSaving] = useState(false);
-  const [verificationCode, setVerificationCode] = useState('');
 
   const socialConnections: SocialConnections = dbUser?.socialConnections || {};
-
-  // Generate random verification code for WhatsApp verification (e.g. GM-8YY923 or EFC-8YY923)
-  const generateCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = 'GM-';
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return code;
-  };
 
   const platforms: PlatformConfig[] = [
     {
@@ -133,20 +122,6 @@ export const Connections = ({
       inputPlaceholder: 'u/yourusername or reddit.com/user/...',
       subtitle: 'Your reddit username or profile link',
     },
-    {
-      id: 'whatsapp',
-      name: 'WhatsApp',
-      isOauth: false,
-      color: '#25D366',
-      bgColor: '#25D366',
-      icon: (
-        <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 24 24">
-          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l.3.479-1.154 4.216 4.318-1.133.279.165z" />
-        </svg>
-      ),
-      inputPlaceholder: '+1234567890 or phone number',
-      subtitle: 'Your phone number or link',
-    },
   ];
 
   const handleOpenConnectModal = (plat: PlatformConfig) => {
@@ -174,10 +149,6 @@ export const Connections = ({
       }
     }
 
-    if (plat.id === 'whatsapp') {
-      setVerificationCode(generateCode());
-    }
-
     setHandleInput('');
     setActiveModal(plat.id);
   };
@@ -185,12 +156,9 @@ export const Connections = ({
   const handleSaveConnection = async () => {
     if (!telegramUser || !activeModal) return;
 
-    let finalValue = handleInput.trim();
-    if (activeModal === 'whatsapp') {
-      finalValue = verificationCode || handleInput.trim() || 'Verified';
-    }
+    const finalValue = handleInput.trim();
 
-    if (!finalValue && activeModal !== 'whatsapp') {
+    if (!finalValue) {
       showToast('Please enter a valid username, handle or link.', 'warning');
       return;
     }
@@ -328,83 +296,36 @@ export const Connections = ({
                 </h3>
               </div>
 
-              {/* WhatsApp Specific Verification Flow (Image 2) */}
-              {activeModal === 'whatsapp' ? (
-                <div className="flex flex-col gap-4">
-                  <p className="text-xs text-slate-300 font-medium leading-relaxed">
-                    Send this code to our WhatsApp from your own number to link it:
-                  </p>
-
-                  <div className="flex flex-col items-center justify-center py-3 px-4 rounded-xl bg-[#121212] border border-[#E5A338]/40 text-center">
-                    <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold mb-1">
-                      YOUR CODE
-                    </span>
-                    <span className="text-xl font-black text-[#E5A338] tracking-widest font-mono">
-                      {verificationCode}
-                    </span>
-                  </div>
-
-                  <a
-                    href={`https://wa.me/${(adminSettings.whatsappNumber || '+9613578241').replace(/[^0-9+]/g, '')}?text=${encodeURIComponent(`Verification code: ${verificationCode}`)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="w-full h-11 rounded-xl bg-[#25D366] text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Send on WhatsApp</span>
-                    <ExternalLink size={14} />
-                  </a>
-
-                  <p className="text-[10px] text-slate-400 text-center">
-                    or send it manually to <span className="text-white font-bold">{adminSettings.whatsappNumber || '+9613578241'}</span>
-                  </p>
-
-                  <button
-                    onClick={handleSaveConnection}
-                    disabled={saving}
-                    className="w-full h-11 rounded-xl bg-[#E5A338] text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-50"
-                  >
-                    {saving ? 'Verifying...' : "I've sent it · Verify"}
-                  </button>
-
-                  <button
-                    onClick={() => setActiveModal(null)}
-                    className="text-xs font-bold text-slate-400 hover:text-white text-center cursor-pointer transition-all"
-                  >
-                    Cancel
-                  </button>
+              {/* Standard Handle/Link Modal Flow */}
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">
+                    {currentModalPlat.subtitle}
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={currentModalPlat.inputPlaceholder}
+                    value={handleInput}
+                    onChange={(e) => setHandleInput(e.target.value)}
+                    className="w-full h-11 rounded-xl bg-[#121212] border border-white/10 px-4 text-xs text-white placeholder-slate-500 outline-none focus:border-[#E5A338] transition-all font-mono"
+                  />
                 </div>
-              ) : (
-                /* Standard Handle/Link Modal Flow (Image 1) */
-                <div className="flex flex-col gap-4">
-                  <div>
-                    <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                      {currentModalPlat.subtitle}
-                    </label>
-                    <input
-                      type="text"
-                      placeholder={currentModalPlat.inputPlaceholder}
-                      value={handleInput}
-                      onChange={(e) => setHandleInput(e.target.value)}
-                      className="w-full h-11 rounded-xl bg-[#121212] border border-white/10 px-4 text-xs text-white placeholder-slate-500 outline-none focus:border-[#E5A338] transition-all font-mono"
-                    />
-                  </div>
 
-                  <button
-                    onClick={handleSaveConnection}
-                    disabled={saving}
-                    className="w-full h-11 rounded-xl bg-[#E5A338] text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
-                  >
-                    {saving ? 'Linking...' : 'Get code'}
-                  </button>
+                <button
+                  onClick={handleSaveConnection}
+                  disabled={saving}
+                  className="w-full h-11 rounded-xl bg-[#E5A338] text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
+                >
+                  {saving ? 'Linking...' : 'Get code'}
+                </button>
 
-                  <button
-                    onClick={() => setActiveModal(null)}
-                    className="text-xs font-bold text-slate-400 hover:text-white text-center cursor-pointer transition-all"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
+                <button
+                  onClick={() => setActiveModal(null)}
+                  className="text-xs font-bold text-slate-400 hover:text-white text-center cursor-pointer transition-all"
+                >
+                  Cancel
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
