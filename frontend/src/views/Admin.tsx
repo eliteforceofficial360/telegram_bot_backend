@@ -2359,6 +2359,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       <Toggle on={settings.withdrawRequireReferrals} onToggle={() => setSettings(p => ({ ...p, withdrawRequireReferrals: !p.withdrawRequireReferrals }))} accentColor="#4ADE80" />
                     </div>
                     <div className="flex items-center justify-between py-3">
+                      <div>
+                        <label className="text-xs text-slate-400 block">Referral Base Claim Limit (0 Referrals)</label>
+                        <span className="text-[9px] text-slate-500">Max points limit for regular users without referrals (default 5000 EFC)</span>
+                      </div>
+                      <input type="number" value={settings.referralBaseLimit ?? 5000} onChange={e => setSettings(prev => ({ ...prev, referralBaseLimit: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono" style={inputStyle} />
+                    </div>
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <label className="text-xs text-slate-400 block">Referral Tier Boost (Per 5 Referrals)</label>
+                        <span className="text-[9px] text-slate-500">Points added to claim limit for every 5 referrals up to 50 (default +5000 EFC)</span>
+                      </div>
+                      <input type="number" value={settings.referralStepLimit ?? 5000} onChange={e => setSettings(prev => ({ ...prev, referralStepLimit: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono" style={inputStyle} />
+                    </div>
+                    <div className="flex items-center justify-between py-3">
                       <label className="text-xs text-slate-400">Bot Username (Ref Links)</label>
                       <input type="text" value={settings.botUsername} onChange={e => setSettings(prev => ({ ...prev, botUsername: e.target.value }))} className="w-36 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
                     </div>

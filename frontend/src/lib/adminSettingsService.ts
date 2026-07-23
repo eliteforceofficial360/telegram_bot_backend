@@ -32,6 +32,8 @@ export interface AdminSettings {
   referralRewardPoints: number; // EFC points per valid referral
   withdrawMinReferrals: number; // min referrals to unlock withdraw
   withdrawMinAmount: number;    // min USDT to withdraw
+  referralBaseLimit: number;    // Base max points claim limit for 0 referrals (default 5000)
+  referralStepLimit: number;    // Points added per 5 referrals (default 5000)
 
   // Ads / Monetag
   adEnabled: boolean;
@@ -110,6 +112,8 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   referralRewardPoints: 250,
   withdrawMinReferrals: 10,
   withdrawMinAmount: 0.20,
+  referralBaseLimit: 5000,
+  referralStepLimit: 5000,
   adEnabled: true,
   adDailyLimit: 5,
   adRewardAmount: 100,
@@ -207,3 +211,31 @@ export const saveAdminSettings = async (settings: Partial<AdminSettings>): Promi
 };
 
 void SETTINGS_DOC; // suppress unused warning
+
+/**
+ * Calculate Referral Tier Limit for EFC Points claim / withdrawal:
+ * 0 Referrals: Base Limit (default 5,000 EFC, configurable by Admin)
+ * 5 Referrals: +5,000 EFC (10,000 EFC)
+ * 10 Referrals: +5,000 EFC (15,000 EFC)
+ * ... up to 50 Referrals (55,000 EFC max)
+ */
+export const getReferralTierLimit = (
+  referralCount: number = 0,
+  baseLimit: number = 5000,
+  stepLimit: number = 5000
+) => {
+  const tierIndex = Math.min(10, Math.floor(Math.max(0, referralCount) / 5)); // 0 to 10 tiers (50 refs max)
+  const maxPoints = baseLimit + tierIndex * stepLimit;
+  const currentTierRefs = tierIndex * 5;
+  const nextTierRefs = Math.min(50, (tierIndex + 1) * 5);
+  const nextTierMaxPoints = baseLimit + Math.min(10, tierIndex + 1) * stepLimit;
+
+  return {
+    maxPoints,
+    tierIndex,
+    currentTierRefs,
+    nextTierRefs,
+    nextTierMaxPoints,
+    isMaxTier: tierIndex >= 10,
+  };
+};

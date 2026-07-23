@@ -51,24 +51,34 @@ async function sendToUser(telegramId, html, extra = {}, imageUrl = null) {
 
         if (imgbbRes.ok) {
           const imgbbData = await imgbbRes.json();
-          if (imgbbData.data?.url) finalPhotoUrl = imgbbData.data.url;
+          const secureUrl = imgbbData.data?.url || imgbbData.data?.display_url;
+          if (secureUrl) finalPhotoUrl = secureUrl;
         }
       } catch (err) {
         console.warn('[Bot sendToUser] Base64 image conversion failed:', err.message);
       }
     }
 
-    if (finalPhotoUrl && finalPhotoUrl.startsWith('http')) {
+    if (finalPhotoUrl && (finalPhotoUrl.startsWith('http://') || finalPhotoUrl.startsWith('https://'))) {
       try {
-        await bot.telegram.sendPhoto(telegramId, finalPhotoUrl, {
-          caption: html,
-          parse_mode: 'HTML',
-          ...extra,
-        });
+        // Telegram caption limit is 1024 chars. If text > 1024, send photo first, then text message.
+        if (html.length > 1024) {
+          await bot.telegram.sendPhoto(telegramId, finalPhotoUrl);
+          await bot.telegram.sendMessage(telegramId, html, {
+            parse_mode: 'HTML',
+            disable_web_page_preview: true,
+            ...extra,
+          });
+        } else {
+          await bot.telegram.sendPhoto(telegramId, finalPhotoUrl, {
+            caption: html,
+            parse_mode: 'HTML',
+            ...extra,
+          });
+        }
         return true;
       } catch (photoErr) {
         console.warn(`[Bot] Failed to send photo to ${telegramId}, falling back to message:`, photoErr.message);
-        // Fallback to text message if sendPhoto fails
       }
     }
 
@@ -87,10 +97,35 @@ async function sendToUser(telegramId, html, extra = {}, imageUrl = null) {
 /** Send a message/photo to a list of Telegram IDs (announcement). */
 async function broadcast(ids, html, extra = {}, imageUrl = null, delayMs = 60) {
   let sent = 0, failed = 0;
+  let finalPhotoUrl = imageUrl;
+
+  // Convert base64 once before user loop
+  if (finalPhotoUrl && finalPhotoUrl.startsWith('data:image/')) {
+    try {
+      const cleanBase64 = finalPhotoUrl.replace(/^data:image\/\w+;base64,/, '');
+      const bodyParams = new URLSearchParams();
+      bodyParams.append('key', process.env.IMGBB_API_KEY || '6d70077319714757c9a96e622b78edc3');
+      bodyParams.append('image', cleanBase64);
+
+      const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: bodyParams.toString(),
+      });
+
+      if (imgbbRes.ok) {
+        const imgbbData = await imgbbRes.json();
+        const secureUrl = imgbbData.data?.url || imgbbData.data?.display_url;
+        if (secureUrl) finalPhotoUrl = secureUrl;
+      }
+    } catch (err) {
+      console.warn('[Bot broadcast] Base64 image conversion failed:', err.message);
+    }
+  }
+
   for (const id of ids) {
-    const ok = await sendToUser(id, html, extra, imageUrl);
+    const ok = await sendToUser(id, html, extra, finalPhotoUrl);
     ok ? sent++ : failed++;
-    // Telegram rate limit — ~30 msgs/sec per bot allowed
     if (ids.length > 20) await new Promise(r => setTimeout(r, delayMs));
   }
   return { sent, failed };

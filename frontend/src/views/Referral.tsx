@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Share2, Users, Gift, Check } from 'lucide-react';
+import { Copy, Share2, Users, Check, Award } from 'lucide-react';
 import { getReferralLink, getUserReferrals, type ReferralRecord } from '../lib/referralService';
-import { type AdminSettings } from '../lib/adminSettingsService';
+import { getReferralTierLimit, type AdminSettings } from '../lib/adminSettingsService';
 import type { TelegramUser } from '../lib/telegramUser';
 
 interface ReferralProps {
@@ -79,8 +79,8 @@ export const Referral: React.FC<ReferralProps> = ({
   void referralProgress;
   void isWithdrawalUnlocked;
 
-  // Level milestones
-  const milestones = [1, 3, 5, 10, 20, 50];
+  // Level milestones (0 to 50 referrals)
+  void withdrawMinReferrals;
 
   return (
     <div className="flex flex-col gap-5 pb-28">
@@ -141,45 +141,56 @@ export const Referral: React.FC<ReferralProps> = ({
         </div>
       </div>
 
-      {/* Reward Structure */}
+      {/* Reward Structure & Claim Limit Tiers (0 to 50 Referrals) */}
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
-        <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
-          <Gift size={11} /> Referral Rewards
-        </span>
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
+            <Award size={13} className="text-[#FF8A00]" /> EFC Claim Limit Tiers (Up to 50 Referrals)
+          </span>
+          <span className="text-xs font-black text-[#FF8A00]">
+            {getReferralTierLimit(referralsCount, settings.referralBaseLimit || 5000, settings.referralStepLimit || 5000).maxPoints.toLocaleString()} EFC Max
+          </span>
+        </div>
+
         <div className="flex flex-col gap-1.5">
-          {milestones.map((milestone) => {
-            const isReached = referralsCount >= milestone;
+          {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((stepRefs) => {
+            const stepMaxPoints = (settings.referralBaseLimit || 5000) + (stepRefs / 5) * (settings.referralStepLimit || 5000);
+            const isReached = referralsCount >= stepRefs;
             return (
               <div
-                key={milestone}
+                key={stepRefs}
                 className={`flex items-center justify-between p-2.5 rounded-[14px] border transition-all ${
                   isReached
-                    ? 'border-accent-success/25 bg-accent-success/5'
+                    ? 'border-[#FF8A00]/30 bg-[#FF8A00]/10'
                     : 'border-white/5 bg-white/[0.02]'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black ${
-                    isReached ? 'bg-accent-success/20 text-accent-success' : 'bg-white/5 text-slate-500'
+                    isReached ? 'bg-[#FF8A00] text-black' : 'bg-white/5 text-slate-500'
                   }`}>
-                    {isReached ? '✓' : milestone}
+                    {isReached ? '✓' : stepRefs}
                   </div>
-                  <span className="text-[10px] text-slate-300 font-semibold">{milestone} Referrals</span>
+                  <span className="text-[10px] text-slate-300 font-semibold">
+                    {stepRefs === 0 ? 'Regular (0 Referrals)' : `${stepRefs} Referrals`}
+                  </span>
                 </div>
                 <div className="text-right flex flex-col gap-0.5">
-                  <span className="text-[9px] font-bold text-accent-success">
-                    +${(settings.referralRewardUsdt * milestone).toFixed(2)} USDT
+                  <span className="text-[10px] font-black text-[#FF8A00]">
+                    {stepMaxPoints.toLocaleString()} EFC Limit
                   </span>
-                  <span className="text-[9px] font-bold text-[#FF8A00]">
-                    +{(settings.referralRewardToken * milestone).toFixed(0)} EForce Token
-                  </span>
+                  {stepRefs > 0 && (
+                    <span className="text-[8px] font-bold text-emerald-400">
+                      +${(settings.referralRewardUsdt * stepRefs).toFixed(2)} USDT Bonus
+                    </span>
+                  )}
                 </div>
               </div>
             );
           })}
         </div>
         <p className="text-[9px] text-slate-500 text-center">
-          Per valid referral: +${settings.referralRewardUsdt} USDT & +{settings.referralRewardToken} EForce Token
+          Base limit: {(settings.referralBaseLimit || 5000).toLocaleString()} EFC (0 refs). Every 5 referrals unlocks +{(settings.referralStepLimit || 5000).toLocaleString()} EFC claim capacity up to 50 refs!
         </p>
       </div>
 
