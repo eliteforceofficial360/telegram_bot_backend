@@ -28,19 +28,13 @@ export function initMonetag(zoneId: string): Promise<boolean> {
       resolve(false);
       return;
     }
-    handler({ type: 'preload' })
-      .then(() => resolve(true))
-      .catch(() => {
-        handler({ type: 'start' })
-          .then(() => resolve(true))
-          .catch(() => resolve(false));
-      });
+    resolve(true);
   });
 }
 
 /**
  * Triggers Monetag SDK Ad directly without custom UI overlays.
- * Directly calls Monetag's ad handler.
+ * Calls Monetag's ad handler with proper parameters (handler() / handler('pop')).
  */
 export function showRewardedAd(zoneId: string): Promise<boolean> {
   const handler = getHandler(zoneId);
@@ -50,16 +44,25 @@ export function showRewardedAd(zoneId: string): Promise<boolean> {
   }
 
   return new Promise((resolve) => {
-    // Directly call Monetag SDK handler
-    handler({ type: 'pop' })
+    // Call Monetag SDK handler for Rewarded Interstitial
+    handler()
       .then(() => {
-        console.log('[Monetag] Direct ad completed successfully');
+        console.log('[Monetag] Rewarded Interstitial ad completed successfully');
         resolve(true);
       })
-      .catch((err: any) => {
-        console.warn('[Monetag] Direct ad error / closed:', err);
-        // Fallback to resolve true so user task is not stuck if Monetag domain is blocked by user ad-blocker
-        resolve(true);
+      .catch((err1: any) => {
+        console.warn('[Monetag] Rewarded Interstitial failed or closed, trying Rewarded Pop fallback:', err1);
+        // Fallback to Rewarded Pop
+        handler('pop')
+          .then(() => {
+            console.log('[Monetag] Rewarded Pop ad completed successfully');
+            resolve(true);
+          })
+          .catch((err2: any) => {
+            console.warn('[Monetag] Rewarded Pop ad failed or closed:', err2);
+            // Fallback so user task is not stuck if adblocker is active
+            resolve(true);
+          });
       });
   });
 }
