@@ -2568,6 +2568,74 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
+                {/* OAuth & Social Connections */}
+                <SectionCard accentColor="#E5A33888">
+                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🔗</span>
+                      <span className="text-sm font-black text-white">OAuth & Social Connections</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Configure Discord OAuth, X (Twitter) OAuth, and WhatsApp numbers for user accounts linkage</p>
+                  </div>
+                  <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <label className="text-xs text-slate-400">Discord OAuth Client ID</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 123456789012345678"
+                        value={settings.discordClientId || ''}
+                        onChange={e => setSettings(p => ({ ...p, discordClientId: e.target.value }))}
+                        className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 py-3">
+                      <label className="text-xs text-slate-400">Discord Authorize URL</label>
+                      <input
+                        type="text"
+                        placeholder="https://discord.com/oauth2/authorize?client_id="
+                        value={settings.discordAuthUrl || ''}
+                        onChange={e => setSettings(p => ({ ...p, discordAuthUrl: e.target.value }))}
+                        className="w-full h-8 rounded-xl px-3 text-xs text-white outline-none font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <label className="text-xs text-slate-400">X (Twitter) OAuth Client ID</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. client_id_here"
+                        value={settings.xClientId || ''}
+                        onChange={e => setSettings(p => ({ ...p, xClientId: e.target.value }))}
+                        className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 py-3">
+                      <label className="text-xs text-slate-400">X (Twitter) Authorize URL</label>
+                      <input
+                        type="text"
+                        placeholder="https://x.com/oauth2/authorize?client_id="
+                        value={settings.xAuthUrl || ''}
+                        onChange={e => setSettings(p => ({ ...p, xAuthUrl: e.target.value }))}
+                        className="w-full h-8 rounded-xl px-3 text-xs text-white outline-none font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <label className="text-xs text-slate-400">WhatsApp Support / Verification Number</label>
+                      <input
+                        type="text"
+                        placeholder="+9613578241"
+                        value={settings.whatsappNumber || ''}
+                        onChange={e => setSettings(p => ({ ...p, whatsappNumber: e.target.value }))}
+                        className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                </SectionCard>
+
                 {/* Admin Profile */}
                 <SectionCard accentColor="#ffffff22">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>

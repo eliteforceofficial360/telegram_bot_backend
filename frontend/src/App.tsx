@@ -7,6 +7,7 @@ import { Tasks } from './views/Tasks';
 import { Referral } from './views/Referral';
 import { Wallet } from './views/Wallet';
 import { Profile } from './views/Profile';
+import { Settings } from './views/Settings';
 import { Leaderboard } from './views/Leaderboard';
 import { Admin } from './views/Admin';
 import { AdminLogin } from './views/AdminLogin';
@@ -641,6 +642,15 @@ export default function App() {
             dbUser={dbUser}
             showToast={showToast}
             telegramUser={telegramUser}
+          />
+        );
+      case 'settings':
+        return (
+          <Settings 
+            showToast={showToast} 
+            adminSettings={adminSettings}
+            telegramUser={telegramUser}
+            dbUser={dbUser}
           />
         );
       case 'leaderboard':

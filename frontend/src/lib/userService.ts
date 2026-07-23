@@ -23,6 +23,22 @@ import type { TelegramUser } from './telegramUser';
 
 import { recordReferral, parseReferralFromStartParam } from './referralService';
 
+export interface SocialConnectionData {
+  handle: string;
+  connected: boolean;
+  linkedAt?: string;
+}
+
+export interface SocialConnections {
+  x?: SocialConnectionData;
+  discord?: SocialConnectionData;
+  tiktok?: SocialConnectionData;
+  instagram?: SocialConnectionData;
+  youtube?: SocialConnectionData;
+  reddit?: SocialConnectionData;
+  whatsapp?: SocialConnectionData;
+}
+
 export interface FirestoreUser {
   telegramId: number;
   username: string;
@@ -85,6 +101,7 @@ export interface FirestoreUser {
   leaderboardPinned?: boolean;
   leaderboardHidden?: boolean;
   isVerified?: boolean;
+  socialConnections?: SocialConnections;
 }
 
 const USERS_COLLECTION = 'users';
@@ -1173,4 +1190,65 @@ export const adminResetLeaderboard = async (): Promise<number> => {
   await writeAuditLog('LEADERBOARD_RESET', 0, `Leaderboard reset — ${count} users cleared`);
   return count;
 };
+
+/**
+ * Save user social platform connection details (e.g. handle or code)
+ */
+export const saveSocialConnection = async (
+  telegramId: number,
+  platform: keyof SocialConnections,
+  handle: string
+): Promise<boolean> => {
+  if (!isFirebaseConfigured()) return false;
+  try {
+    const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+    await setDoc(
+      userRef,
+      {
+        socialConnections: {
+          [platform]: {
+            handle: handle.trim(),
+            connected: true,
+            linkedAt: new Date().toISOString(),
+          },
+        },
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.error('[userService] saveSocialConnection error:', err);
+    return false;
+  }
+};
+
+/**
+ * Remove user social platform connection
+ */
+export const removeSocialConnection = async (
+  telegramId: number,
+  platform: keyof SocialConnections
+): Promise<boolean> => {
+  if (!isFirebaseConfigured()) return false;
+  try {
+    const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+    await setDoc(
+      userRef,
+      {
+        socialConnections: {
+          [platform]: {
+            handle: '',
+            connected: false,
+          },
+        },
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (err) {
+    console.error('[userService] removeSocialConnection error:', err);
+    return false;
+  }
+};
+
 

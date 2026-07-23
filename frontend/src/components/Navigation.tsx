@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export type ActiveTab = 'home' | 'tasks' | 'referral' | 'wallet' | 'profile' | 'leaderboard' | 'admin';
+export type ActiveTab = 'home' | 'tasks' | 'referral' | 'wallet' | 'profile' | 'settings' | 'leaderboard' | 'admin';
 
 interface NavigationProps {
   activeTab: ActiveTab;

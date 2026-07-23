@@ -1,17 +1,22 @@
 import { Info, ExternalLink, Copy, Shield, Star, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { type AdminSettings } from '../lib/adminSettingsService';
+import { DEFAULT_ADMIN_SETTINGS, type AdminSettings } from '../lib/adminSettingsService';
+import { type TelegramUser } from '../lib/telegramUser';
+import { type FirestoreUser } from '../lib/userService';
+import { Connections } from '../components/Connections';
 
 interface SettingsProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   adminSettings?: AdminSettings;
+  telegramUser?: TelegramUser | null;
+  dbUser?: FirestoreUser | null;
 }
 
 const APP_VERSION = '2.0.0';
 const BOT_USERNAME = '@EliteForceEFCBot';
 const SUPPORT_LINK = 'https://t.me/EliteForceEFCBot';
 
-export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
+export const Settings = ({ showToast, adminSettings, telegramUser = null, dbUser = null }: SettingsProps) => {
 
   const copyBotLink = () => {
     navigator.clipboard.writeText(BOT_USERNAME).catch(() => {});
@@ -24,14 +29,28 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-white">Settings</h1>
-        <p className="text-xs text-slate-400 mt-1">Elite Force EFC app information & support.</p>
+        <p className="text-xs text-slate-400 mt-1">Elite Force EFC app information & connections.</p>
       </div>
+
+      {/* Social Connections */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <Connections
+          telegramUser={telegramUser}
+          dbUser={dbUser}
+          adminSettings={adminSettings || DEFAULT_ADMIN_SETTINGS}
+          showToast={showToast}
+        />
+      </motion.div>
 
       {/* App Info Card */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
         className="glass-panel p-5 rounded-[24px] border-white/6 flex items-center gap-4"
       >
         {/* Coin logo */}
@@ -57,7 +76,7 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.05 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
         className="glass-panel rounded-[24px] border-white/6 overflow-hidden divide-y divide-white/5"
       >
         {/* How it works */}
@@ -67,7 +86,7 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
           </div>
           <div className="flex-1">
             <span className="text-xs font-bold text-white block">How to Earn</span>
-            <span className="text-[10px] text-slate-500">Tap coin → earn EForce points → swap to EForce token</span>
+            <span className="text-[10px] text-slate-500 font-medium">Tap coin → earn EFC points → swap to EForce token</span>
           </div>
         </div>
 
@@ -78,7 +97,7 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
           </div>
           <div className="flex-1">
             <span className="text-xs font-bold text-white block">Referral Bonus</span>
-            <span className="text-[10px] text-slate-500">Invite friends to earn EForce token rewards</span>
+            <span className="text-[10px] text-slate-500 font-medium">Invite friends to earn EForce token rewards</span>
           </div>
         </div>
 
@@ -89,7 +108,7 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
           </div>
           <div className="flex-1">
             <span className="text-xs font-bold text-white block">Anti-Cheat Protection</span>
-            <span className="text-[10px] text-slate-500">Auto-ban for bot tapping & suspicious activity</span>
+            <span className="text-[10px] text-slate-500 font-medium">Auto-ban for bot tapping & suspicious activity</span>
           </div>
         </div>
 
@@ -100,7 +119,7 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
           </div>
           <div className="flex-1">
             <span className="text-xs font-bold text-white block">App Version</span>
-            <span className="text-[10px] text-slate-500">EForce v{APP_VERSION} — Production Build</span>
+            <span className="text-[10px] text-slate-500 font-medium">EForce v{APP_VERSION} — Production Build</span>
           </div>
         </div>
       </motion.div>
@@ -109,7 +128,7 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3, delay: 0.1 }}
+        transition={{ duration: 0.3, delay: 0.15 }}
         className="glass-panel p-5 rounded-[24px] border-white/6 flex flex-col gap-3"
       >
         <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Support & Community</span>
@@ -159,3 +178,4 @@ export const Settings = ({ showToast, adminSettings }: SettingsProps) => {
     </div>
   );
 };
+

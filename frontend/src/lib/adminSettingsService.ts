@@ -68,6 +68,13 @@ export interface AdminSettings {
   botUsername: string;
   adminUsername: string;
 
+  // Social Connections & OAuth
+  discordClientId?: string;
+  discordAuthUrl?: string;
+  xClientId?: string;
+  xAuthUrl?: string;
+  whatsappNumber?: string;
+
   // Custom Top Miners (shown as pinned entries on Leaderboard)
   customTopMiners: { name: string; score: number; badge: string }[];
 
@@ -127,6 +134,11 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   humanVerificationOpen: false,
   botUsername: 'EliteForceBot',
   adminUsername: '',
+  discordClientId: '',
+  discordAuthUrl: 'https://discord.com/oauth2/authorize?client_id=',
+  xClientId: '',
+  xAuthUrl: 'https://x.com/oauth2/authorize?client_id=',
+  whatsappNumber: '+9613578241',
   botApiUrl: '',
   customTopMiners: [],
   loadingLogoUrl: '/loading-logo.png',

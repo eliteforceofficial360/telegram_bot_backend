@@ -611,40 +611,34 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </div>
 
-      {/* Sponsored Ads (Monetag) */}
+      {/* Sponsored Ads Card (Image 3 design) */}
       {settings.adEnabled && (
-        <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">Sponsored Ads</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-xs font-black text-white">Watch & Earn Points</span>
-              </div>
-            </div>
-            <button
-              onClick={handleWatchAdClick}
-              disabled={watchingAd || adWatchesToday >= settings.adDailyLimit}
-              className={`h-9 px-4 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-                adWatchesToday >= settings.adDailyLimit
-                  ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-accent-blue to-accent-cyan text-white shadow-[0_0_12px_rgba(0,229,255,0.25)]'
-              }`}
-            >
-              {watchingAd ? (
-                <span className="w-3 h-3 border-2 border-t-transparent border-white rounded-full animate-spin" />
-              ) : (
-                'Watch Ad'
-              )}
-            </button>
+        <div className="glass-panel p-4 rounded-[22px] border border-white/10 flex items-center justify-between bg-[#16171B] shadow-lg">
+          <div className="flex flex-col gap-1 min-w-0 pr-2">
+            <h4 className="text-xs sm:text-sm font-extrabold text-[#38BDF8]">
+              Watch an ad, earn up to {settings.adRewardAmount || 5} EFC Points
+            </h4>
+            <p className="text-[10px] text-slate-400 font-mono leading-tight">
+              {adWatchesToday < settings.adDailyLimit 
+                ? `${settings.adDailyLimit - adWatchesToday}/${settings.adDailyLimit} left today` 
+                : 'Daily limit reached'} · Monetag Ad service ready
+            </p>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] text-slate-400">
-              Reward: <span className="text-accent-cyan font-bold">+{settings.adRewardAmount} EFC Points</span>
-            </span>
-            <span className="text-[9px] text-slate-500 font-bold">
-              Today: {adWatchesToday}/{settings.adDailyLimit} completed
-            </span>
-          </div>
+          <button
+            onClick={handleWatchAdClick}
+            disabled={watchingAd || adWatchesToday >= settings.adDailyLimit}
+            className={`h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+              adWatchesToday >= settings.adDailyLimit
+                ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
+                : 'bg-[#E5A338] text-black border border-[#FFD700]/30 hover:brightness-110 active:scale-95 shadow-[0_0_12px_rgba(229,163,56,0.3)]'
+            }`}
+          >
+            {watchingAd ? (
+              <span className="w-3.5 h-3.5 border-2 border-t-transparent border-black rounded-full animate-spin" />
+            ) : (
+              <>▶ Watch</>
+            )}
+          </button>
         </div>
       )}
 

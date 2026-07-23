@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
 import { type FirestoreUser } from '../lib/userService';
-import { type AdminSettings } from '../lib/adminSettingsService';
+import { DEFAULT_ADMIN_SETTINGS, type AdminSettings } from '../lib/adminSettingsService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
+import { Connections } from '../components/Connections';
 
 interface ProfileProps {
   efcBalance: number;
@@ -35,6 +36,7 @@ export const Profile = ({
   efcBalance, 
   usdtBalance = 0, 
   referralsCount = 0,
+  adminSettings,
   dbUser, 
   showToast, 
   telegramUser 
@@ -301,6 +303,20 @@ export const Profile = ({
           </span>
         </motion.div>
       </div>
+
+      {/* Social Connections (X, Discord, TikTok, Instagram, YouTube, Reddit, WhatsApp) */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.14 }}
+      >
+        <Connections
+          telegramUser={telegramUser}
+          dbUser={dbUser}
+          adminSettings={adminSettings || DEFAULT_ADMIN_SETTINGS}
+          showToast={showToast}
+        />
+      </motion.div>
 
       {/* Achievements / Trophies & Milestones */}
       <motion.div 
