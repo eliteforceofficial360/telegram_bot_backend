@@ -144,11 +144,10 @@ export const Connections = ({
       return `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=x_auth&code_challenge=challenge&code_challenge_method=plain`;
     }
     if (platId === 'discord') {
-      const clientId = adminSettings.discordClientId?.trim();
-      const baseAuthUrl = adminSettings.discordAuthUrl?.trim();
-      if (baseAuthUrl && baseAuthUrl.length > 30 && !baseAuthUrl.endsWith('=')) return baseAuthUrl;
-      if (!clientId) return '';
-      return `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&scope=identify`;
+      const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
+      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
+      const scope = encodeURIComponent('openid identify email');
+      return `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
     }
     return '';
   };
