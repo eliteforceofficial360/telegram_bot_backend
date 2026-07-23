@@ -6,6 +6,7 @@ import {
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff, Upload,
+  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -559,9 +560,93 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   // --- Withdrawals ---
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [withdrawFilter, setWithdrawFilter] = useState<'all' | 'Pending' | 'Approved' | 'Rejected' | 'Banned'>('Pending');
+  const [withdrawSearch, setWithdrawSearch] = useState('');
+  const [withdrawAssetFilter, setWithdrawAssetFilter] = useState<'all' | 'usdt' | 'token'>('all');
+  const [withdrawSort, setWithdrawSort] = useState<'newest' | 'oldest' | 'amount_desc' | 'amount_asc'>('newest');
+  const [selectedWithdrawIds, setSelectedWithdrawIds] = useState<string[]>([]);
+  const [selectedWithdrawDetail, setSelectedWithdrawDetail] = useState<any | null>(null);
   const [withdrawModal, setWithdrawModal] = useState<{ id: string; status: 'Approved' | 'Rejected' | 'Banned'; req: any } | null>(null);
   const [withdrawNote, setWithdrawNote] = useState('');
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+
   useEffect(() => { const unsub = subscribeToWithdrawRequests(setWithdrawals); return unsub; }, []);
+
+  const handleCopyWallet = (addr: string) => {
+    if (!addr) return;
+    navigator.clipboard.writeText(addr);
+    setCopiedAddress(addr);
+    showToast('📋 BEP-20 Wallet copied to clipboard!', 'info');
+    setTimeout(() => setCopiedAddress(null), 2000);
+  };
+
+  const withdrawMetrics = useMemo(() => {
+    const pending = withdrawals.filter(w => w.status === 'Pending');
+    const approved = withdrawals.filter(w => w.status === 'Approved');
+    const pendingUsdt = pending.filter(w => (w.type || 'usdt').toLowerCase() === 'usdt').reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
+    const pendingToken = pending.filter(w => (w.type || 'usdt').toLowerCase() === 'token').reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
+    const approvedUsdt = approved.filter(w => (w.type || 'usdt').toLowerCase() === 'usdt').reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
+    const approvedToken = approved.filter(w => (w.type || 'usdt').toLowerCase() === 'token').reduce((acc, w) => acc + (Number(w.amount) || 0), 0);
+    const highRiskPending = pending.filter(w => {
+      const u = usersList.find(usr => usr.telegramId === w.telegramId);
+      return u?.riskLevel === 'high' || (u?.flagCount || 0) > 0;
+    }).length;
+    return { pendingUsdt, pendingToken, approvedUsdt, approvedToken, pendingCount: pending.length, approvedCount: approved.length, highRiskPending };
+  }, [withdrawals, usersList]);
+
+  const processedWithdrawals = useMemo(() => {
+    let list = [...withdrawals];
+    if (withdrawFilter !== 'all') {
+      list = list.filter(w => w.status === withdrawFilter);
+    }
+    if (withdrawAssetFilter !== 'all') {
+      list = list.filter(w => (w.type || 'usdt').toLowerCase() === withdrawAssetFilter);
+    }
+    const q = withdrawSearch.trim().toLowerCase();
+    if (q) {
+      list = list.filter(w =>
+        String(w.telegramId || '').toLowerCase().includes(q) ||
+        String(w.username || '').toLowerCase().includes(q) ||
+        String(w.walletAddress || '').toLowerCase().includes(q)
+      );
+    }
+    list.sort((a, b) => {
+      const timeA = a.createdAt?.seconds ? a.createdAt.seconds * 1000 : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = b.createdAt?.seconds ? b.createdAt.seconds * 1000 : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      if (withdrawSort === 'newest') return timeB - timeA;
+      if (withdrawSort === 'oldest') return timeA - timeB;
+      if (withdrawSort === 'amount_desc') return (Number(b.amount) || 0) - (Number(a.amount) || 0);
+      if (withdrawSort === 'amount_asc') return (Number(a.amount) || 0) - (Number(b.amount) || 0);
+      return 0;
+    });
+    return list;
+  }, [withdrawals, withdrawFilter, withdrawAssetFilter, withdrawSearch, withdrawSort]);
+
+  const handleBatchAction = async (status: 'Approved' | 'Rejected', defaultNote: string) => {
+    if (selectedWithdrawIds.length === 0) return;
+    if (!confirm(`Are you sure you want to ${status.toLowerCase()} ${selectedWithdrawIds.length} payout request(s)?`)) return;
+    let count = 0;
+    for (const id of selectedWithdrawIds) {
+      const req = withdrawals.find(w => w.id === id);
+      const ok = await updateWithdrawRequest(id, status, defaultNote);
+      if (ok) {
+        count++;
+        if (req?.telegramId && settings.botApiUrl) {
+          sendWithdrawNotification(settings.botApiUrl, req.telegramId, status, req.amount ?? 0, req.type ?? 'usdt', defaultNote).catch(() => {});
+        }
+      }
+    }
+    showToast(`✅ ${count} payout request(s) ${status.toLowerCase()}.`, 'success');
+    setSelectedWithdrawIds([]);
+  };
+
+  const toggleSelectAllPending = () => {
+    const pendingIds = processedWithdrawals.filter(w => w.status === 'Pending').map(w => w.id);
+    if (selectedWithdrawIds.length === pendingIds.length && pendingIds.length > 0) {
+      setSelectedWithdrawIds([]);
+    } else {
+      setSelectedWithdrawIds(pendingIds);
+    }
+  };
   // --- Notifications tab ---
   const [notifMessage, setNotifMessage] = useState('');
   const [notifTarget, setNotifTarget] = useState<'all' | 'user'>('all');
@@ -1468,80 +1553,344 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
             </div>
           )}
 
-          {/* ════════════════════ WITHDRAWALS ════════════════════ */}
+          {/* ════════════════════ WITHDRAWALS (PAYOUT QUEUE) ════════════════════ */}
           {activeTab === 'withdrawals' && (
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-6">
+
+              {/* 1. KPI Metric Strip */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="rounded-[22px] p-4 border flex flex-col justify-between" style={{ background: 'rgba(251,191,36,0.06)', borderColor: 'rgba(251,191,36,0.2)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-yellow-400">Pending Payouts</span>
+                    <Clock size={16} className="text-yellow-400" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-2xl font-black text-white">{withdrawMetrics.pendingCount} <span className="text-xs text-yellow-400 font-bold">reqs</span></div>
+                    <div className="text-[10px] text-slate-400 mt-1 font-mono">{withdrawMetrics.pendingUsdt.toLocaleString()} USDT · {withdrawMetrics.pendingToken.toLocaleString()} EForce</div>
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] p-4 border flex flex-col justify-between" style={{ background: 'rgba(74,222,128,0.06)', borderColor: 'rgba(74,222,128,0.2)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-green-400">Total Approved</span>
+                    <CheckCircle2 size={16} className="text-green-400" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-2xl font-black text-white">{withdrawMetrics.approvedCount} <span className="text-xs text-green-400 font-bold">completed</span></div>
+                    <div className="text-[10px] text-slate-400 mt-1 font-mono">{withdrawMetrics.approvedUsdt.toLocaleString()} USDT Total</div>
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] p-4 border flex flex-col justify-between" style={{ background: 'rgba(248,113,113,0.06)', borderColor: 'rgba(248,113,113,0.2)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-red-400">Security Risk Alerts</span>
+                    <ShieldAlert size={16} className="text-red-400 animate-pulse" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-2xl font-black text-red-400">{withdrawMetrics.highRiskPending} <span className="text-xs text-slate-400 font-normal">flagged reqs</span></div>
+                    <div className="text-[10px] text-slate-500 mt-1">Anti-cheat flagged or medium/high risk</div>
+                  </div>
+                </div>
+
+                <div className="rounded-[22px] p-4 border flex flex-col justify-between" style={{ background: 'rgba(59,130,246,0.06)', borderColor: 'rgba(59,130,246,0.2)' }}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-blue-400">Network & Protocol</span>
+                    <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/30 text-[9px] font-bold text-blue-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-ping" /> BEP-20
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-xs font-bold text-white">BNB Smart Chain</div>
+                    <div className="text-[10px] text-slate-400 mt-1">Fast Execution · Zero Friction</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Control Toolbar (Filters & Search & Batch) */}
               <SectionCard accentColor="#4ADE8088">
                 <div className="p-5 flex flex-col gap-4">
-                  <div>
-                    <h2 className="text-base font-black text-white">Withdrawal Requests</h2>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Review and process member payout requests</p>
-                  </div>
-                  <div className="flex gap-2 flex-wrap">
-                    {(['all', 'Pending', 'Approved', 'Rejected', 'Banned'] as const).map(f => {
-                      const cnt = f === 'all' ? withdrawals.length : withdrawals.filter(w => w.status === f).length;
-                      const colors = { all: '#FF8A00', Pending: '#FBBF24', Approved: '#4ADE80', Rejected: '#F87171', Banned: '#FB923C' };
-                      const isSelected = withdrawFilter === f;
-                      return (
-                        <button key={f} onClick={() => setWithdrawFilter(f)}
-                          className="flex items-center gap-1.5 h-9 px-4 rounded-full text-[10px] font-bold transition-all cursor-pointer"
-                          style={{
-                            background: isSelected ? `${colors[f]}18` : 'rgba(255,255,255,0.04)',
-                            border: isSelected ? `1px solid ${colors[f]}40` : '1px solid rgba(255,255,255,0.08)',
-                            color: isSelected ? colors[f] : '#64748b',
-                          }}
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <h2 className="text-base font-black text-white flex items-center gap-2">
+                        💳 Payout Queue <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-green-500/10 text-green-400 border border-green-500/20">{processedWithdrawals.length} items</span>
+                      </h2>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Review, verify BEP-20 wallet addresses, and process member payouts</p>
+                    </div>
+
+                    {/* Batch Actions Bar (when items selected) */}
+                    {selectedWithdrawIds.length > 0 && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.05] border border-white/10">
+                        <span className="text-xs font-bold text-amber-400">{selectedWithdrawIds.length} Selected</span>
+                        <button
+                          onClick={() => handleBatchAction('Approved', 'Processed successfully. Batch approved.')}
+                          className="h-8 px-3 rounded-lg bg-green-500/20 hover:bg-green-500/30 border border-green-500/40 text-green-400 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
                         >
-                          {f} {cnt > 0 && <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black" style={{ background: isSelected ? `${colors[f]}25` : 'rgba(255,255,255,0.08)', color: isSelected ? colors[f] : '#94a3b8' }}>{cnt}</span>}
+                          <Check size={12} /> Batch Approve
                         </button>
-                      );
-                    })}
+                        <button
+                          onClick={() => handleBatchAction('Rejected', 'Request rejected during batch review.')}
+                          className="h-8 px-3 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-400 text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <X size={12} /> Batch Reject
+                        </button>
+                        <button
+                          onClick={() => setSelectedWithdrawIds([])}
+                          className="h-8 px-2 rounded-lg text-slate-400 hover:text-white text-[10px] font-bold transition-all"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Filter Pills + Search Input */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
+                    {/* Status Tabs */}
+                    <div className="md:col-span-6 flex gap-1.5 flex-wrap">
+                      {(['all', 'Pending', 'Approved', 'Rejected', 'Banned'] as const).map(f => {
+                        const cnt = f === 'all' ? withdrawals.length : withdrawals.filter(w => w.status === f).length;
+                        const colors = { all: '#FF8A00', Pending: '#FBBF24', Approved: '#4ADE80', Rejected: '#F87171', Banned: '#FB923C' };
+                        const isSelected = withdrawFilter === f;
+                        return (
+                          <button key={f} onClick={() => setWithdrawFilter(f)}
+                            className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-[10px] font-bold transition-all cursor-pointer"
+                            style={{
+                              background: isSelected ? `${colors[f]}18` : 'rgba(255,255,255,0.04)',
+                              border: isSelected ? `1px solid ${colors[f]}40` : '1px solid rgba(255,255,255,0.08)',
+                              color: isSelected ? colors[f] : '#64748b',
+                            }}
+                          >
+                            {f} {cnt > 0 && <span className="px-1.5 py-0.5 rounded-full text-[8px] font-black" style={{ background: isSelected ? `${colors[f]}25` : 'rgba(255,255,255,0.08)', color: isSelected ? colors[f] : '#94a3b8' }}>{cnt}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Asset filter */}
+                    <div className="md:col-span-2">
+                      <select
+                        value={withdrawAssetFilter}
+                        onChange={e => setWithdrawAssetFilter(e.target.value as any)}
+                        className={inputCls + ' cursor-pointer text-[10px]'}
+                        style={{ ...inputStyle, background: '#0A0D1A' }}
+                      >
+                        <option value="all">All Assets</option>
+                        <option value="usdt">USDT Only</option>
+                        <option value="token">EForce Token</option>
+                      </select>
+                    </div>
+
+                    {/* Sort selector */}
+                    <div className="md:col-span-2">
+                      <select
+                        value={withdrawSort}
+                        onChange={e => setWithdrawSort(e.target.value as any)}
+                        className={inputCls + ' cursor-pointer text-[10px]'}
+                        style={{ ...inputStyle, background: '#0A0D1A' }}
+                      >
+                        <option value="newest">Newest First</option>
+                        <option value="oldest">Oldest First</option>
+                        <option value="amount_desc">Highest Amount</option>
+                        <option value="amount_asc">Lowest Amount</option>
+                      </select>
+                    </div>
+
+                    {/* Search */}
+                    <div className="md:col-span-2 relative">
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="Search wallet/user..."
+                        value={withdrawSearch}
+                        onChange={e => setWithdrawSearch(e.target.value)}
+                        className={`${inputCls} pl-8 text-[10px]`}
+                        style={inputStyle}
+                      />
+                      {withdrawSearch && (
+                        <button onClick={() => setWithdrawSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white text-xs">✕</button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </SectionCard>
 
+              {/* 3. Main Data Table */}
               <SectionCard accentColor="#4ADE8033">
                 {/* Header row */}
-                <div className="grid gap-3 px-5 py-3 border-b text-[9px] font-black uppercase tracking-widest text-slate-600"
-                  style={{ borderColor: 'rgba(255,255,255,0.06)', gridTemplateColumns: '2.5rem 1fr 8rem 6rem 6rem 9rem' }}>
-                  <div /><div>User</div><div>Amount</div><div>Network</div><div>Status</div><div className="text-right">Actions</div>
+                <div className="grid gap-3 px-5 py-3 border-b text-[9px] font-black uppercase tracking-widest text-slate-500 items-center"
+                  style={{ borderColor: 'rgba(255,255,255,0.06)', gridTemplateColumns: '2rem 1.8fr 1.2fr 1.5fr 0.8fr 1fr 9rem' }}>
+                  <div>
+                    <input
+                      type="checkbox"
+                      onChange={toggleSelectAllPending}
+                      checked={selectedWithdrawIds.length > 0 && selectedWithdrawIds.length === processedWithdrawals.filter(w => w.status === 'Pending').length}
+                      className="rounded accent-[#FF8A00] cursor-pointer"
+                      title="Select all pending"
+                    />
+                  </div>
+                  <div>User & Security</div>
+                  <div>Amount & Asset</div>
+                  <div>BEP-20 Wallet Address</div>
+                  <div>Status</div>
+                  <div>Requested Date</div>
+                  <div className="text-right">Actions</div>
                 </div>
 
-                {withdrawals.filter(w => withdrawFilter === 'all' || w.status === withdrawFilter).length === 0 ? (
-                  <div className="text-center py-16 text-slate-500 text-xs">No {withdrawFilter !== 'all' ? withdrawFilter.toLowerCase() : ''} requests.</div>
-                ) : withdrawals.filter(w => withdrawFilter === 'all' || w.status === withdrawFilter).map((req, idx) => {
+                {processedWithdrawals.length === 0 ? (
+                  <div className="text-center py-16 text-slate-500 text-xs flex flex-col items-center gap-2">
+                    <Wallet size={28} className="text-slate-600 mb-1" />
+                    <span>No {withdrawFilter !== 'all' ? withdrawFilter.toLowerCase() : ''} payout requests matching filter.</span>
+                  </div>
+                ) : processedWithdrawals.map((req, idx) => {
                   const userObj = usersList.find(u => u.telegramId === req.telegramId);
+                  const isSelected = selectedWithdrawIds.includes(req.id);
+                  const formattedDate = req.createdAt?.seconds
+                    ? new Date(req.createdAt.seconds * 1000).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                    : (req.createdAt ? String(req.createdAt).substring(0, 16) : 'Recent');
+
+                  const riskLevel = userObj?.riskLevel || 'safe';
+
                   return (
-                    <motion.div key={req.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
-                      className="grid gap-3 items-center px-5 py-4 border-b hover:bg-white/[0.015] transition-all"
-                      style={{ borderColor: 'rgba(255,255,255,0.04)', gridTemplateColumns: '2.5rem 1fr 8rem 6rem 6rem 9rem' }}>
-                      <div className="w-9 h-9 rounded-full flex items-center justify-center overflow-hidden shrink-0"
-                        style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)' }}>
-                        {userObj?.photoUrl ? (
-                          <img src={userObj.photoUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-lg">💸</span>
+                    <motion.div
+                      key={req.id}
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className={`grid gap-3 items-center px-5 py-3.5 border-b hover:bg-white/[0.02] transition-all ${isSelected ? 'bg-amber-500/[0.04]' : ''}`}
+                      style={{ borderColor: 'rgba(255,255,255,0.04)', gridTemplateColumns: '2rem 1.8fr 1.2fr 1.5fr 0.8fr 1fr 9rem' }}
+                    >
+                      {/* Checkbox */}
+                      <div>
+                        {req.status === 'Pending' ? (
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              setSelectedWithdrawIds(prev =>
+                                prev.includes(req.id) ? prev.filter(i => i !== req.id) : [...prev, req.id]
+                              );
+                            }}
+                            className="rounded accent-[#FF8A00] cursor-pointer"
+                          />
+                        ) : <div className="w-4" />}
+                      </div>
+
+                      {/* User & Security */}
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-black shrink-0 border border-white/10 bg-white/5">
+                          {userObj?.photoUrl ? (
+                            <img src={userObj.photoUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{(req.username?.[0] || 'U').toUpperCase()}</span>
+                          )}
+                          {userObj?.isOnline && (
+                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-400 border-2 border-[#090D16] rounded-full" />
+                          )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold text-white truncate">@{req.username || req.telegramId}</span>
+                            {userObj?.isVerified && <VerifiedBadge size={11} />}
+                          </div>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-[9px] text-slate-500 font-mono">ID: {req.telegramId}</span>
+                            {/* Risk Pill */}
+                            <span className={`text-[8px] font-extrabold px-1.5 py-0.2 rounded-md ${riskLevel === 'high' ? 'bg-red-500/15 text-red-400 border border-red-500/30' : riskLevel === 'medium' ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                              {riskLevel.toUpperCase()}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Amount */}
+                      <div>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-sm font-black text-white">{req.amount || 0}</span>
+                          <span className="text-[9px] font-bold text-[#FF8A00] uppercase">{req.type === 'token' ? 'EForce' : 'USDT'}</span>
+                        </div>
+                        <div className="text-[8px] text-slate-500 mt-0.5">Network: BEP-20</div>
+                      </div>
+
+                      {/* Wallet Address */}
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-slate-300 font-mono truncate max-w-[110px]" title={req.walletAddress}>
+                            {req.walletAddress ? `${req.walletAddress.substring(0, 6)}...${req.walletAddress.substring(req.walletAddress.length - 4)}` : 'No Wallet'}
+                          </span>
+                          {req.walletAddress && (
+                            <>
+                              <button
+                                onClick={() => handleCopyWallet(req.walletAddress)}
+                                title="Copy Wallet Address"
+                                className={`p-1 rounded transition-all cursor-pointer shrink-0 ${copiedAddress === req.walletAddress ? 'text-green-400 bg-green-500/20' : 'text-slate-400 hover:text-white hover:bg-white/10'}`}
+                              >
+                                {copiedAddress === req.walletAddress ? <Check size={11} /> : <Copy size={11} />}
+                              </button>
+                              <a
+                                href={`https://bscscan.com/address/${req.walletAddress}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title="View on BscScan"
+                                className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-amber-400 transition-all shrink-0"
+                              >
+                                <ExternalLink size={11} />
+                              </a>
+                            </>
+                          )}
+                        </div>
+                        <span className="text-[8px] text-slate-500 block truncate">{req.walletAddress ? 'BEP-20 (BNB Chain)' : 'Unset'}</span>
+                      </div>
+
+                      {/* Status */}
+                      <div>
+                        <span className={`text-[9px] font-black px-2.5 py-1 rounded-full inline-block ${req.status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/25' : req.status === 'Approved' ? 'text-green-400 bg-green-400/10 border border-green-400/25' : 'text-red-400 bg-red-400/10 border border-red-400/25'}`}>
+                          {req.status}
+                        </span>
+                      </div>
+
+                      {/* Date */}
+                      <div className="text-[9px] text-slate-400 font-medium">
+                        {formattedDate}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 justify-end">
+                        {/* Audit Details */}
+                        <button
+                          onClick={() => setSelectedWithdrawDetail({ req, user: userObj })}
+                          title="Audit Payout Details"
+                          className="w-7 h-7 rounded-lg flex items-center justify-center bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition-all cursor-pointer"
+                        >
+                          <Info size={12} />
+                        </button>
+
+                        {req.status === 'Pending' && (
+                          <>
+                            <button
+                              onClick={() => { setWithdrawModal({ id: req.id, status: 'Approved', req }); setWithdrawNote('Processed successfully. Funds sent to your BEP-20 wallet.'); }}
+                              title="Approve Payout"
+                              className="flex items-center gap-0.5 h-7 px-2 rounded-lg text-[10px] font-bold cursor-pointer transition-all"
+                              style={btnStyle.success}
+                            >
+                              <Check size={11} /> OK
+                            </button>
+                            <button
+                              onClick={() => { setWithdrawModal({ id: req.id, status: 'Rejected', req }); setWithdrawNote('Wrong or invalid BEP-20 wallet address.'); }}
+                              title="Reject Payout"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-all cursor-pointer"
+                            >
+                              <X size={11} />
+                            </button>
+                            <button
+                              onClick={() => { setWithdrawModal({ id: req.id, status: 'Banned', req }); setWithdrawNote('Account suspended due to policy violation (anti-cheat system flag).'); }}
+                              title="Ban User & Cancel"
+                              className="w-7 h-7 rounded-lg flex items-center justify-center text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 transition-all cursor-pointer"
+                            >
+                              <Ban size={11} />
+                            </button>
+                          </>
                         )}
                       </div>
-                      <div className="min-w-0">
-                        <span className="text-xs font-bold text-white block truncate">@{req.username || req.telegramId}</span>
-                        <span className="text-[9px] text-slate-500 font-mono select-all block truncate mt-0.5" title={req.walletAddress}>{req.walletAddress || 'No Wallet'}</span>
-                        <span className="text-[8px] text-slate-600 block">ID: {req.telegramId}</span>
-                      </div>
-                      <div>
-                        <span className="text-sm font-black text-white">{req.amount || '?'}</span>
-                        <span className="text-[9px] text-slate-500 ml-1">{req.type === 'token' ? 'EForce Token' : 'USDT'}</span>
-                      </div>
-                      <span className="text-[9px] font-bold text-slate-400">BEP-20</span>
-                      <span className={`text-[9px] font-black px-2.5 py-1 rounded-full inline-block ${req.status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10 border border-yellow-400/25' : req.status === 'Approved' ? 'text-green-400 bg-green-400/10 border border-green-400/25' : 'text-red-400 bg-red-400/10 border border-red-400/25'}`}>
-                        {req.status}
-                      </span>
-                      {req.status === 'Pending' ? (
-                        <div className="flex gap-1.5 justify-end">
-                          <button onClick={() => { setWithdrawModal({ id: req.id, status: 'Approved', req }); setWithdrawNote('Processed successfully. Funds sent to your BEP-20 wallet.'); }} title="Approve" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.success}><Check size={11} /> OK</button>
-                          <button onClick={() => { setWithdrawModal({ id: req.id, status: 'Rejected', req }); setWithdrawNote('Wrong or invalid BEP-20 wallet address.'); }} title="Reject" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.ghost}><X size={11} /></button>
-                          <button onClick={() => { setWithdrawModal({ id: req.id, status: 'Banned', req }); setWithdrawNote('Account suspended due to policy violation (anti-cheat system flag).'); }} title="Ban user" className="flex items-center gap-1 h-8 px-3 rounded-xl text-[10px] font-bold cursor-pointer transition-all" style={btnStyle.danger}><Ban size={11} /></button>
-                        </div>
-                      ) : <div />}
                     </motion.div>
                   );
                 })}
@@ -2416,6 +2765,151 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 >
                   {withdrawModal.status === 'Approved' ? 'Approve' : withdrawModal.status === 'Rejected' ? 'Reject' : 'Suspend & Ban'}
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Payout Security Audit Detail Modal ── */}
+      <AnimatePresence>
+        {selectedWithdrawDetail && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="w-full max-w-lg rounded-[28px] p-6 border border-white/10 shadow-[0_25px_60px_rgba(0,0,0,0.8)] overflow-hidden"
+              style={{ background: '#090D1A' }}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-lg">
+                    🛡️
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white">Payout Security Audit</h3>
+                    <p className="text-[10px] text-slate-400">Detailed verification report for payout #{selectedWithdrawDetail.req.id.substring(0, 8)}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedWithdrawDetail(null)}
+                  className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                {/* User Identity Card */}
+                <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full overflow-hidden border border-white/10 bg-white/5 flex items-center justify-center text-base font-bold">
+                      {selectedWithdrawDetail.user?.photoUrl ? (
+                        <img src={selectedWithdrawDetail.user.photoUrl} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{(selectedWithdrawDetail.req.username?.[0] || 'U').toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-black text-white">{selectedWithdrawDetail.user?.firstName || 'User'}</span>
+                        {selectedWithdrawDetail.user?.isVerified && <VerifiedBadge size={12} />}
+                      </div>
+                      <div className="text-[10px] text-slate-400">@{selectedWithdrawDetail.req.username || 'no_username'} · ID: <span className="font-mono text-slate-300">{selectedWithdrawDetail.req.telegramId}</span></div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-[10px] font-black px-2.5 py-1 rounded-full border ${selectedWithdrawDetail.user?.riskLevel === 'high' ? 'bg-red-500/15 text-red-400 border-red-500/30' : selectedWithdrawDetail.user?.riskLevel === 'medium' ? 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30' : 'bg-green-500/10 text-green-400 border-green-500/20'}`}>
+                      {(selectedWithdrawDetail.user?.riskLevel || 'safe').toUpperCase()} RISK
+                    </span>
+                  </div>
+                </div>
+
+                {/* Payout Details */}
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center py-1 border-b border-white/5">
+                    <span className="text-slate-400">Requested Amount:</span>
+                    <span className="text-base font-black text-[#FF8A00]">{selectedWithdrawDetail.req.amount} {selectedWithdrawDetail.req.type === 'token' ? 'EForce Token' : 'USDT'}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-white/5">
+                    <span className="text-slate-400">Target Protocol / Network:</span>
+                    <span className="font-bold text-white bg-blue-500/10 px-2 py-0.5 rounded text-[10px] text-blue-400 border border-blue-500/20">BEP-20 (BNB Smart Chain)</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1 border-b border-white/5">
+                    <span className="text-slate-400">BEP-20 Wallet Address:</span>
+                    <div className="flex items-center gap-1.5 font-mono text-[10px] text-slate-200 bg-white/5 px-2 py-1 rounded border border-white/10 select-all">
+                      <span>{selectedWithdrawDetail.req.walletAddress || 'Not set'}</span>
+                      {selectedWithdrawDetail.req.walletAddress && (
+                        <button
+                          onClick={() => handleCopyWallet(selectedWithdrawDetail.req.walletAddress)}
+                          title="Copy Wallet"
+                          className="text-slate-400 hover:text-white transition-all cursor-pointer"
+                        >
+                          <Copy size={11} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center py-1">
+                    <span className="text-slate-400">Request Status:</span>
+                    <span className={`font-black text-[10px] px-2 py-0.5 rounded-full ${selectedWithdrawDetail.req.status === 'Pending' ? 'text-yellow-400 bg-yellow-400/10' : selectedWithdrawDetail.req.status === 'Approved' ? 'text-green-400 bg-green-400/10' : 'text-red-400 bg-red-400/10'}`}>
+                      {selectedWithdrawDetail.req.status}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Automated Security Checks */}
+                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 space-y-2">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400 block mb-1">Automated Security Checks</span>
+                  <div className="flex items-center justify-between text-xs py-1 border-b border-white/5">
+                    <span className="text-slate-300 flex items-center gap-1.5"><ShieldCheck size={14} className="text-green-400" /> BEP-20 Format Check</span>
+                    <span className="text-green-400 font-bold text-[10px]">{selectedWithdrawDetail.req.walletAddress?.startsWith('0x') && selectedWithdrawDetail.req.walletAddress?.length === 42 ? '✓ Valid 42-char Hex' : '⚠️ Non-Standard Format'}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs py-1 border-b border-white/5">
+                    <span className="text-slate-300 flex items-center gap-1.5"><ShieldAlert size={14} className={selectedWithdrawDetail.user?.flagCount > 0 ? 'text-red-400' : 'text-green-400'} /> Flag Count</span>
+                    <span className={`font-bold text-[10px] ${selectedWithdrawDetail.user?.flagCount > 0 ? 'text-red-400' : 'text-green-400'}`}>{selectedWithdrawDetail.user?.flagCount || 0} Flags Logged</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs py-1">
+                    <span className="text-slate-300 flex items-center gap-1.5"><Trophy size={14} className="text-amber-400" /> Total User Referrals</span>
+                    <span className="text-white font-mono text-[10px]">{selectedWithdrawDetail.user?.referrals || 0} Referrals</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions Footer */}
+              <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between gap-2">
+                <a
+                  href={`https://bscscan.com/address/${selectedWithdrawDetail.req.walletAddress}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="h-10 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <ExternalLink size={13} /> View on BscScan
+                </a>
+                <div className="flex items-center gap-2">
+                  {selectedWithdrawDetail.req.status === 'Pending' && (
+                    <button
+                      onClick={() => {
+                        const req = selectedWithdrawDetail.req;
+                        setSelectedWithdrawDetail(null);
+                        setWithdrawModal({ id: req.id, status: 'Approved', req });
+                        setWithdrawNote('Processed successfully. Funds sent to your BEP-20 wallet.');
+                      }}
+                      className="h-10 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-black transition-all cursor-pointer shadow-lg shadow-green-500/20"
+                    >
+                      Process Approval
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedWithdrawDetail(null)}
+                    className="h-10 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                  >
+                    Close Audit
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
