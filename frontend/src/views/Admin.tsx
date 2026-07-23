@@ -737,34 +737,36 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
             <div className="flex flex-col gap-5">
 
               {/* ── Top stats + controls ── */}
-              <SectionCard accentColor="#00E5FF88">
+              <SectionCard accentColor="#0284C7">
                 <div className="p-5 flex flex-col gap-4">
                   {/* Header row */}
                   <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
                     <div>
                       <div className="flex items-center gap-2.5 flex-wrap">
-                        <h2 className="text-base font-black text-white">User Management</h2>
-                        <span className="text-[8px] font-black uppercase tracking-[0.22em] px-2.5 py-1 rounded-full"
-                          style={{ background: 'rgba(0,229,255,0.1)', color: '#00E5FF', border: '1px solid rgba(0,229,255,0.2)' }}>
-                          Live Roster
+                        <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                          <i className="fa-solid fa-users-gear text-blue-600"></i>
+                          <span>User Roster Management</span>
+                        </h2>
+                        <span className="text-[9px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          LIVE ROSTER
                         </span>
                       </div>
-                      <p className="text-[10px] text-slate-500 mt-1 max-w-lg">
-                        Search, review, and moderate users. Use filters to isolate online, premium, flagged or banned accounts.
+                      <p className="text-xs text-slate-500 mt-1 max-w-lg font-medium">
+                        Search, review, and moderate active ecosystem members. Use filters to isolate online, premium, flagged or banned accounts.
                       </p>
                     </div>
 
                     {/* Mini KPI chips */}
                     <div className="grid grid-cols-4 gap-2 xl:shrink-0">
                       {[
-                        { label: 'Total', value: usersList.length, color: '#fff', bg: 'rgba(255,255,255,0.05)', border: 'rgba(255,255,255,0.1)' },
-                        { label: 'Online', value: filterCounts.online, color: '#4ADE80', bg: 'rgba(74,222,128,0.08)', border: 'rgba(74,222,128,0.2)' },
-                        { label: 'Flagged', value: filterCounts.flagged, color: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.2)' },
-                        { label: 'Banned', value: filterCounts.banned, color: '#F87171', bg: 'rgba(248,113,113,0.08)', border: 'rgba(248,113,113,0.2)' },
+                        { label: 'Total', value: usersList.length, color: 'text-slate-900', bg: 'bg-slate-50', border: 'border-slate-200' },
+                        { label: 'Online', value: filterCounts.online, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+                        { label: 'Flagged', value: filterCounts.flagged, color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200' },
+                        { label: 'Banned', value: filterCounts.banned, color: 'text-rose-700', bg: 'bg-rose-50', border: 'border-rose-200' },
                       ].map(s => (
-                        <div key={s.label} className="rounded-2xl px-3 py-2.5 text-center" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
-                          <div className="text-lg font-black leading-none" style={{ color: s.color }}>{s.value}</div>
-                          <div className="text-[8px] uppercase tracking-[0.18em] text-slate-500 mt-0.5">{s.label}</div>
+                        <div key={s.label} className={`rounded-xl px-3 py-2 text-center ${s.bg} border ${s.border}`}>
+                          <div className={`text-base font-extrabold leading-none ${s.color}`}>{s.value}</div>
+                          <div className="text-[8.5px] font-mono uppercase tracking-wider text-slate-400 mt-1">{s.label}</div>
                         </div>
                       ))}
                     </div>
@@ -773,18 +775,17 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   {/* Search + action buttons */}
                   <div className="flex flex-col md:flex-row gap-2.5">
                     <div className="relative flex-1">
-                      <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                      <i className="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs pointer-events-none"></i>
                       <input
                         value={userSearch}
                         onChange={e => { setUserSearch(e.target.value); setPage(1); }}
                         placeholder="Search name, @username, Telegram ID…"
-                        className="w-full pl-10 pr-10 h-11 rounded-2xl text-xs text-white outline-none transition-all"
-                        style={inputStyle}
+                        className="w-full pl-9 pr-9 h-10 rounded-xl text-xs text-slate-900 bg-white border border-slate-300 outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 placeholder-slate-400 font-medium"
                       />
                       {userSearch && (
                         <button onClick={() => { setUserSearch(''); setPage(1); }}
-                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-lg flex items-center justify-center text-slate-500 hover:text-white transition-all">
-                          <X size={11} />
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 transition-colors">
+                          <i className="fa-solid fa-xmark text-xs"></i>
                         </button>
                       )}
                     </div>
@@ -792,10 +793,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       {/* Add User */}
                       <button
                         onClick={() => setShowAddUserForm(v => !v)}
-                        className={`${Btn.primary} h-11 px-4 rounded-2xl text-xs`}
-                        style={btnStyle.primary}
+                        className="inline-flex items-center gap-2 px-3.5 h-10 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
                       >
-                        <Plus size={13} /> Add User
+                        <i className="fa-solid fa-user-plus text-xs"></i>
+                        <span>Add User</span>
                       </button>
                       {/* Reset Leaderboard */}
                       <button
@@ -853,27 +854,26 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   <div className="flex gap-2 flex-wrap">
                     {(['all', 'online', 'premium', 'flagged', 'banned'] as UserFilter[]).map(f => {
                       const isSelected = userFilter === f;
-                      const meta: Record<UserFilter, { emoji: string; color: string; border: string; activeBg: string }> = {
-                        all: { emoji: '●', color: '#fff', border: 'rgba(255,255,255,0.15)', activeBg: 'linear-gradient(135deg,#FF8A00,#FFB347)' },
-                        online: { emoji: '🟢', color: '#4ADE80', border: 'rgba(74,222,128,0.3)', activeBg: 'rgba(74,222,128,0.18)' },
-                        premium: { emoji: '⭐', color: '#00E5FF', border: 'rgba(0,229,255,0.3)', activeBg: 'rgba(0,229,255,0.12)' },
-                        flagged: { emoji: '🚩', color: '#FBBF24', border: 'rgba(251,191,36,0.3)', activeBg: 'rgba(251,191,36,0.12)' },
-                        banned: { emoji: '🚫', color: '#F87171', border: 'rgba(248,113,113,0.3)', activeBg: 'rgba(248,113,113,0.12)' },
+                      const meta: Record<UserFilter, { faIcon: string }> = {
+                        all: { faIcon: 'fa-solid fa-users' },
+                        online: { faIcon: 'fa-solid fa-bolt' },
+                        premium: { faIcon: 'fa-solid fa-star' },
+                        flagged: { faIcon: 'fa-solid fa-flag' },
+                        banned: { faIcon: 'fa-solid fa-ban' },
                       };
-                      const m = meta[f];
                       return (
                         <button
                           key={f}
                           onClick={() => { setUserFilter(f); setPage(1); }}
-                          className="flex items-center gap-1.5 h-8 px-3.5 rounded-full text-[10px] font-bold capitalize transition-all cursor-pointer"
-                          style={{
-                            background: isSelected ? m.activeBg : 'rgba(255,255,255,0.04)',
-                            border: `1px solid ${isSelected ? m.border : 'rgba(255,255,255,0.08)'}`,
-                            color: isSelected ? m.color : '#64748b',
-                          }}
+                          className={`flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-[11px] font-bold capitalize transition-all cursor-pointer ${
+                            isSelected
+                              ? 'bg-slate-900 text-white shadow-xs'
+                              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200'
+                          }`}
                         >
-                          <span className="text-[10px]">{m.emoji}</span>
-                          {f} <span className="opacity-60">({filterCounts[f]})</span>
+                          <i className={`${meta[f].faIcon} text-[10px]`}></i>
+                          <span>{f}</span>
+                          <span className="opacity-60 text-[10px]">({filterCounts[f]})</span>
                         </button>
                       );
                     })}
@@ -882,69 +882,68 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
               </SectionCard>
 
               {/* ── Users table ── */}
-              <SectionCard accentColor="#00E5FF44">
+              <SectionCard accentColor="#0284C7">
                 {/* Table header */}
-                <div className="grid items-center gap-2 px-5 py-3 border-b sticky top-0 z-10 backdrop-blur"
-                  style={{ borderColor: 'rgba(255,255,255,0.06)', background: 'rgba(4,8,16,0.92)', gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}>
+                <div className="grid items-center gap-2 px-5 py-3 border-b border-slate-200 bg-slate-50 sticky top-0 z-10"
+                  style={{ gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}>
                   <div />
                   <SortBtn field="firstName" label="User" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <SortBtn field="points" label="Points" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <SortBtn field="tokens" label="Tokens" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
                   <SortBtn field="referrals" label="Refs" sortField={sortField} sortDir={sortDir} handleSort={handleSort} />
-                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-600">Status</span>
-                  <span className="text-[9px] font-black uppercase tracking-wider text-slate-600 text-right">Actions</span>
+                  <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-500">Status</span>
+                  <span className="text-[9.5px] font-mono font-bold uppercase tracking-wider text-slate-500 text-right">Actions</span>
                 </div>
 
                 {/* Table rows */}
                 {loadingUsers ? (
-                  <div className="flex flex-col">
+                  <div className="flex flex-col bg-white">
                     {Array.from({ length: 6 }).map((_, i) => (
-                      <div key={i} className="grid items-center gap-2 px-5 py-4 border-b border-white/[0.03]"
+                      <div key={i} className="grid items-center gap-2 px-5 py-4 border-b border-slate-100"
                         style={{ gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}>
-                        <div className="w-9 h-9 rounded-full bg-white/5 animate-pulse" />
-                        <div className="space-y-1.5"><div className="h-3 w-28 bg-white/5 rounded animate-pulse" /><div className="h-2 w-20 bg-white/[0.03] rounded animate-pulse" /></div>
-                        {Array.from({ length: 5 }).map((_, j) => <div key={j} className="h-3 bg-white/[0.03] rounded animate-pulse" />)}
+                        <div className="w-9 h-9 rounded-full bg-slate-100 animate-pulse" />
+                        <div className="space-y-1.5"><div className="h-3 w-28 bg-slate-100 rounded animate-pulse" /><div className="h-2 w-20 bg-slate-100/70 rounded animate-pulse" /></div>
+                        {Array.from({ length: 5 }).map((_, j) => <div key={j} className="h-3 bg-slate-100 rounded animate-pulse" />)}
                       </div>
                     ))}
                   </div>
                 ) : pagedUsers.length === 0 ? (
-                  <div className="text-center py-16 text-slate-500 text-xs">No users match your filters.</div>
+                  <div className="text-center py-16 text-slate-400 text-xs bg-white font-medium">No users match your filters.</div>
                 ) : (
                   <AnimatePresence mode="wait">
-                    <motion.div key={`${userFilter}-${page}-${sortField}-${sortDir}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }}>
+                    <motion.div key={`${userFilter}-${page}-${sortField}-${sortDir}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.12 }} className="bg-white">
                       {pagedUsers.map((u, idx) => (
                         <React.Fragment key={u.telegramId}>
                           <motion.div
                             initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.025 }}
-                            className="grid items-center gap-2 px-5 py-4 border-b transition-all hover:bg-white/[0.02] cursor-default group"
-                            style={{ borderColor: 'rgba(255,255,255,0.04)', gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}
+                            className="grid items-center gap-2 px-5 py-3.5 border-b border-slate-100 transition-all hover:bg-slate-50/80 cursor-default group"
+                            style={{ gridTemplateColumns: '2.5rem 1fr 8rem 7rem 6rem 7rem 10rem' }}
                           >
                             {/* Avatar */}
                             <div className="relative">
-                              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-sm font-black"
-                                style={{ background: 'rgba(255,138,0,0.12)', border: '1.5px solid rgba(255,138,0,0.22)', color: '#FF8A00' }}>
+                              <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-xs font-extrabold bg-slate-100 border border-slate-200 text-slate-700 shrink-0">
                                 <ImageWithFallback src={u.photoUrl ?? ''} fallbackLetter={(u.firstName?.[0] ?? 'U')} className="w-full h-full object-cover" />
                               </div>
-                              {u.isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2" style={{ borderColor: '#040810', boxShadow: '0 0 6px rgba(74,222,128,0.8)' }} />}
+                              {u.isOnline && <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />}
                             </div>
 
                             {/* Name */}
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="text-xs font-bold text-white truncate max-w-[130px]">{u.firstName} {u.lastName}</span>
+                                <span className="text-xs font-extrabold text-slate-900 truncate max-w-[130px]">{u.firstName} {u.lastName}</span>
                                 {u.isVerified && <VerifiedBadge size={10} />}
-                                {u.isTelegramPremium && <Star size={10} className="text-[#00E5FF] fill-current shrink-0" />}
-                                {u.leaderboardHidden && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase bg-slate-500/10 border border-slate-500/20 text-slate-400">Hidden</span>}
-                                {(u.banStatus ?? 'none') !== 'none' && <span className="text-[7px] font-black px-1.5 py-0.5 rounded uppercase" style={{ color: '#F87171', background: 'rgba(248,113,113,0.12)', border: '1px solid rgba(248,113,113,0.25)' }}>Banned</span>}
-                                {u.flagCount > 0 && <span className="text-[7px] font-black px-1.5 py-0.5 rounded" style={{ color: '#FBBF24', background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)' }}>🚩{u.flagCount}</span>}
+                                {u.isTelegramPremium && <i className="fa-solid fa-star text-sky-500 text-[10px]" title="Telegram Premium"></i>}
+                                {u.leaderboardHidden && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase bg-slate-100 text-slate-500 border border-slate-200">Hidden</span>}
+                                {(u.banStatus ?? 'none') !== 'none' && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase bg-rose-50 text-rose-700 border border-rose-200">Banned</span>}
+                                {u.flagCount > 0 && <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">🚩{u.flagCount}</span>}
                               </div>
-                              <span className="text-[9px] text-slate-600">@{u.username || 'no_username'} · {u.telegramId} · <span className="text-slate-400 font-medium" title={u.country || 'Unknown'}>{getCountryFlag(u.country)} {u.country && u.country !== 'Unknown' ? u.country : 'Unknown'}</span></span>
+                              <span className="text-[10px] text-slate-400 font-medium">@{u.username || 'no_username'} · {u.telegramId} · <span className="text-slate-600 font-bold" title={u.country || 'Unknown'}>{getCountryFlag(u.country)} {u.country && u.country !== 'Unknown' ? u.country : 'Unknown'}</span></span>
                             </div>
 
                             {/* Points */}
                             <div>
-                              <span className="text-xs font-black" style={{ color: '#FF8A00' }}>{(u.points || 0).toLocaleString()}</span>
-                              <div className="text-[8px] uppercase tracking-widest text-slate-600">EForce</div>
+                              <span className="text-xs font-black text-blue-600">{(u.points || 0).toLocaleString()}</span>
+                              <div className="text-[8.5px] font-mono uppercase tracking-wider text-slate-400">EForce</div>
                             </div>
 
                             {/* Tokens */}

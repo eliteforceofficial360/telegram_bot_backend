@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import {
   PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Users, Zap, Star, Activity } from 'lucide-react';
 
 interface AdminDashboardProps {
   kpi: {
@@ -61,8 +60,8 @@ const staggerItem = {
 const CustomChartTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-slate-200 p-2.5 rounded-xl shadow-lg text-xs">
-      <div className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-wider">{label}</div>
+    <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-lg text-xs font-sans">
+      <div className="text-[10px] text-slate-400 font-mono font-bold mb-1.5 uppercase tracking-wider">{label}</div>
       {payload.map((entry: any, index: number) => (
         <div key={index} className="flex items-center gap-2 py-0.5">
           <div className="w-2 h-2 rounded-full shrink-0" style={{ background: entry.color }} />
@@ -118,10 +117,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     .slice(0, 6);
 
   const kpiCards = [
-    { title: 'Total Members', value: kpi.total, sub: `${kpi.newToday} joined today`, icon: <Users size={16} />, color: '#2563EB', bg: 'bg-blue-50', border: 'border-blue-200' },
-    { title: 'Live Online', value: liveUserCount || kpi.online, sub: 'Currently active', icon: <Zap size={16} />, color: '#059669', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-    { title: 'Premium Users', value: kpi.premium, sub: 'Telegram Supporters', icon: <Star size={16} />, color: '#0284C7', bg: 'bg-sky-50', border: 'border-sky-200' },
-    { title: 'Auto Miners', value: kpi.autoMiners, sub: 'Active automated mining', icon: <Activity size={16} />, color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200' },
+    { title: 'Total Members', value: kpi.total, sub: `+${kpi.newToday} joined today`, faIcon: 'fa-solid fa-users', color: '#2563EB', bg: 'bg-blue-50', border: 'border-blue-200' },
+    { title: 'Live Active Miners', value: liveUserCount || kpi.online, sub: 'Mining currently online', faIcon: 'fa-solid fa-bolt', color: '#059669', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+    { title: 'Telegram Premium', value: kpi.premium, sub: 'Star Supporters', faIcon: 'fa-solid fa-star', color: '#0284C7', bg: 'bg-sky-50', border: 'border-sky-200' },
+    { title: 'Auto Miners Active', value: kpi.autoMiners, sub: 'Automated sessions', faIcon: 'fa-solid fa-robot', color: '#7C3AED', bg: 'bg-purple-50', border: 'border-purple-200' },
   ];
 
   return (
@@ -137,15 +136,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           <motion.div
             key={idx}
             variants={staggerItem}
-            className="bg-white rounded-2xl p-4.5 border border-slate-200 shadow-sm flex items-center justify-between"
+            className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex items-center justify-between"
           >
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{card.title}</div>
-              <div className="text-2xl font-black text-slate-900 mt-1">{card.value.toLocaleString()}</div>
-              <div className="text-[10px] font-medium text-slate-500 mt-0.5">{card.sub}</div>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">{card.title}</div>
+              <div className="text-2xl font-black text-slate-900 mt-1.5">{card.value.toLocaleString()}</div>
+              <div className="text-[10.5px] font-semibold text-slate-500 mt-1 flex items-center gap-1">
+                <i className="fa-solid fa-chart-line text-[10px] text-emerald-600"></i>
+                <span>{card.sub}</span>
+              </div>
             </div>
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${card.bg} border ${card.border}`} style={{ color: card.color }}>
-              {card.icon}
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-base ${card.bg} border ${card.border}`} style={{ color: card.color }}>
+              <i className={card.faIcon}></i>
             </div>
           </motion.div>
         ))}
@@ -154,13 +156,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       {/* Main Charts & Demographics grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* User Growth Chart */}
-        <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+        <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900">User Growth Overview</h3>
-              <p className="text-[10px] text-slate-500 font-medium">Daily registered & total active members growth trend</p>
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-900 flex items-center gap-2">
+                <i className="fa-solid fa-chart-area text-blue-600"></i>
+                <span>User Growth & Acquisition</span>
+              </h3>
+              <p className="text-[10.5px] text-slate-500 font-medium mt-0.5">7-day active registration & user telemetry trajectory</p>
             </div>
-            <span className="text-[9px] font-bold px-2 py-1 rounded bg-blue-50 text-blue-700 border border-blue-200">7 Days</span>
+            <span className="text-[9.5px] font-mono font-bold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 border border-blue-200">
+              <i className="fa-solid fa-calendar-days mr-1.5"></i>7 Days
+            </span>
           </div>
 
           <ResponsiveContainer width="100%" height={220}>
@@ -175,7 +182,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <stop offset="95%" stopColor="#0891B2" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
+              <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
               <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 10, fill: '#64748B' }} axisLine={false} tickLine={false} width={35} />
               <Tooltip content={<CustomChartTooltip />} />
@@ -193,10 +200,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Country Demographics */}
         <div className="flex flex-col gap-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex-1">
+          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs flex-1">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-900">Users by Country</span>
-              <span className="text-[9px] font-bold text-blue-600">Live Geo</span>
+              <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                <i className="fa-solid fa-globe text-cyan-600"></i>
+                <span>Users By Geo Location</span>
+              </span>
+              <span className="text-[9.5px] font-mono font-bold text-cyan-700 bg-cyan-50 px-2 py-0.5 rounded border border-cyan-200">
+                LIVE
+              </span>
             </div>
             <ResponsiveContainer width="100%" height={120}>
               <PieChart>
@@ -213,10 +225,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </ResponsiveContainer>
             <div className="flex flex-col gap-2 mt-2">
               {(computedCountryData.length > 0 ? computedCountryData : COUNTRY_DATA.map(c => ({ ...c, count: 0, flag: getCountryFlag(c.name) }))).slice(0, 4).map((c, i) => (
-                <div key={i} className="flex items-center justify-between text-[10px]">
-                  <div className="flex items-center gap-1.5 min-w-0">
+                <div key={i} className="flex items-center justify-between text-[11px]">
+                  <div className="flex items-center gap-2 min-w-0">
                     <span className="text-xs shrink-0">{c.flag}</span>
-                    <span className="text-slate-700 font-semibold truncate max-w-[90px]">{c.name}</span>
+                    <span className="text-slate-700 font-bold truncate max-w-[90px]">{c.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-14 h-1.5 rounded-full bg-slate-100 overflow-hidden">
@@ -225,7 +237,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         style={{ width: `${c.value}%`, background: COUNTRY_COLORS[i % COUNTRY_COLORS.length] }}
                       />
                     </div>
-                    <span className="text-slate-900 font-bold w-12 text-right">{c.count} ({c.value}%)</span>
+                    <span className="text-slate-900 font-extrabold w-12 text-right">{c.count} ({c.value}%)</span>
                   </div>
                 </div>
               ))}
