@@ -91,9 +91,9 @@ export function showRewardedAd(zoneId: string, directLink?: string): Promise<boo
             .catch((err2: any) => {
               console.warn('[Monetag] Rewarded Pop failed/closed:', err2);
               if (directLink) {
-                openDirectAdLink(directLink).then(resolve).catch(reject);
+                openDirectAdLink(directLink).then(resolve);
               } else {
-                reject(new Error('Monetag Ad could not be loaded. Check Zone ID or disable AdBlocker.'));
+                resolve(false);
               }
             });
         });
