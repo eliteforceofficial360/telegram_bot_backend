@@ -76,6 +76,7 @@ export interface AdminSettings {
   coinIconUrl: string;
   faviconUrl: string;
   appHeaderLogoUrl: string;
+  appHeaderRightLogoUrl: string;
   welcomeBannerUrl: string;
   referralBannerUrl: string;
   tasksBannerUrl: string;
@@ -131,6 +132,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   coinIconUrl: '/coin.png',
   faviconUrl: '/loading-logo.png',
   appHeaderLogoUrl: '/loading-logo.png',
+  appHeaderRightLogoUrl: '/coin.png',
   welcomeBannerUrl: '/coin-logo.jpg',
   referralBannerUrl: '/coin-logo.jpg',
   tasksBannerUrl: '/coin-logo.jpg',

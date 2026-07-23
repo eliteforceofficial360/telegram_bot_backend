@@ -2295,7 +2295,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     {[
                       { key: 'loadingLogoUrl', label: 'Loading Screen / Splash Logo', desc: 'Main logo shown during app startup loading screen', defaultVal: '/loading-logo.png' },
                       { key: 'coinIconUrl', label: 'Mining Coin Icon (Center Tap)', desc: 'Central mining coin icon on Home screen', defaultVal: '/coin.png' },
-                      { key: 'appHeaderLogoUrl', label: 'App Top Header Logo', desc: 'Logo image in top navigation header bar', defaultVal: '/loading-logo.png' },
+                      { key: 'appHeaderLogoUrl', label: 'App Top Header Left Logo', desc: 'Logo image in top navigation header bar (Left)', defaultVal: '/loading-logo.png' },
+                      { key: 'appHeaderRightLogoUrl', label: 'App Top Header Right Avatar / Badge', desc: 'Circular avatar icon in top right of Home header bar', defaultVal: '/coin.png' },
                       { key: 'faviconUrl', label: 'Browser Tab Favicon Icon', desc: 'Favicon icon shown on browser tabs', defaultVal: '/loading-logo.png' },
                       { key: 'welcomeBannerUrl', label: 'Home Dashboard Hero Banner', desc: 'Top banner image on Home screen', defaultVal: '/coin-logo.jpg' },
                       { key: 'tasksBannerUrl', label: 'Tasks & Missions Header Banner', desc: 'Header banner image on Tasks page', defaultVal: '/coin-logo.jpg' },

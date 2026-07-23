@@ -264,7 +264,9 @@ export const Home: React.FC<HomeProps> = ({
           </div>
         </div>
         <div className="w-10 h-10 rounded-full border border-[#FFD700]/30 bg-[#0E1225] flex items-center justify-center shadow-[0_0_16px_rgba(255,138,0,0.3)] overflow-hidden">
-          {telegramUser?.photoUrl ? (
+          {settings.appHeaderRightLogoUrl ? (
+            <img src={settings.appHeaderRightLogoUrl} alt="Header Avatar" className="w-full h-full object-cover rounded-full" />
+          ) : telegramUser?.photoUrl ? (
             <img src={telegramUser.photoUrl} alt="" className="w-full h-full object-cover rounded-full" />
           ) : (
             <img src={settings.coinIconUrl || '/coin.png'} alt="EForce Coin" className="w-full h-full object-cover rounded-full" />
