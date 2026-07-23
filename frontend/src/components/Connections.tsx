@@ -124,6 +124,18 @@ export const Connections = ({
     },
   ];
 
+  const openExternalUrl = (url: string) => {
+    try {
+      if ((window as any).Telegram?.WebApp?.openLink) {
+        (window as any).Telegram.WebApp.openLink(url);
+      } else {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    } catch {
+      window.open(url, '_blank');
+    }
+  };
+
   const handleOpenConnectModal = (plat: PlatformConfig) => {
     if (!telegramUser) {
       showToast('Please open in Telegram to link your social accounts.', 'warning');
@@ -133,19 +145,38 @@ export const Connections = ({
     if (plat.isOauth) {
       let oauthUrl = '';
       if (plat.id === 'discord') {
-        oauthUrl = adminSettings.discordAuthUrl || 'https://discord.com/oauth2/authorize?client_id=';
-        if (adminSettings.discordClientId && !oauthUrl.includes(adminSettings.discordClientId)) {
-          oauthUrl += adminSettings.discordClientId;
+        const clientId = adminSettings.discordClientId?.trim();
+        const baseAuthUrl = adminSettings.discordAuthUrl?.trim() || 'https://discord.com/oauth2/authorize?client_id=';
+        
+        if (clientId) {
+          if (baseAuthUrl.includes('client_id=')) {
+            oauthUrl = baseAuthUrl.endsWith('=') ? `${baseAuthUrl}${clientId}` : baseAuthUrl;
+          } else {
+            oauthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&scope=identify`;
+          }
+        } else if (baseAuthUrl.length > 48 && !baseAuthUrl.endsWith('=')) {
+          oauthUrl = baseAuthUrl;
         }
       } else if (plat.id === 'x') {
-        oauthUrl = adminSettings.xAuthUrl || 'https://x.com/oauth2/authorize?client_id=';
-        if (adminSettings.xClientId && !oauthUrl.includes(adminSettings.xClientId)) {
-          oauthUrl += adminSettings.xClientId;
+        const clientId = adminSettings.xClientId?.trim();
+        const baseAuthUrl = adminSettings.xAuthUrl?.trim() || 'https://x.com/oauth2/authorize?client_id=';
+        
+        if (clientId) {
+          if (baseAuthUrl.includes('client_id=')) {
+            oauthUrl = baseAuthUrl.endsWith('=') ? `${baseAuthUrl}${clientId}` : baseAuthUrl;
+          } else {
+            oauthUrl = `https://x.com/oauth2/authorize?client_id=${clientId}&response_type=code&scope=users.read`;
+          }
+        } else if (baseAuthUrl.length > 44 && !baseAuthUrl.endsWith('=')) {
+          oauthUrl = baseAuthUrl;
         }
       }
 
-      if (oauthUrl && oauthUrl.length > 30) {
-        window.open(oauthUrl, '_blank');
+      if (oauthUrl) {
+        openExternalUrl(oauthUrl);
+        showToast(`Opening ${plat.name} authorization...`, 'info');
+      } else {
+        showToast(`OAuth Client ID not set in Admin. Enter your ${plat.name} handle below.`, 'info');
       }
     }
 
