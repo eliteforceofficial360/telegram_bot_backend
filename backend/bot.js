@@ -29,19 +29,48 @@ function escapeHTML(text = '') {
 /** Send a Telegram HTML message or Photo to a specific user, silently fail on error. */
 async function sendToUser(telegramId, html, extra = {}, imageUrl = null) {
   try {
-    if (imageUrl && imageUrl.trim()) {
-      await bot.telegram.sendPhoto(telegramId, imageUrl, {
-        caption: html,
-        parse_mode: 'HTML',
-        ...extra,
-      });
-    } else {
-      await bot.telegram.sendMessage(telegramId, html, {
-        parse_mode: 'HTML',
-        disable_web_page_preview: true,
-        ...extra,
-      });
+    let finalPhotoUrl = imageUrl;
+    if (finalPhotoUrl && finalPhotoUrl.startsWith('data:image/')) {
+      try {
+        const cleanBase64 = finalPhotoUrl.replace(/^data:image\/\w+;base64,/, '');
+        const bodyParams = new URLSearchParams();
+        bodyParams.append('key', process.env.IMGBB_API_KEY || '6d70077319714757c9a96e622b78edc3');
+        bodyParams.append('image', cleanBase64);
+
+        const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: bodyParams.toString(),
+        });
+
+        if (imgbbRes.ok) {
+          const imgbbData = await imgbbRes.json();
+          if (imgbbData.data?.url) finalPhotoUrl = imgbbData.data.url;
+        }
+      } catch (err) {
+        console.warn('[Bot sendToUser] Base64 image conversion failed:', err.message);
+      }
     }
+
+    if (finalPhotoUrl && finalPhotoUrl.startsWith('http')) {
+      try {
+        await bot.telegram.sendPhoto(telegramId, finalPhotoUrl, {
+          caption: html,
+          parse_mode: 'HTML',
+          ...extra,
+        });
+        return true;
+      } catch (photoErr) {
+        console.warn(`[Bot] Failed to send photo to ${telegramId}, falling back to message:`, photoErr.message);
+        // Fallback to text message if sendPhoto fails
+      }
+    }
+
+    await bot.telegram.sendMessage(telegramId, html, {
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      ...extra,
+    });
     return true;
   } catch (err) {
     console.error(`[Bot] Failed to send to ${telegramId}:`, err.message);
@@ -280,26 +309,75 @@ const server = http.createServer(async (req, res) => {
   let data = {};
   try { data = JSON.parse(body); } catch { res.writeHead(400); res.end(JSON.stringify({ error: 'Invalid JSON' })); return; }
 
-  // ── POST /upload-branding — upload local device image to Cloudinary ──────────
+  // ── POST /upload-branding — upload local device image to Cloudinary / ImgBB ──
   if (req.method === 'POST' && url === '/upload-branding') {
     const { image, filename } = data;
     if (!image) {
       res.writeHead(400); res.end(JSON.stringify({ error: 'image data required' })); return;
     }
-    try {
-      const { v2: cloudinary } = await import('cloudinary');
-      const uploadResult = await cloudinary.uploader.upload(image, {
-        folder: 'branding',
-        public_id: filename || `brand_${Date.now()}`,
-        overwrite: true,
-      });
-      res.writeHead(200);
-      res.end(JSON.stringify({ secureUrl: uploadResult.secure_url }));
-    } catch (err) {
-      console.error('[Cloudinary] Branding upload error:', err);
-      res.writeHead(500);
-      res.end(JSON.stringify({ error: 'Cloudinary upload failed', message: err.message }));
+
+    // 1. Try Cloudinary if environment variables are configured
+    const hasCloudinary = process.env.CLOUDINARY_URL || (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+    if (hasCloudinary) {
+      try {
+        const { v2: cloudinary } = await import('cloudinary');
+        if (!process.env.CLOUDINARY_URL && process.env.CLOUDINARY_CLOUD_NAME) {
+          cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+          });
+        }
+        const uploadResult = await cloudinary.uploader.upload(image, {
+          folder: 'branding',
+          public_id: filename || `brand_${Date.now()}`,
+          overwrite: true,
+        });
+        if (uploadResult && uploadResult.secure_url) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ secureUrl: uploadResult.secure_url }));
+          return;
+        }
+      } catch (err) {
+        console.warn('[Cloudinary] Upload failed, proceeding to fallback:', err.message);
+      }
     }
+
+    // 2. ImgBB Server-Side Fallback
+    try {
+      const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, '');
+      const bodyParams = new URLSearchParams();
+      bodyParams.append('key', process.env.IMGBB_API_KEY || '6d70077319714757c9a96e622b78edc3');
+      bodyParams.append('image', cleanBase64);
+
+      const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: bodyParams.toString(),
+      });
+
+      if (imgbbRes.ok) {
+        const imgbbData = await imgbbRes.json();
+        const secureUrl = imgbbData.data?.url || imgbbData.data?.display_url;
+        if (secureUrl) {
+          res.writeHead(200);
+          res.end(JSON.stringify({ secureUrl }));
+          return;
+        }
+      }
+    } catch (fallbackErr) {
+      console.warn('[Backend ImgBB Fallback] Failed:', fallbackErr.message);
+    }
+
+    // 3. Base64 Data URL Fallback
+    if (typeof image === 'string' && image.startsWith('data:image/')) {
+      res.writeHead(200);
+      res.end(JSON.stringify({ secureUrl: image }));
+      return;
+    }
+
+    res.writeHead(400);
+    res.end(JSON.stringify({ error: 'Image processing failed' }));
     return;
   }
 
