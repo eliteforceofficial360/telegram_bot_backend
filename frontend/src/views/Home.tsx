@@ -466,16 +466,15 @@ export const Home: React.FC<HomeProps> = ({
             }}
           />
 
-          {/* Mining Core Icon / Coin (Enlarged & Circular Masked - Zero Black Background) */}
-          <div className="relative z-10 w-56 h-56 rounded-full overflow-hidden flex items-center justify-center shadow-[0_0_40px_rgba(255,215,0,0.35)] transition-all duration-500 bg-[#050816]">
+          {/* Mining Core Icon / Coin (Clean 100% Transparent PNG Float) */}
+          <div className="relative z-10 w-56 h-56 flex items-center justify-center transition-all duration-500">
             <motion.img
               src={settings.coinIconUrl || '/coin.png'}
               alt="Mining Core"
               draggable={false}
               animate={isMiningActive ? { rotate: [0, 4, -4, 0], scale: [1, 1.03, 1] } : {}}
               transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-              className="w-full h-full object-cover rounded-full select-none coin-image transition-all duration-500"
-              style={{ mixBlendMode: 'screen' }}
+              className="w-full h-full object-contain select-none coin-image drop-shadow-[0_0_35px_rgba(255,215,0,0.4)] transition-all duration-500"
             />
           </div>
 

@@ -264,8 +264,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     } else setEditBanDuration(24);
   };
 
-  // Client-side Image Compressor (Resizes high-res uploads to max 600x400 ~20KB to ensure instant upload & 0 Firestore document size errors)
-  const compressImageFile = (file: File, maxWidth = 600, maxHeight = 400, quality = 0.75): Promise<string> => {
+  // Client-side Image Compressor (Resizes high-res uploads while preserving 100% PNG alpha channel transparency)
+  const compressImageFile = (file: File, maxWidth = 800, maxHeight = 600, quality = 0.85): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -295,8 +295,15 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
             return;
           }
 
+          // Clear canvas to ensure transparent PNG alpha pixels are 100% clean and transparent
+          ctx.clearRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+          // Preserve PNG transparency (never convert PNG to JPEG which forces black background)
+          const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png') || (e.target?.result as string).startsWith('data:image/png');
+          const outputType = isPng ? 'image/png' : 'image/webp';
+
+          const compressedDataUrl = canvas.toDataURL(outputType, quality);
           resolve(compressedDataUrl);
         };
         img.onerror = (err) => reject(err);
