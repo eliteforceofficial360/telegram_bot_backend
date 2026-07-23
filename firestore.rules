@@ -5,7 +5,6 @@ service cloud.firestore {
 
     // 1. Users collection
     match /users/{userId} {
-      // Telegram mini app users can read, create, and update their own docs without Firebase Auth
       allow read, write: if true;
     }
     match /users/{document=**} {
@@ -14,16 +13,12 @@ service cloud.firestore {
 
     // 2. Admin settings (Global configuration)
     match /adminSettings/{document=**} {
-      // Anyone can read settings, only authenticated admins can write
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if true;
     }
 
     // 3. Tasks configuration
     match /tasks/{document=**} {
-      // Anyone can read tasks, only authenticated admins can write
-      allow read: if true;
-      allow write: if request.auth != null;
+      allow read, write: if true;
     }
 
     // 4. User task completions
