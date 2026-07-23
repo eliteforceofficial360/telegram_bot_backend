@@ -136,52 +136,39 @@ export const Connections = ({
     }
   };
 
+  const getOAuthUrl = (platId: PlatformType): string => {
+    if (platId === 'x') {
+      const clientId = adminSettings.xClientId?.trim() || 'TTJzVW9MZEFlYXRHRmZTMHR6Si06MTpjaQ';
+      const redirectUri = encodeURIComponent('https://mini-telegram-app-c0fb4.firebaseapp.com/__/auth/handler');
+      const scope = encodeURIComponent('tweet.read users.read follows.read like.read offline.access');
+      return `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=x_auth&code_challenge=challenge&code_challenge_method=plain`;
+    }
+    if (platId === 'discord') {
+      const clientId = adminSettings.discordClientId?.trim();
+      const baseAuthUrl = adminSettings.discordAuthUrl?.trim();
+      if (baseAuthUrl && baseAuthUrl.length > 30 && !baseAuthUrl.endsWith('=')) return baseAuthUrl;
+      if (!clientId) return '';
+      return `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&scope=identify`;
+    }
+    return '';
+  };
+
   const handleOpenConnectModal = (plat: PlatformConfig) => {
     if (!telegramUser) {
       showToast('Please open in Telegram to link your social accounts.', 'warning');
       return;
     }
 
-    if (plat.isOauth) {
-      let oauthUrl = '';
-      if (plat.id === 'discord') {
-        const clientId = adminSettings.discordClientId?.trim();
-        const baseAuthUrl = adminSettings.discordAuthUrl?.trim() || 'https://discord.com/oauth2/authorize?client_id=';
-        
-        if (clientId) {
-          if (baseAuthUrl.includes('client_id=')) {
-            oauthUrl = baseAuthUrl.endsWith('=') ? `${baseAuthUrl}${clientId}` : baseAuthUrl;
-          } else {
-            oauthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&scope=identify`;
-          }
-        } else if (baseAuthUrl.length > 48 && !baseAuthUrl.endsWith('=')) {
-          oauthUrl = baseAuthUrl;
-        }
-      } else if (plat.id === 'x') {
-        const clientId = adminSettings.xClientId?.trim();
-        const baseAuthUrl = adminSettings.xAuthUrl?.trim() || 'https://x.com/oauth2/authorize?client_id=';
-        
-        if (clientId) {
-          if (baseAuthUrl.includes('client_id=')) {
-            oauthUrl = baseAuthUrl.endsWith('=') ? `${baseAuthUrl}${clientId}` : baseAuthUrl;
-          } else {
-            oauthUrl = `https://x.com/oauth2/authorize?client_id=${clientId}&response_type=code&scope=users.read`;
-          }
-        } else if (baseAuthUrl.length > 44 && !baseAuthUrl.endsWith('=')) {
-          oauthUrl = baseAuthUrl;
-        }
-      }
-
-      if (oauthUrl) {
-        openExternalUrl(oauthUrl);
-        showToast(`Opening ${plat.name} authorization...`, 'info');
-      } else {
-        showToast(`OAuth Client ID not set in Admin. Enter your ${plat.name} handle below.`, 'info');
-      }
-    }
-
     setHandleInput('');
     setActiveModal(plat.id);
+
+    if (plat.isOauth) {
+      const oauthUrl = getOAuthUrl(plat.id);
+      if (oauthUrl) {
+        openExternalUrl(oauthUrl);
+        showToast(`Opening ${plat.name} OAuth 2.0 authorization...`, 'info');
+      }
+    }
   };
 
   const handleSaveConnection = async () => {
@@ -223,7 +210,7 @@ export const Connections = ({
 
   return (
     <div className="w-full">
-      {/* ── CONNECTIONS PANEL (Image 0 design) ── */}
+      {/* ── CONNECTIONS PANEL ── */}
       <div className="glass-panel p-5 rounded-[24px] border border-white/10 flex flex-col gap-4 relative overflow-hidden bg-[#16171B] shadow-xl">
         <div className="flex items-center justify-between border-b border-white/5 pb-3">
           <h3 className="text-xs font-extrabold uppercase tracking-widest text-[#E5A338]">
@@ -242,7 +229,6 @@ export const Connections = ({
 
             return (
               <div key={plat.id} className="flex items-center justify-between py-3.5 first:pt-1 last:pb-1">
-                {/* Left: Logo & Platform Name */}
                 <div className="flex items-center gap-3.5">
                   <div
                     className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 shadow-md"
@@ -266,7 +252,6 @@ export const Connections = ({
                   </div>
                 </div>
 
-                {/* Right: Connect or Disconnect Button */}
                 <div>
                   {isConnected ? (
                     <div className="flex items-center gap-2">
@@ -296,7 +281,7 @@ export const Connections = ({
         </div>
       </div>
 
-      {/* ── MODALS (Image 1 & Image 2 design) ── */}
+      {/* ── MODALS ── */}
       <AnimatePresence>
         {activeModal && currentModalPlat && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -306,7 +291,6 @@ export const Connections = ({
               exit={{ opacity: 0, scale: 0.9, y: 15 }}
               className="bg-[#1C1C1E] border border-white/10 rounded-[26px] p-6 max-w-sm w-full shadow-2xl flex flex-col gap-5 relative overflow-hidden"
             >
-              {/* Close icon */}
               <button
                 onClick={() => setActiveModal(null)}
                 className="absolute top-4 right-4 text-slate-400 hover:text-white transition-all cursor-pointer p-1"
@@ -314,7 +298,6 @@ export const Connections = ({
                 <CloseIcon size={18} />
               </button>
 
-              {/* Modal Header */}
               <div className="flex items-center gap-3">
                 <div
                   className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 shadow-md"
@@ -327,11 +310,32 @@ export const Connections = ({
                 </h3>
               </div>
 
-              {/* Standard Handle/Link Modal Flow */}
               <div className="flex flex-col gap-4">
+                {currentModalPlat.isOauth && (
+                  <div className="flex flex-col gap-2 border-b border-white/10 pb-4">
+                    <p className="text-xs text-slate-300 font-medium">
+                      Authenticate with {currentModalPlat.name} OAuth 2.0:
+                    </p>
+                    <button
+                      onClick={() => {
+                        const url = getOAuthUrl(currentModalPlat.id);
+                        if (url) {
+                          openExternalUrl(url);
+                        } else {
+                          showToast(`OAuth Client ID not configured for ${currentModalPlat.name}. Enter @handle below.`, 'warning');
+                        }
+                      }}
+                      className="w-full h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span className="shrink-0">{currentModalPlat.icon}</span>
+                      <span>Authorize with {currentModalPlat.name}</span>
+                    </button>
+                  </div>
+                )}
+
                 <div>
                   <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    {currentModalPlat.subtitle}
+                    {currentModalPlat.isOauth ? 'Or enter your @handle / username manually:' : currentModalPlat.subtitle}
                   </label>
                   <input
                     type="text"
@@ -347,7 +351,7 @@ export const Connections = ({
                   disabled={saving}
                   className="w-full h-11 rounded-xl bg-[#E5A338] text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
                 >
-                  {saving ? 'Linking...' : 'Get code'}
+                  {saving ? 'Linking...' : 'Save Connection'}
                 </button>
 
                 <button
