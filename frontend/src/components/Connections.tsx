@@ -139,7 +139,7 @@ export const Connections = ({
   const getOAuthUrl = (platId: PlatformType): string => {
     if (platId === 'x') {
       const clientId = adminSettings.xClientId?.trim() || 'TTJzVW9MZEFlYXRHRmZTMHR6Si06MTpjaQ';
-      const redirectUri = encodeURIComponent('https://mini-telegram-app-c0fb4.firebaseapp.com/__/auth/handler');
+      const redirectUri = encodeURIComponent(window.location.origin);
       const scope = encodeURIComponent('tweet.read users.read follows.read like.read offline.access');
       return `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=x_auth&code_challenge=challenge&code_challenge_method=plain`;
     }

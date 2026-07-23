@@ -144,6 +144,37 @@ export default function App() {
     link.href = fav;
   }, [adminSettings.faviconUrl, adminSettings.loadingLogoUrl]);
 
+  // X OAuth 2.0 PKCE Callback Code Listener
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+
+    if (code) {
+      console.log('🔄 OAuth Code detected in URL, exchanging with backend...');
+      const botApiUrl = adminSettings.botApiUrl || 'https://elite-force-telegram-app.onrender.com';
+      fetch(`${botApiUrl.replace(/\/$/, '')}/api/x/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, state }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.ok) {
+            showToast(`✅ Successfully linked X account (@${data.xUsername})!`, 'success');
+          } else {
+            showToast(data.error || 'Failed to complete X OAuth authentication.', 'error');
+          }
+        })
+        .catch(err => {
+          console.error('OAuth exchange error:', err);
+        })
+        .finally(() => {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        });
+    }
+  }, [adminSettings.botApiUrl]);
+
   const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const [isVerifyingCaptcha, setIsVerifyingCaptcha] = useState(false);

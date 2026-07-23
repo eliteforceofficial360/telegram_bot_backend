@@ -16,7 +16,7 @@ const db = getFirestore();
 
 const X_CLIENT_ID = process.env.X_CLIENT_ID || 'TTJzVW9MZEFlYXRHRmZTMHR6Si06MTpjaQ';
 const X_CLIENT_SECRET = process.env.X_CLIENT_SECRET || 'Gud3evcnm97ShMJNYpJe_z1cu5C19Tgsz14gHbP3xKR1_siSJ8';
-const X_CALLBACK_URL = process.env.X_CALLBACK_URL || 'https://mini-telegram-app-c0fb4.firebaseapp.com/__/auth/handler';
+const X_CALLBACK_URL = process.env.X_CALLBACK_URL || 'https://mini-telegram-app-c0fb4.web.app';
 
 // In-memory PKCE state & rate limiting
 const pkceSessions = new Map();
