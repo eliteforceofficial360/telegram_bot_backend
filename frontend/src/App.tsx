@@ -130,6 +130,19 @@ export default function App() {
   const [adminSettings, setAdminSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
   const maxEnergy = adminSettings.energyMax || 1000;
 
+  // Real-time favicon updater
+  useEffect(() => {
+    const fav = adminSettings.faviconUrl || adminSettings.loadingLogoUrl || '/loading-logo.png';
+    if (!fav) return;
+    let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+    link.href = fav;
+  }, [adminSettings.faviconUrl, adminSettings.loadingLogoUrl]);
+
   const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const [isVerifyingCaptcha, setIsVerifyingCaptcha] = useState(false);

@@ -58,6 +58,13 @@ export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser, admin
         <p className="text-xs text-slate-400 mt-1">Global ecosystem rankings by EFC Points.</p>
       </div>
 
+      {/* Header Banner (if set by Admin) */}
+      {adminSettings?.leaderboardBannerUrl && (
+        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
+          <img src={adminSettings.leaderboardBannerUrl} alt="Leaderboard Banner" className="w-full h-full object-cover" />
+        </div>
+      )}
+
       {/* Current User Rank Card */}
       {telegramUser && dbUser?.leaderboardHidden !== true && (
         <motion.div

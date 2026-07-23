@@ -248,15 +248,20 @@ export const Home: React.FC<HomeProps> = ({
     <div className="flex flex-col gap-5 pb-28">
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">
-            Hey, {displayName.split(' ')[0]}
-            {dbUser?.isVerified && <VerifiedBadge size={14} className="shrink-0" />}
-            👋
-          </h1>
-          <p className="text-[10px] text-slate-500 mt-0.5 font-semibold uppercase tracking-widest">
-            EForce Mining Dashboard
-          </p>
+        <div className="flex items-center gap-2.5">
+          {settings.appHeaderLogoUrl && (
+            <img src={settings.appHeaderLogoUrl} alt="Logo" className="w-8 h-8 object-contain shrink-0" />
+          )}
+          <div>
+            <h1 className="text-xl font-black text-white tracking-tight flex items-center gap-1.5">
+              Hey, {displayName.split(' ')[0]}
+              {dbUser?.isVerified && <VerifiedBadge size={14} className="shrink-0" />}
+              👋
+            </h1>
+            <p className="text-[10px] text-slate-500 mt-0.5 font-semibold uppercase tracking-widest">
+              EForce Mining Dashboard
+            </p>
+          </div>
         </div>
         <div className="w-10 h-10 rounded-full border border-[#FFD700]/30 bg-[#0E1225] flex items-center justify-center shadow-[0_0_16px_rgba(255,138,0,0.3)] overflow-hidden">
           {telegramUser?.photoUrl ? (
@@ -267,15 +272,28 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </div>
 
+      {/* Hero Welcome Banner (if set by Admin) */}
+      {settings.welcomeBannerUrl && (
+        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
+          <img src={settings.welcomeBannerUrl} alt="Hero Banner" className="w-full h-full object-cover" />
+        </div>
+      )}
+
       {/* Balance Cards */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="glass-panel p-4 rounded-[20px] border-white/5 flex flex-col gap-1">
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">EFC Points</span>
+        <div className="glass-panel p-4 rounded-[20px] border-white/5 flex flex-col gap-1 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">EFC Points</span>
+            {settings.coinIconUrl && <img src={settings.coinIconUrl} alt="" className="w-4 h-4 object-contain opacity-80" />}
+          </div>
           <span className="text-xl font-black text-[#FF8A00]">{efcBalance.toLocaleString()}</span>
           <span className="text-[9px] text-slate-500">{settings.swapRate || 1000} Points = 1 Token</span>
         </div>
-        <div className="glass-panel p-4 rounded-[20px] border-white/5 flex flex-col gap-1">
-          <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">EForce Token</span>
+        <div className="glass-panel p-4 rounded-[20px] border-white/5 flex flex-col gap-1 relative overflow-hidden">
+          <div className="flex items-center justify-between">
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">EForce Token</span>
+            {settings.eforceTokenIconUrl && <img src={settings.eforceTokenIconUrl} alt="" className="w-4 h-4 object-contain opacity-80" />}
+          </div>
           <span className="text-xl font-black text-accent-purple">{(dbUser?.tokens || 0).toLocaleString()}</span>
           <span className="text-[9px] text-slate-500">Utility Asset</span>
         </div>

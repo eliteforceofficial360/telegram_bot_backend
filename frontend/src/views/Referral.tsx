@@ -90,6 +90,13 @@ export const Referral: React.FC<ReferralProps> = ({
         <p className="text-xs text-slate-400 mt-1">Invite friends, earn USDT & EForce Token together</p>
       </div>
 
+      {/* Header Banner (if set by Admin) */}
+      {adminSettings.referralBannerUrl && (
+        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
+          <img src={adminSettings.referralBannerUrl} alt="Referral Banner" className="w-full h-full object-cover" />
+        </div>
+      )}
+
       {/* Stats Row */}
       <div className="grid grid-cols-3 gap-2">
         <div className="glass-panel p-3 rounded-[18px] border-white/5 flex flex-col gap-0.5">

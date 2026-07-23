@@ -309,6 +309,13 @@ export const Tasks = ({ setEfcBalance, showToast, telegramUser, adminSettings, d
         <p className="text-xs text-slate-400 mt-1">Complete tasks to earn EForce rewards</p>
       </div>
 
+      {/* Header Banner (if set by Admin) */}
+      {adminSettings.tasksBannerUrl && (
+        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
+          <img src={adminSettings.tasksBannerUrl} alt="Tasks Banner" className="w-full h-full object-cover" />
+        </div>
+      )}
+
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3">
         <div className="glass-panel p-3.5 rounded-[18px] border-white/5 flex flex-col gap-1">

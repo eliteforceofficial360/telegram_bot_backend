@@ -277,6 +277,13 @@ export const Wallet: React.FC<WalletProps> = ({
         </div>
       </div>
 
+      {/* Header Banner (if set by Admin) */}
+      {settings.walletBannerUrl && (
+        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
+          <img src={settings.walletBannerUrl} alt="Wallet Banner" className="w-full h-full object-cover" />
+        </div>
+      )}
+
       {/* Hero Wallet Card */}
       <div className="glass-panel p-6 rounded-[24px] border-white/6 relative overflow-hidden flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.4)]">
         <div className="absolute top-0 right-0 w-32 h-32 bg-accent-cyan/5 rounded-full filter blur-xl"></div>
