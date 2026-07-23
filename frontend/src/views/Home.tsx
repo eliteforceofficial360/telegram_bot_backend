@@ -403,15 +403,18 @@ export const Home: React.FC<HomeProps> = ({
             }}
           />
 
-          {/* Mining Core Icon / Coin */}
-          <motion.img
-            src={settings.coinIconUrl || '/coin.png'}
-            alt="Mining Core"
-            draggable={false}
-            animate={isMiningActive ? { rotate: [0, 4, -4, 0], scale: [1, 1.02, 1] } : {}}
-            transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-            className="relative z-10 w-44 h-44 object-contain select-none drop-shadow-[0_0_30px_rgba(255,215,0,0.35)] coin-image transition-all duration-500"
-          />
+          {/* Mining Core Icon / Coin (Enlarged & Circular Masked - Zero Black Background) */}
+          <div className="relative z-10 w-56 h-56 rounded-full overflow-hidden flex items-center justify-center shadow-[0_0_40px_rgba(255,215,0,0.35)] transition-all duration-500 bg-[#050816]">
+            <motion.img
+              src={settings.coinIconUrl || '/coin.png'}
+              alt="Mining Core"
+              draggable={false}
+              animate={isMiningActive ? { rotate: [0, 4, -4, 0], scale: [1, 1.03, 1] } : {}}
+              transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+              className="w-full h-full object-cover rounded-full select-none coin-image transition-all duration-500"
+              style={{ mixBlendMode: 'screen' }}
+            />
+          </div>
 
           {/* Live Hashrate Badge inside Core */}
           {isMiningActive && (
