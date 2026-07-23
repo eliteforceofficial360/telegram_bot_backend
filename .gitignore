@@ -37,3 +37,10 @@ serviceAccountKey.json
 .env*
 
 testsprite_tests\tmp\config.json
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

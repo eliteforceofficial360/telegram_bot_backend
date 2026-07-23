@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://v4elite.vercel.app/sitemap.xml
