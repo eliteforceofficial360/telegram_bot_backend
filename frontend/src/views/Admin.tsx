@@ -840,6 +840,54 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setSettings(s => ({ ...s, customTopMiners: updated }));
   };
 
+  // Hero Multi-Banner Slider Management
+  const [newBannerUrl, setNewBannerUrl] = useState('');
+  const [newBannerTitle, setNewBannerTitle] = useState('');
+  const [newBannerLink, setNewBannerLink] = useState('');
+
+  const handleAddHeroBanner = async () => {
+    if (!newBannerUrl.trim()) {
+      showToast('Please provide or upload a banner image URL', 'warning');
+      return;
+    }
+    const newBanner = {
+      id: String(Date.now()),
+      imageUrl: newBannerUrl.trim(),
+      title: newBannerTitle.trim() || undefined,
+      linkUrl: newBannerLink.trim() || undefined,
+    };
+    const updatedBanners = [...(settingsRef.current.heroBanners || []), newBanner];
+    const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
+    setSettings(updatedSettings);
+    await saveAdminSettings(updatedSettings);
+    setNewBannerUrl('');
+    setNewBannerTitle('');
+    setNewBannerLink('');
+    showToast('✅ New Carousel Banner added!', 'success');
+  };
+
+  const handleRemoveHeroBanner = async (index: number) => {
+    const updatedBanners = (settingsRef.current.heroBanners || []).filter((_, i) => i !== index);
+    const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
+    setSettings(updatedSettings);
+    await saveAdminSettings(updatedSettings);
+    showToast('Banner removed.', 'info');
+  };
+
+  const handleAddBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      showToast('Compressing & uploading banner...', 'info');
+      const compressed = await compressImageFile(file, 800, 400, 0.8);
+      const url = await uploadImageToBot(compressed, `hero_banner_${Date.now()}`);
+      setNewBannerUrl(url);
+      showToast('✅ Banner image uploaded! Click "Add to Carousel" to save.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Upload failed.', 'error');
+    }
+  };
+
   const handleBrandingUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: keyof AdminSettings) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2313,6 +2361,98 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         <span className="text-[9px] text-slate-600">Your running backend URL (for notifications)</span>
                       </div>
                       <input type="text" placeholder="http://your-server:4000" value={settings.botApiUrl || ''} onChange={e => setSettings(prev => ({ ...prev, botApiUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                    </div>
+                  </div>
+                </SectionCard>
+
+                {/* Dedicated Home Dashboard Multi-Banner Slider Manager */}
+                <SectionCard accentColor="#00E5FFaa">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🖼️</span>
+                        <span className="text-sm font-black text-white">Home Dashboard Multi-Banner Slider</span>
+                      </div>
+                      <p className="text-[9px] text-slate-500 mt-0.5">Upload multiple hero banners. They will auto-scroll right-to-left on the Home dashboard!</p>
+                    </div>
+                  </div>
+
+                  <div className="p-5 flex flex-col gap-4">
+                    {/* Add New Hero Banner Form */}
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-3">
+                      <span className="text-xs font-bold text-slate-300">Add New Carousel Banner</span>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Banner Image URL"
+                          value={newBannerUrl}
+                          onChange={e => setNewBannerUrl(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Banner Title (Optional)"
+                          value={newBannerTitle}
+                          onChange={e => setNewBannerTitle(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Click Link / Telegram URL (Optional)"
+                          value={newBannerLink}
+                          onChange={e => setNewBannerLink(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-1">
+                        <label className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black text-xs font-black flex items-center gap-2 cursor-pointer shadow-lg hover:scale-[1.02] transition-all">
+                          <Upload size={13} /> Upload Image
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleAddBannerUpload}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <button
+                          onClick={handleAddHeroBanner}
+                          className="h-9 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-black flex items-center gap-1.5 cursor-pointer shadow-lg hover:scale-[1.02] transition-all ml-auto"
+                        >
+                          <Plus size={14} /> Add to Carousel
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Active Banners List */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs font-bold text-slate-400">Active Slide Banners ({(settings.heroBanners || []).length})</span>
+                      {(settings.heroBanners || []).length === 0 ? (
+                        <div className="p-5 text-center text-xs text-slate-500 border border-dashed border-white/10 rounded-2xl">
+                          No multi-banners added yet. Default single banner will be shown.
+                        </div>
+                      ) : (
+                        (settings.heroBanners || []).map((b, idx) => (
+                          <div key={b.id || idx} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
+                            <img src={b.imageUrl} alt="" className="w-16 h-10 object-cover rounded-xl border border-white/10 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold text-white truncate">{b.title || `Banner #${idx + 1}`}</div>
+                              {b.linkUrl && <div className="text-[10px] text-cyan-400 truncate">{b.linkUrl}</div>}
+                            </div>
+                            <button
+                              onClick={() => handleRemoveHeroBanner(idx)}
+                              className="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all cursor-pointer"
+                              title="Delete Banner"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </SectionCard>

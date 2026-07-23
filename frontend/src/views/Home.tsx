@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Flame, Zap, ChevronRight, Trophy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
@@ -90,6 +90,23 @@ export const Home: React.FC<HomeProps> = ({
   
   useEffect(() => { settingsRef.current = settings; }, [settings]);
   useEffect(() => { telegramUserRef.current = telegramUser; }, [telegramUser]);
+
+  // --- Multi-Banner Hero Carousel (Right-to-Left Auto Slider) ---
+  const activeBanners = (settings.heroBanners && settings.heroBanners.length > 0)
+    ? settings.heroBanners
+    : settings.welcomeBannerUrl
+    ? [{ id: 'default', imageUrl: settings.welcomeBannerUrl, title: '' }]
+    : [];
+
+  const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+
+  useEffect(() => {
+    if (activeBanners.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentBannerIndex(prev => (prev + 1) % activeBanners.length);
+    }, 4000); // Smooth auto-slide right to left every 4s
+    return () => clearInterval(interval);
+  }, [activeBanners.length]);
 
   // --- Automated Cloud Mining Engine ---
   const [miningStartTime, setMiningStartTime] = useState<number>(() => {
@@ -339,10 +356,56 @@ export const Home: React.FC<HomeProps> = ({
         </div>
       </div>
 
-      {/* Hero Welcome Banner (if set by Admin) */}
-      {settings.welcomeBannerUrl && (
-        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          <img src={settings.welcomeBannerUrl} alt="Hero Banner" className="w-full h-full object-cover" />
+      {/* Multi-Image Right-to-Left Auto-Sliding Hero Carousel Banner */}
+      {activeBanners.length > 0 && (
+        <div className="relative w-full h-34 rounded-[24px] overflow-hidden border border-white/12 shadow-[0_15px_35px_rgba(0,0,0,0.6)] bg-[#090D1F] group select-none">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeBanners[currentBannerIndex]?.id || currentBannerIndex}
+              initial={{ x: '100%', opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '-100%', opacity: 0 }}
+              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              onClick={() => {
+                const link = activeBanners[currentBannerIndex]?.linkUrl;
+                if (link) {
+                  const tg = (window as any).Telegram?.WebApp;
+                  if (tg?.openTelegramLink && link.includes('t.me/')) tg.openTelegramLink(link);
+                  else window.open(link, '_blank');
+                }
+              }}
+              className={`absolute inset-0 w-full h-full ${activeBanners[currentBannerIndex]?.linkUrl ? 'cursor-pointer' : ''}`}
+            >
+              <img
+                src={activeBanners[currentBannerIndex]?.imageUrl}
+                alt={activeBanners[currentBannerIndex]?.title || 'Hero Banner'}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+              {activeBanners[currentBannerIndex]?.title && (
+                <div className="absolute bottom-3 left-4 right-4">
+                  <span className="text-xs font-black text-white drop-shadow-md tracking-wide">
+                    {activeBanners[currentBannerIndex]?.title}
+                  </span>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Active Banner Slide Dots */}
+          {activeBanners.length > 1 && (
+            <div className="absolute bottom-2.5 right-4 z-20 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10">
+              {activeBanners.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentBannerIndex(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    idx === currentBannerIndex ? 'w-4 bg-[#FF8A00]' : 'w-1.5 bg-white/40'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 

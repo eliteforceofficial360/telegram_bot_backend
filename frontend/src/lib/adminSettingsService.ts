@@ -78,6 +78,7 @@ export interface AdminSettings {
   appHeaderLogoUrl: string;
   appHeaderRightLogoUrl: string;
   welcomeBannerUrl: string;
+  heroBanners?: { id: string; imageUrl: string; linkUrl?: string; title?: string }[];
   referralBannerUrl: string;
   tasksBannerUrl: string;
   walletBannerUrl: string;
@@ -134,6 +135,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   appHeaderLogoUrl: '/loading-logo.png',
   appHeaderRightLogoUrl: '/coin.png',
   welcomeBannerUrl: '/coin-logo.jpg',
+  heroBanners: [],
   referralBannerUrl: '/coin-logo.jpg',
   tasksBannerUrl: '/coin-logo.jpg',
   walletBannerUrl: '/coin.jpg',
