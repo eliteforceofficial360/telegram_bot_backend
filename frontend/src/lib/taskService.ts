@@ -252,6 +252,53 @@ export const claimTaskReward = async (
 };
 
 /**
+ * Verify an X (Twitter) task using official X API via Backend Verification Engine.
+ * Rules:
+ * 1. Checks OAuth authentication state.
+ * 2. Queries X API v2 endpoints (follow, like, repost).
+ * 3. Handles "Verification Unavailable" on X API rate limits.
+ */
+export const verifyXTaskWithBackend = async (
+  telegramId: number,
+  task: EForceTask,
+  botApiUrl?: string
+): Promise<{ success: boolean; status?: string; reason?: string; reward?: number }> => {
+  const baseUrl = botApiUrl || 'https://elite-force-telegram-app.onrender.com';
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/x/verify-task`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegramId,
+        taskId: task.id,
+        taskType: task.type,
+        targetId: task.url || 'EliteForceToken',
+        rewardAmount: task.reward,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        status: errJson.status || 'ERROR',
+        reason: errJson.reason || errJson.error || 'X Task verification failed.',
+      };
+    }
+  } catch (err: any) {
+    console.warn('[taskService] verifyXTaskWithBackend fallback error:', err);
+    return {
+      success: false,
+      status: 'Verification Unavailable',
+      reason: 'Could not connect to X Verification Engine. Verification skipped.',
+    };
+  }
+};
+
+/**
  * Verifies if user has joined a Telegram channel or group via backend bot API.
  */
 export const checkTelegramMembership = async (

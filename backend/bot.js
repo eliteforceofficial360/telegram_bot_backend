@@ -1,6 +1,12 @@
 import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import http from 'http';
+import {
+  getXOAuthAuthUrl,
+  handleXOAuthCallback,
+  verifyXTask,
+  runXPeriodicMonitoring,
+} from './xVerificationEngine.js';
 
 dotenv.config();
 
@@ -454,14 +460,70 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200); res.end(JSON.stringify({ ok })); return;
   }
 
+  // ── X (TWITTER) OAUTH & VERIFICATION ENGINE ENDPOINTS ──────────────────────
+
+  // GET /api/x/auth-url — Generate OAuth 2.0 PKCE auth URL
+  if (req.method === 'GET' && url.startsWith('/api/x/auth-url')) {
+    const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    const telegramId = urlParams.get('telegramId');
+    if (!telegramId) {
+      res.writeHead(400); res.end(JSON.stringify({ error: 'telegramId is required' })); return;
+    }
+    try {
+      const authData = getXOAuthAuthUrl(telegramId);
+      res.writeHead(200); res.end(JSON.stringify({ ok: true, ...authData }));
+    } catch (err) {
+      res.writeHead(500); res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // POST /api/x/callback — OAuth 2.0 PKCE Callback Exchange
+  if (req.method === 'POST' && url === '/api/x/callback') {
+    const { code, state, codeVerifier } = data;
+    if (!code) {
+      res.writeHead(400); res.end(JSON.stringify({ error: 'OAuth code is required' })); return;
+    }
+    try {
+      const result = await handleXOAuthCallback(code, state, codeVerifier);
+      res.writeHead(200); res.end(JSON.stringify({ ok: true, ...result }));
+    } catch (err) {
+      res.writeHead(400); res.end(JSON.stringify({ error: err.message }));
+    }
+    return;
+  }
+
+  // POST /api/x/verify-task — Secure Task Verification Engine
+  if (req.method === 'POST' && url === '/api/x/verify-task') {
+    const { telegramId, taskId, taskType, targetId, rewardAmount } = data;
+    if (!telegramId || !taskId) {
+      res.writeHead(400); res.end(JSON.stringify({ error: 'telegramId and taskId required' })); return;
+    }
+    try {
+      const result = await verifyXTask(telegramId, taskId, taskType, targetId, rewardAmount || 100);
+      res.writeHead(200); res.end(JSON.stringify(result));
+    } catch (err) {
+      res.writeHead(500); res.end(JSON.stringify({ success: false, status: 'ERROR', reason: err.message }));
+    }
+    return;
+  }
+
   res.writeHead(404); res.end(JSON.stringify({ error: 'Not found' }));
 });
 
-// ── Launch ────────────────────────────────────────────────────────────────────
+// ── Launch & Periodical Scheduler ─────────────────────────────────────────────
 
 console.log('Starting Elite Force bot...');
 bot.launch().then(() => {
   console.log('✅ Bot running! Send /start in Telegram to test.');
+  
+  // Start Periodical Re-verification Scheduler (Runs every 15 mins) (Rules 6 & 10)
+  console.log('⏱️ Initializing X Task Anti-Fraud Scheduler (15 min interval)...');
+  setInterval(() => {
+    runXPeriodicMonitoring(sendToUser).catch(err => {
+      console.error('[X Scheduler] Interval execution error:', err.message);
+    });
+  }, 15 * 60 * 1000);
 }).catch(err => {
   console.error('Error starting bot:', err);
 });
