@@ -18,8 +18,9 @@ if (!token) {
   process.exit(1);
 }
 
-let webAppUrlRaw = (process.env.MINI_APP_URL || 'https://mini-telegram-app-c0fb4.web.app').trim();
-const webAppUrl = webAppUrlRaw.endsWith('/') ? webAppUrlRaw.slice(0, -1) : webAppUrlRaw;
+const BASE_APP_URL = 'https://mini-telegram-app-c0fb4.web.app';
+let webAppUrlRaw = (process.env.MINI_APP_URL || BASE_APP_URL).trim();
+const webAppUrl = webAppUrlRaw.includes('firebaseapp.com') || webAppUrlRaw.includes('web.app') || webAppUrlRaw.includes('localhost') ? (webAppUrlRaw.endsWith('/') ? webAppUrlRaw.slice(0, -1) : webAppUrlRaw) : BASE_APP_URL;
 const API_PORT = process.env.API_PORT || 4000;
 const API_SECRET = process.env.API_SECRET || 'https://elite-force-telegram-app.onrender.com';
 const IMGBB_API_KEY = process.env.IMGBB_API_KEY || '6d70077319714757c9a96e622b78edc3';
