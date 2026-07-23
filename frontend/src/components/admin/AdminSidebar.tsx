@@ -137,7 +137,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </div>
 
           <a
-            href="https://v4elite.vercel.app"
+            href="https://mini-telegram-app-c0fb4.web.app"
             target="_blank"
             rel="noreferrer"
             className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-[#131824] hover:bg-[#182030] border border-slate-800 text-[11px] font-bold text-slate-300 hover:text-white transition-colors"
