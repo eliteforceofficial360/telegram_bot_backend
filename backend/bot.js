@@ -11,22 +11,19 @@ import {
 
 dotenv.config();
 
-// ── Required env vars — fail fast instead of silently falling back to
-//    hardcoded secrets that would otherwise leak into source control. ──────
-const REQUIRED_ENV = ['BOT_TOKEN', 'API_SECRET', 'IMGBB_API_KEY', 'FIREBASE_API_KEY'];
-const missing = REQUIRED_ENV.filter((k) => !process.env[k]);
-if (missing.length) {
-  console.error(`Missing required env vars: ${missing.join(', ')}`);
+// ── Required env vars — validate BOT_TOKEN ──────
+const token = process.env.BOT_TOKEN;
+if (!token) {
+  console.error('BOT_TOKEN is missing from environment variables!');
   process.exit(1);
 }
 
-const token = process.env.BOT_TOKEN;
 let webAppUrlRaw = (process.env.MINI_APP_URL || 'https://mini-telegram-app-c0fb4.web.app').trim();
 const webAppUrl = webAppUrlRaw.endsWith('/') ? webAppUrlRaw.slice(0, -1) : webAppUrlRaw;
 const API_PORT = process.env.API_PORT || 4000;
-const API_SECRET = process.env.API_SECRET;
-const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
-const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY;
+const API_SECRET = process.env.API_SECRET || 'https://elite-force-telegram-app.onrender.com';
+const IMGBB_API_KEY = process.env.IMGBB_API_KEY || '6d70077319714757c9a96e622b78edc3';
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyA3flAWMnQiYeVAOCv_je0SLExI5Vxol4Y';
 const RECAPTCHA_PROJECT_ID = process.env.RECAPTCHA_PROJECT_ID; // e.g. 'balmy-access-465013-m7'
 const RECAPTCHA_SITE_KEY = process.env.RECAPTCHA_SITE_KEY;
 
