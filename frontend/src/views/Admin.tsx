@@ -320,49 +320,45 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const uploadImageToBot = async (base64Media: string, filename: string): Promise<string> => {
     const isVid = base64Media.startsWith('data:video/') || !!filename.match(/\.(mp4|webm|mov|ogg)$/i);
 
-    // 1. If Bot API server is configured, try Cloudinary/Bot API first (supports image & video CDN upload)
-    if (settings.botApiUrl) {
-      const baseUrl = settings.botApiUrl.replace(/\/$/, '');
+    // 1. Always try Bot API (fallback to known Render URL if not configured in settings)
+    const FALLBACK_BOT_API = 'https://elite-force-telegram-app.onrender.com';
+    const baseUrl = (settings.botApiUrl || FALLBACK_BOT_API).replace(/\/$/, '');
 
-      // Wake up Render.com server if it's sleeping (free tier sleeps after inactivity)
+    // Wake up Render.com server if sleeping (free tier sleeps after inactivity)
+    try {
+      const pingCtrl = new AbortController();
+      const pingTimeout = setTimeout(() => pingCtrl.abort(), 8000);
+      await fetch(`${baseUrl}/health`, { method: 'GET', signal: pingCtrl.signal });
+      clearTimeout(pingTimeout);
+    } catch {
+      // Ignore — server may be waking up, proceed anyway
+    }
+
+    // Attempt upload with retry on first failure
+    for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const pingCtrl = new AbortController();
-        const pingTimeout = setTimeout(() => pingCtrl.abort(), 8000);
-        await fetch(`${baseUrl}/health`, { method: 'GET', signal: pingCtrl.signal });
-        clearTimeout(pingTimeout);
-      } catch {
-        // Ignore ping errors — server may be waking up, proceed anyway
-      }
+        const controller = new AbortController();
+        const timeoutMs = isVid ? 90000 : 45000; // 90s for video, 45s for image
+        const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-      // Now attempt the actual upload (with retry on first failure)
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          const controller = new AbortController();
-          const timeoutMs = isVid ? 90000 : 45000; // 90s for video, 45s for image
-          const timeout = setTimeout(() => controller.abort(), timeoutMs);
+        const res = await fetch(`${baseUrl}/upload-branding`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${notifApiSecret || 'elite_force_secret_2024'}`
+          },
+          body: JSON.stringify({ image: base64Media, filename }),
+          signal: controller.signal
+        });
+        clearTimeout(timeout);
 
-          const res = await fetch(`${baseUrl}/upload-branding`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${notifApiSecret || 'elite_force_secret_2024'}`
-            },
-            body: JSON.stringify({ image: base64Media, filename }),
-            signal: controller.signal
-          });
-          clearTimeout(timeout);
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.secureUrl && !data.secureUrl.startsWith('data:')) return data.secureUrl;
-          }
-        } catch (err) {
-          console.warn(`Bot API upload attempt ${attempt + 1} failed:`, err);
-          if (attempt === 0) {
-            // Brief wait before retry
-            await new Promise(r => setTimeout(r, 2000));
-          }
+        if (res.ok) {
+          const data = await res.json();
+          if (data.secureUrl && !data.secureUrl.startsWith('data:')) return data.secureUrl;
         }
+      } catch (err) {
+        console.warn(`Bot API upload attempt ${attempt + 1} failed:`, err);
+        if (attempt === 0) await new Promise(r => setTimeout(r, 2000));
       }
     }
 
@@ -401,9 +397,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
     // 4. All CDN uploads failed
     if (isVid) {
-      throw new Error('Video upload failed. The Bot API server may be starting up — wait 30 seconds and try again, or check that the Bot API URL is set correctly in System Config.');
+      throw new Error('Video upload failed. Server may still be starting up — wait 30s and try again.');
     }
-    throw new Error('Image upload failed. Please try a smaller image or paste a direct CDN URL (e.g. https://...).');
+    throw new Error('Image upload failed. Try a smaller image or paste a direct CDN URL (https://...).');
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
