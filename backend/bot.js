@@ -368,7 +368,7 @@ bot.command('status', async (ctx) => {
 const server = http.createServer(async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') {
@@ -380,6 +380,13 @@ const server = http.createServer(async (req, res) => {
   const url = req.url?.split('?')[0];
 
   try {
+    // ── PUBLIC: GET /health ──────────────────────────────────────────────────
+    if (req.method === 'GET' && (url === '/health' || url === '/')) {
+      res.writeHead(200);
+      res.end(JSON.stringify({ ok: true, status: 'online', ts: Date.now() }));
+      return;
+    }
+
     // ── PUBLIC: POST /verify-captcha ─────────────────────────────────────────
     if (req.method === 'POST' && url === '/verify-captcha') {
       let verifyData;
