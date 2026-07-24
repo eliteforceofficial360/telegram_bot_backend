@@ -155,10 +155,10 @@ export const Wallet: React.FC<WalletProps> = ({
             return;
           }
         } else {
-          const minWithdrawTokens = minWithdrawUsdt / (settings.eforceTokenValue || 0.05);
+          const minWithdrawTokens = settings.withdrawMinTokenAmount ?? (minWithdrawUsdt / (settings.eforceTokenValue || 0.05));
           if (isNaN(amountNum) || amountNum < minWithdrawTokens) {
             setIsVerifying(false);
-            showToast(`Minimum withdrawal is ${minWithdrawTokens.toFixed(3)} EForce.`, 'error');
+            showToast(`Minimum withdrawal is ${minWithdrawTokens.toFixed(1)} EForce.`, 'error');
             return;
           }
           if (eforceTokens < amountNum) {
@@ -474,7 +474,7 @@ export const Wallet: React.FC<WalletProps> = ({
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex flex-col gap-0.5">
                   <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable EForce</span>
                   <span className="text-xs font-extrabold text-accent-purple font-mono">{eforceTokens.toFixed(3)} EForce</span>
-                  <span className="text-[8px] text-slate-500 font-medium">Min: {(settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05)).toFixed(0)} EForce</span>
+                  <span className="text-[8px] text-slate-500 font-medium">Min: {(settings.withdrawMinTokenAmount ?? (settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05))).toFixed(1)} EForce</span>
                 </div>
               </div>
 

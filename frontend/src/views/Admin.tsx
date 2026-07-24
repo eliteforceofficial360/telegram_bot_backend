@@ -2406,6 +2406,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       { label: 'Referral Points Reward', key: 'referralRewardPoints' },
                       { label: 'Min Referrals to Withdraw', key: 'withdrawMinReferrals' },
                       { label: 'Min Withdraw Amount (USDT)', key: 'withdrawMinAmount' },
+                      { label: 'Min Withdraw Token Amount (EForce)', key: 'withdrawMinTokenAmount' },
                       { label: 'Daily Withdraw Limit (USDT)', key: 'dailyWithdrawLimit' },
                       { label: 'Daily Token Limit (EForce)', key: 'dailyTokenWithdrawLimit' }
                     ].map(f => (

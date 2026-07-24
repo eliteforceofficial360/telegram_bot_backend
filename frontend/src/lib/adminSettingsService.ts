@@ -32,6 +32,7 @@ export interface AdminSettings {
   referralRewardPoints: number; // EFC points per valid referral
   withdrawMinReferrals: number; // min referrals to unlock withdraw
   withdrawMinAmount: number;    // min USDT to withdraw
+  withdrawMinTokenAmount: number; // min EForce tokens (EST) to withdraw
   referralBaseLimit: number;    // Base max points claim limit for 0 referrals (default 5000)
   referralStepLimit: number;    // Points added per 5 referrals (default 5000)
 
@@ -123,6 +124,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   referralRewardPoints: 250,
   withdrawMinReferrals: 10,
   withdrawMinAmount: 0.20,
+  withdrawMinTokenAmount: 4.0,
   referralBaseLimit: 5000,
   referralStepLimit: 5000,
   adEnabled: true,
