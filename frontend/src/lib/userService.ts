@@ -103,6 +103,7 @@ export interface FirestoreUser {
   isVerified?: boolean;
   verifiedAt?: string;
   socialConnections?: SocialConnections;
+  unbannedByAdmin?: boolean;
 }
 
 const USERS_COLLECTION = 'users';
@@ -407,7 +408,7 @@ export const upsertUser = async (
       }
     }
 
-    if (isMultiAccount && user.banStatus === 'none') {
+    if (isMultiAccount && user.banStatus === 'none' && !user.unbannedByAdmin) {
       const newFlags = (user.flagCount || 0) + 1;
       let newBanStatus: 'none' | 'temp' | 'permanent' = 'none';
       let newBanUntil = null;
@@ -628,14 +629,20 @@ export const adminSetBan = async (
     if (banStatus === 'temp' && durationHours) {
       banUntil = Timestamp.fromDate(new Date(Date.now() + durationHours * 3600 * 1000));
     }
-    // When unbanning: set banStatus to 'none', clear banUntil, clear flagCount
+    // When unbanning: set banStatus to 'none', clear banUntil, clear flagCount, set unbannedByAdmin
     const updateData: Record<string, any> = { banStatus, banUntil };
     if (banStatus === 'none') {
       updateData.banUntil = null;
+      updateData.flagCount = 0;
+      updateData.riskLevel = 'safe';
+      updateData.unbannedByAdmin = true;
+    } else {
+      updateData.unbannedByAdmin = false;
     }
     await updateDoc(userRef, updateData);
     return true;
-  } catch {
+  } catch (err) {
+    console.error('[userService] adminSetBan error:', err);
     return false;
   }
 };

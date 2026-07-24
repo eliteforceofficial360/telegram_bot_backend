@@ -317,40 +317,15 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     });
   };
 
-  const uploadImageToBot = async (base64Image: string, filename: string): Promise<string> => {
-    const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
+  const uploadImageToBot = async (base64Media: string, filename: string): Promise<string> => {
+    const isVid = base64Media.startsWith('data:video/') || !!filename.match(/\.(mp4|webm|mov|ogg)$/i);
 
-    // 1. Primary: ImgBB API
-    try {
-      const formData = new FormData();
-      formData.append('key', '6d70077319714757c9a96e622b78edc3');
-      formData.append('image', cleanBase64);
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
-
-      const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-
-      if (imgbbRes.ok) {
-        const imgbbData = await imgbbRes.json();
-        if (imgbbData.data?.url) return imgbbData.data.url;
-        if (imgbbData.data?.display_url) return imgbbData.data.display_url;
-      }
-    } catch (fallbackErr) {
-      console.warn('Fast ImgBB upload failed, trying backup options:', fallbackErr);
-    }
-
-    // 2. Secondary: Bot API server
+    // 1. If Bot API server is configured, try Cloudinary/Bot API first (supports both image & video CDN upload)
     if (settings.botApiUrl) {
       const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2500);
+        const timeout = setTimeout(() => controller.abort(), 6000);
 
         const res = await fetch(url, {
           method: 'POST',
@@ -358,26 +333,57 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${notifApiSecret || 'elite_force_secret_2024'}`
           },
-          body: JSON.stringify({ image: base64Image, filename }),
+          body: JSON.stringify({ image: base64Media, filename }),
           signal: controller.signal
         });
         clearTimeout(timeout);
 
         if (res.ok) {
           const data = await res.json();
-          if (data.secureUrl) return data.secureUrl;
+          if (data.secureUrl && !data.secureUrl.startsWith('data:')) return data.secureUrl;
         }
       } catch (err) {
         console.warn('Bot API upload timeout or error:', err);
       }
     }
 
-    // 3. Fallback: Ultra-compressed WebP Data URL (Guarantees instant save & 0 Firestore size issues)
-    if (base64Image.startsWith('data:image/')) {
-      return base64Image;
+    // 2. Primary for Images: ImgBB API
+    if (!isVid) {
+      try {
+        const cleanBase64 = base64Media.replace(/^data:image\/\w+;base64,/, '');
+        const formData = new FormData();
+        formData.append('key', '6d70077319714757c9a96e622b78edc3');
+        formData.append('image', cleanBase64);
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4000);
+
+        const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        });
+        clearTimeout(timeout);
+
+        if (imgbbRes.ok) {
+          const imgbbData = await imgbbRes.json();
+          if (imgbbData.data?.url) return imgbbData.data.url;
+          if (imgbbData.data?.display_url) return imgbbData.data.display_url;
+        }
+      } catch (fallbackErr) {
+        console.warn('Fast ImgBB upload failed:', fallbackErr);
+      }
     }
 
-    throw new Error('Image processing failed. Please paste a direct image URL.');
+    // 3. Fallback: Data URL size check to guarantee Firestore 1MB document limit is never exceeded
+    if (base64Media.startsWith('data:')) {
+      if (base64Media.length > 750000) {
+        throw new Error('Video/Photo file size too large (>500KB). Please upload a smaller file or paste a direct CDN URL.');
+      }
+      return base64Media;
+    }
+
+    throw new Error('Media processing failed. Please paste a direct image or video URL.');
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
@@ -875,12 +881,13 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
       if (isVideo) {
         showToast('Processing & uploading video banner...', 'info');
-        finalUrl = await new Promise<string>((resolve, reject) => {
+        const rawDataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
+        finalUrl = await uploadImageToBot(rawDataUrl, `hero_banner_${Date.now()}`);
       } else {
         showToast('Compressing & uploading banner image...', 'info');
         const compressed = await compressImageFile(file, 800, 400, 0.8);

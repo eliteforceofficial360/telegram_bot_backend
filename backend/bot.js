@@ -531,6 +531,7 @@ const server = http.createServer(async (req, res) => {
             folder: 'branding',
             public_id: filename || `brand_${Date.now()}`,
             overwrite: true,
+            resource_type: 'auto',
           });
           if (uploadResult?.secure_url) {
             return sendJson(res, 200, { secureUrl: uploadResult.secure_url });
@@ -543,7 +544,7 @@ const server = http.createServer(async (req, res) => {
       const imgbbUrl = await uploadBase64ToImgbb(image);
       if (imgbbUrl) return sendJson(res, 200, { secureUrl: imgbbUrl });
 
-      if (typeof image === 'string' && image.startsWith('data:image/')) {
+      if (typeof image === 'string' && (image.startsWith('data:image/') || image.startsWith('data:video/'))) {
         return sendJson(res, 200, { secureUrl: image });
       }
 
