@@ -69,7 +69,37 @@ You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Forc
 🚀 Tap the button below to launch your dashboard!`;
 }
 
-// Real-time Firestore sync for admin configuration
+}
+
+// REST API sync for Firestore admin settings (works 100% on Render without GCP Service Account / ADC credentials)
+async function syncAdminSettingsFromRest() {
+  try {
+    const res = await fetch(
+      'https://firestore.googleapis.com/v1/projects/mini-telegram-app-c0fb4/databases/(default)/documents/adminSettings/config'
+    );
+    if (!res.ok) return;
+    const json = await res.json();
+    const fields = json.fields || {};
+
+    if (fields.miniAppUrl?.stringValue) {
+      dynamicSettings.miniAppUrl = fields.miniAppUrl.stringValue.trim();
+    }
+    if (fields.botStartMessage?.stringValue !== undefined) {
+      dynamicSettings.botStartMessage = fields.botStartMessage.stringValue;
+    }
+    if (fields.botStartButtonText?.stringValue) {
+      dynamicSettings.botStartButtonText = fields.botStartButtonText.stringValue.trim();
+    }
+  } catch {
+    /* silent catch */
+  }
+}
+
+// Initial sync & 15-second background interval
+syncAdminSettingsFromRest();
+setInterval(syncAdminSettingsFromRest, 15 * 1000);
+
+// Real-time Firestore sync listener (if GCP service account is provided)
 try {
   db.collection('adminSettings').doc('config').onSnapshot((snap) => {
     if (snap.exists) {
@@ -83,13 +113,12 @@ try {
       if (data.botStartButtonText && typeof data.botStartButtonText === 'string' && data.botStartButtonText.trim()) {
         dynamicSettings.botStartButtonText = data.botStartButtonText.trim();
       }
-      console.log('🤖 [Bot] Real-time Admin Settings synced from Firestore!');
     }
-  }, (err) => {
-    console.warn('[Bot] Firestore settings listener warning:', err.message);
+  }, () => {
+    // Suppress warning; REST API polling handles settings sync automatically
   });
-} catch (err) {
-  console.warn('[Bot] Could not attach Firestore settings listener:', err.message);
+} catch {
+  // Suppress warning
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -217,6 +246,7 @@ function sendJson(res, status, payload) {
 // ── Bot commands ──────────────────────────────────────────────────────────────
 
 bot.start(async (ctx) => {
+  await syncAdminSettingsFromRest().catch(() => {});
   const username = ctx.from.first_name || 'Force Agent';
   const payload = ctx.startPayload || '';
   const currentAppUrl = getEffectiveAppUrl();
