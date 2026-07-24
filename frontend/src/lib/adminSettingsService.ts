@@ -207,7 +207,7 @@ export const subscribeToAdminSettings = (
     return () => {};
   }
   const ref = doc(db, 'adminSettings', 'config');
-  return onSnapshot(ref, { includeMetadataChanges: true }, (snap) => {
+  return onSnapshot(ref, (snap) => {
     if (snap.exists()) {
       callback({ ...DEFAULT_ADMIN_SETTINGS, ...snap.data() } as AdminSettings);
     } else {

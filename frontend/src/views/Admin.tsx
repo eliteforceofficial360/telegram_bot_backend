@@ -924,18 +924,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
       if (isVideo) {
         showToast('Processing video upload...', 'info');
-        finalUrl = await new Promise<string>((resolve, reject) => {
+        const rawDataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = () => resolve(reader.result as string);
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
+        finalUrl = await uploadImageToBot(rawDataUrl, `${String(targetField)}_${Date.now()}`);
       } else {
         const compressedDataUrl = await compressImageFile(file, 600, 400, 0.75);
         finalUrl = await uploadImageToBot(compressedDataUrl, `${String(targetField)}_${Date.now()}`);
       }
 
-      const updated = { ...settings, [targetField]: finalUrl };
+      const updated = { ...settingsRef.current, [targetField]: finalUrl };
       setSettings(updated);
       await saveAdminSettings(updated);
 
@@ -2823,13 +2824,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               value={(settings as any)[item.key] || ''}
                               onChange={e => {
                                 const val = e.target.value;
-                                setSettings(prev => {
-                                  const updated = { ...prev, [item.key]: val };
-                                  saveAdminSettings(updated).catch(() => {});
-                                  return updated;
-                                });
+                                setSettings(prev => ({ ...prev, [item.key]: val }));
                               }}
-                              onBlur={() => {
+                              onBlur={e => {
+                                const val = e.target.value;
+                                const updated = { ...settingsRef.current, [item.key]: val };
+                                saveAdminSettings(updated).catch(() => {});
                                 showToast(`⚡ ${item.label} saved & synced live!`, 'success');
                               }}
                               className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono transition-all focus:border-[#FF8A00]"
