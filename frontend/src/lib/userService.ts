@@ -108,41 +108,116 @@ export interface FirestoreUser {
 const USERS_COLLECTION = 'users';
 
 /**
- * Detects user country using free IP Geolocation API with fallback to Telegram language code.
+ * Normalizes raw country strings / ISO 2-letter codes to standard formal Country Names.
+ */
+export function normalizeCountryName(countryRaw?: string): string {
+  if (!countryRaw || countryRaw === 'Unknown' || countryRaw === 'Other') return 'Other / Unknown';
+  const c = countryRaw.trim();
+  const lower = c.toLowerCase();
+
+  if (lower === 'bd' || lower === 'bangladesh') return 'Bangladesh';
+  if (lower === 'in' || lower === 'india') return 'India';
+  if (lower === 'pk' || lower === 'pakistan') return 'Pakistan';
+  if (lower === 'us' || lower === 'usa' || lower.includes('united states')) return 'United States';
+  if (lower === 'gb' || lower === 'uk' || lower.includes('united kingdom')) return 'United Kingdom';
+  if (lower === 'id' || lower === 'indonesia') return 'Indonesia';
+  if (lower === 'ng' || lower === 'nigeria') return 'Nigeria';
+  if (lower === 'ph' || lower === 'philippines') return 'Philippines';
+  if (lower === 'ru' || lower === 'russia' || lower.includes('russian')) return 'Russia';
+  if (lower === 'br' || lower === 'brazil') return 'Brazil';
+  if (lower === 'vn' || lower === 'vietnam' || lower.includes('viet nam')) return 'Vietnam';
+  if (lower === 'uz' || lower === 'uzbekistan') return 'Uzbekistan';
+  if (lower === 'tr' || lower === 'turkey' || lower.includes('türkiye')) return 'Turkey';
+  if (lower === 'eg' || lower === 'egypt') return 'Egypt';
+  if (lower === 'de' || lower === 'germany') return 'Germany';
+  if (lower === 'fr' || lower === 'france') return 'France';
+  if (lower === 'es' || lower === 'spain') return 'Spain';
+  if (lower === 'it' || lower === 'italy') return 'Italy';
+  if (lower === 'ca' || lower === 'canada') return 'Canada';
+  if (lower === 'au' || lower === 'australia') return 'Australia';
+  if (lower === 'jp' || lower === 'japan') return 'Japan';
+  if (lower === 'kr' || lower.includes('korea')) return 'South Korea';
+  if (lower === 'ae' || lower === 'uae' || lower.includes('emirates')) return 'United Arab Emirates';
+  if (lower === 'sa' || lower.includes('saudi')) return 'Saudi Arabia';
+  if (lower === 'my' || lower === 'malaysia') return 'Malaysia';
+  if (lower === 'sg' || lower === 'singapore') return 'Singapore';
+  if (lower === 'th' || lower === 'thailand') return 'Thailand';
+  if (lower === 'np' || lower === 'nepal') return 'Nepal';
+  if (lower === 'lk' || lower === 'sri lanka') return 'Sri Lanka';
+
+  return c.charAt(0).toUpperCase() + c.slice(1);
+}
+
+/**
+ * Detects user country using timezone, fast IP Geolocation APIs, and language code.
  * Non-blocking and 100% safe on all browsers and devices.
  */
 export async function detectUserCountry(languageCode?: string): Promise<string> {
-  const lang = (languageCode || (typeof navigator !== 'undefined' ? navigator.language : '') || '').toLowerCase();
-  
-  let fallbackCountry = 'Unknown';
-  if (lang.startsWith('bn')) fallbackCountry = 'Bangladesh';
-  else if (lang.startsWith('hi') || lang.startsWith('te') || lang.startsWith('ta') || lang.startsWith('kn') || lang.startsWith('mr')) fallbackCountry = 'India';
-  else if (lang.startsWith('id')) fallbackCountry = 'Indonesia';
-  else if (lang.startsWith('ur') || lang.startsWith('pk')) fallbackCountry = 'Pakistan';
-  else if (lang.startsWith('ru')) fallbackCountry = 'Russia';
-  else if (lang.startsWith('uz')) fallbackCountry = 'Uzbekistan';
-  else if (lang.startsWith('pt')) fallbackCountry = 'Brazil';
-  else if (lang.startsWith('tl') || lang.startsWith('fil')) fallbackCountry = 'Philippines';
-  else if (lang.startsWith('vi')) fallbackCountry = 'Vietnam';
-  else if (lang.startsWith('ar')) fallbackCountry = 'Egypt';
-  else if (lang.startsWith('es')) fallbackCountry = 'Spain';
-  else if (lang.startsWith('de')) fallbackCountry = 'Germany';
-  else if (lang.startsWith('fr')) fallbackCountry = 'France';
-  else if (lang.startsWith('tr')) fallbackCountry = 'Turkey';
-
+  // 1. Timezone detection (Instant, 0ms, 100% offline accuracy)
   try {
-    const res = await fetch('https://ipwho.is/');
-    if (res.ok) {
-      const data = await res.json();
-      if (data && data.success && data.country) {
-        return data.country;
-      }
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (tz) {
+      if (tz.includes('Dhaka')) return 'Bangladesh';
+      if (tz.includes('Kolkata') || tz.includes('Calcutta')) return 'India';
+      if (tz.includes('Karachi')) return 'Pakistan';
+      if (tz.includes('Jakarta') || tz.includes('Jayapura') || tz.includes('Makassar')) return 'Indonesia';
+      if (tz.includes('Lagos')) return 'Nigeria';
+      if (tz.includes('Manila')) return 'Philippines';
+      if (tz.includes('Moscow') || tz.includes('Yekaterinburg') || tz.includes('Novosibirsk')) return 'Russia';
+      if (tz.includes('Sao_Paulo') || tz.includes('Rio')) return 'Brazil';
+      if (tz.includes('Tashkent')) return 'Uzbekistan';
+      if (tz.includes('Istanbul')) return 'Turkey';
+      if (tz.includes('Cairo')) return 'Egypt';
+      if (tz.includes('Ho_Chi_Minh')) return 'Vietnam';
+      if (tz.includes('Bangkok')) return 'Thailand';
+      if (tz.includes('Kuala_Lumpur')) return 'Malaysia';
+      if (tz.includes('Riyadh')) return 'Saudi Arabia';
+      if (tz.includes('Dubai')) return 'United Arab Emirates';
+      if (tz.includes('London')) return 'United Kingdom';
+      if (tz.includes('New_York') || tz.includes('Chicago') || tz.includes('Los_Angeles') || tz.includes('Denver')) return 'United States';
+      if (tz.includes('Berlin')) return 'Germany';
+      if (tz.includes('Paris')) return 'France';
+      if (tz.includes('Madrid')) return 'Spain';
+      if (tz.includes('Rome')) return 'Italy';
+      if (tz.includes('Tokyo')) return 'Japan';
+      if (tz.includes('Seoul')) return 'South Korea';
     }
-  } catch {
-    /* fallback to language */
+  } catch {}
+
+  // 2. Fast multi-API IP Geolocation
+  const apis = ['https://ipapi.co/json/', 'https://api.country.is/', 'https://ipwho.is/'];
+  for (const api of apis) {
+    try {
+      const res = await fetch(api, { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        const data = await res.json();
+        const raw = data.country_name || data.country || data.country_code;
+        if (raw) {
+          const norm = normalizeCountryName(raw);
+          if (norm && norm !== 'Other / Unknown') return norm;
+        }
+      }
+    } catch {}
   }
 
-  return fallbackCountry;
+  // 3. Fallback to Telegram / Browser language code
+  const lang = (languageCode || (typeof navigator !== 'undefined' ? navigator.language : '') || '').toLowerCase();
+  if (lang.startsWith('bn')) return 'Bangladesh';
+  if (lang.startsWith('hi') || lang.startsWith('te') || lang.startsWith('ta') || lang.startsWith('kn') || lang.startsWith('mr')) return 'India';
+  if (lang.startsWith('id')) return 'Indonesia';
+  if (lang.startsWith('ur') || lang.startsWith('pk')) return 'Pakistan';
+  if (lang.startsWith('ru')) return 'Russia';
+  if (lang.startsWith('uz')) return 'Uzbekistan';
+  if (lang.startsWith('pt')) return 'Brazil';
+  if (lang.startsWith('tl') || lang.startsWith('fil')) return 'Philippines';
+  if (lang.startsWith('vi')) return 'Vietnam';
+  if (lang.startsWith('ar')) return 'Egypt';
+  if (lang.startsWith('es')) return 'Spain';
+  if (lang.startsWith('de')) return 'Germany';
+  if (lang.startsWith('fr')) return 'France';
+  if (lang.startsWith('tr')) return 'Turkey';
+
+  return 'Unknown';
 }
 
 /**
@@ -318,12 +393,19 @@ export const upsertUser = async (
       ...(deviceFingerprint ? { deviceFingerprint } : {}),
     };
 
-    if (!user.country || user.country === 'Unknown') {
+    const needsCountryFix = !user.country || user.country === 'Unknown' || user.country === 'Other' || user.country.length <= 3 || user.country === 'Other / Unknown';
+    if (needsCountryFix) {
       detectUserCountry(telegramUser.languageCode).then(c => {
-        if (c && c !== 'Unknown') {
-          updateDoc(userRef, { country: c }).catch(() => {});
+        const norm = normalizeCountryName(c);
+        if (norm && norm !== 'Other / Unknown' && norm !== user.country) {
+          updateDoc(userRef, { country: norm }).catch(() => {});
         }
       }).catch(() => {});
+    } else {
+      const norm = normalizeCountryName(user.country);
+      if (norm !== user.country) {
+        updateDoc(userRef, { country: norm }).catch(() => {});
+      }
     }
 
     if (isMultiAccount && user.banStatus === 'none') {

@@ -20,7 +20,7 @@ import {
   updateWithdrawRequest, subscribeToWithdrawRequests,
   flagUser, adminSetBan, logAdminAction,
   adminPinUser, adminRemoveUser, adminAddUser, adminResetLeaderboard,
-  type FirestoreUser, subscribeToAllUsers, adminHideUser,
+  type FirestoreUser, subscribeToAllUsers, adminHideUser, normalizeCountryName,
 } from '../lib/userService';
 import {
   subscribeToTasks, createTask, updateTask, deleteTask, type EForceTask, type TaskType,
@@ -205,7 +205,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     const map: Record<string, { name: string; count: number; online: number; premium: number; points: number }> = {};
 
     (usersList || []).forEach((u: any) => {
-      const c = u.country && u.country !== 'Unknown' ? u.country : 'Other / Unknown';
+      const normCountry = normalizeCountryName(u.country);
+      const c = normCountry && normCountry !== 'Unknown' ? normCountry : 'Other / Unknown';
       if (!map[c]) {
         map[c] = { name: c, count: 0, online: 0, premium: 0, points: 0 };
       }
