@@ -2441,6 +2441,97 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
+                {/* Force Join Verification & Community Gate Configuration */}
+                <SectionCard accentColor="#4ADE8088">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🛡️</span>
+                        <span className="text-sm font-black text-white">Force Join & Community Verification Gate</span>
+                      </div>
+                      <p className="text-[9px] text-slate-500 mt-0.5">Require users to join Telegram Channel & Group before accessing Mini App features</p>
+                    </div>
+                  </div>
+
+                  <div className="p-4 flex flex-col gap-3">
+                    <div className="flex items-center justify-between py-2 border-b border-white/5">
+                      <div>
+                        <label className="text-xs text-white font-bold block">Enable Force Join Gate</label>
+                        <span className="text-[9px] text-slate-400">Lock app access until user verifies Channel & Group membership</span>
+                      </div>
+                      <Toggle
+                        on={settings.forceJoinEnabled ?? true}
+                        onToggle={() => setSettings(p => ({ ...p, forceJoinEnabled: !(p.forceJoinEnabled ?? true) }))}
+                        accentColor="#4ADE80"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Telegram Channel Link</label>
+                        <input
+                          type="text"
+                          placeholder="https://t.me/EliteForceChannel"
+                          value={settings.telegramChannelUrl || ''}
+                          onChange={e => setSettings(p => ({ ...p, telegramChannelUrl: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Telegram Channel Username/ID</label>
+                        <input
+                          type="text"
+                          placeholder="@EliteForceChannel"
+                          value={settings.telegramChannelId || ''}
+                          onChange={e => setSettings(p => ({ ...p, telegramChannelId: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Telegram Group Link</label>
+                        <input
+                          type="text"
+                          placeholder="https://t.me/EliteForceGroup"
+                          value={settings.telegramGroupUrl || ''}
+                          onChange={e => setSettings(p => ({ ...p, telegramGroupUrl: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Telegram Group Username/ID</label>
+                        <input
+                          type="text"
+                          placeholder="@EliteForceGroup"
+                          value={settings.telegramGroupId || ''}
+                          onChange={e => setSettings(p => ({ ...p, telegramGroupId: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between py-2 border-t border-white/5">
+                      <div>
+                        <label className="text-xs text-slate-300 font-bold block">Interrupted Ad Cooldown (Seconds)</label>
+                        <span className="text-[9px] text-slate-500">Duration button remains disabled after skipped/canceled ad</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={settings.verificationCooldownSeconds ?? 30}
+                        onChange={e => setSettings(p => ({ ...p, verificationCooldownSeconds: Number(e.target.value) }))}
+                        className="w-24 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                </SectionCard>
+
                 {/* Dedicated Home Dashboard Multi-Banner Slider Manager */}
                 <SectionCard accentColor="#00E5FFaa">
                   <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>

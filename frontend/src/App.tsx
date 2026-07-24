@@ -18,6 +18,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 import { loadRecaptcha } from './utils/loadRecaptcha';
 import { initMonetag, showRewardedAd } from './lib/monetag';
+import { ForceJoinModal } from './components/ForceJoinModal';
 
 interface Toast {
   id: number;
@@ -48,6 +49,8 @@ export default function App() {
   const [usdtBalance, setUsdtBalance] = useState<number>(() => getPersisted('usdtBalance', 0.00));
   const [referralsCount, setReferralsCount] = useState<number>(() => getPersisted('referralsCount', 0));
   const [hasUnlockedWithdrawal, setHasUnlockedWithdrawal] = useState<boolean>(() => getPersisted('hasUnlockedWithdrawal', false));
+  const [isForceJoinVerified, setIsForceJoinVerified] = useState<boolean>(() => getPersisted('isForceJoinVerified', false));
+  const [isAccessRestricted, setIsAccessRestricted] = useState<boolean>(false);
   const [energy, setEnergy] = useState<number>(() => getPersisted('energy', 1000));
   const [energyCooldownUntil, setEnergyCooldownUntil] = useState<number>(() => {
     return Number(localStorage.getItem('energyCooldownUntil') || '0');
@@ -408,6 +411,60 @@ export default function App() {
       loadRecaptcha();
     }
   }, [adminSettings.humanVerificationOpen]);
+
+  // Continuous Force Join & Membership verification check (App Launch, Focus & Resume)
+  useEffect(() => {
+    if (!telegramUser || !(adminSettings.forceJoinEnabled ?? true)) return;
+
+    const targetApi = adminSettings.botApiUrl ? adminSettings.botApiUrl.replace(/\/$/, '') : 'https://elite-force-telegram-app.onrender.com';
+    const channelId = adminSettings.telegramChannelId || '@EliteForceChannel';
+    const groupId = adminSettings.telegramGroupId || '@EliteForceGroup';
+
+    const checkMembershipOnServer = async () => {
+      try {
+        const res = await fetch(`${targetApi}/check-membership`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegramId: telegramUser.id,
+            chatIds: [channelId, groupId],
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isMember) {
+            setIsForceJoinVerified(true);
+            setIsAccessRestricted(false);
+            localStorage.setItem('isForceJoinVerified', 'true');
+          } else {
+            setIsForceJoinVerified(false);
+            setIsAccessRestricted(true);
+            localStorage.setItem('isForceJoinVerified', 'false');
+            updateUserDatabaseValues(telegramUser.id, { isVerified: false }).catch(() => {});
+          }
+        }
+      } catch {
+        // network failure fallback
+      }
+    };
+
+    checkMembershipOnServer();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkMembershipOnServer();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', checkMembershipOnServer);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', checkMembershipOnServer);
+    };
+  }, [telegramUser, adminSettings.forceJoinEnabled, adminSettings.telegramChannelId, adminSettings.telegramGroupId, adminSettings.botApiUrl]);
 
   // Sync Firestore online user count every 30 seconds
   useEffect(() => {
@@ -877,6 +934,31 @@ export default function App() {
             </p>
           </div>
         </div>
+      );
+    }
+
+    // Force Join + CAPTCHA + Rewarded Ad Verification Gate
+    if ((adminSettings.forceJoinEnabled ?? true) && !isForceJoinVerified && telegramUser) {
+      return (
+        <ForceJoinModal
+          telegramId={telegramUser.id}
+          channelUrl={adminSettings.telegramChannelUrl || 'https://t.me/EliteForceChannel'}
+          channelId={adminSettings.telegramChannelId || '@EliteForceChannel'}
+          groupUrl={adminSettings.telegramGroupUrl || 'https://t.me/EliteForceGroup'}
+          groupId={adminSettings.telegramGroupId || '@EliteForceGroup'}
+          botApiUrl={adminSettings.botApiUrl}
+          monetagZoneId={adminSettings.monetagZoneId}
+          monetagDirectLink={adminSettings.monetagDirectLink}
+          cooldownSeconds={adminSettings.verificationCooldownSeconds || 30}
+          showToast={showToast}
+          isAccessRestricted={isAccessRestricted}
+          onVerificationSuccess={() => {
+            setIsForceJoinVerified(true);
+            setIsAccessRestricted(false);
+            localStorage.setItem('isForceJoinVerified', 'true');
+            updateUserDatabaseValues(telegramUser.id, { isVerified: true, verifiedAt: new Date().toISOString() }).catch(() => {});
+          }}
+        />
       );
     }
 

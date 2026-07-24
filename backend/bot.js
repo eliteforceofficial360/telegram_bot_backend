@@ -395,30 +395,36 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { error: 'Invalid JSON' });
       }
 
-      const { telegramId, chatId } = checkData;
-      if (!isValidTelegramId(telegramId) || !chatId) {
-        return sendJson(res, 400, { error: 'valid telegramId and chatId required' });
+      const { telegramId, chatId, chatIds } = checkData;
+      if (!isValidTelegramId(telegramId) || (!chatId && (!Array.isArray(chatIds) || chatIds.length === 0))) {
+        return sendJson(res, 400, { error: 'valid telegramId and chatId/chatIds required' });
       }
 
-      try {
-        let targetChat = String(chatId).trim();
+      const chats = Array.isArray(chatIds) && chatIds.length > 0 ? chatIds : [chatId];
+      const validStatuses = ['creator', 'administrator', 'member', 'restricted'];
+      const results = {};
+      let allJoined = true;
+
+      for (const rawChat of chats) {
+        if (!rawChat) continue;
+        let targetChat = String(rawChat).trim();
         if (!targetChat.startsWith('@') && !targetChat.startsWith('-100') && isNaN(Number(targetChat))) {
           targetChat = `@${targetChat}`;
         }
 
-        const member = await bot.telegram.getChatMember(targetChat, Number(telegramId));
-        const validStatuses = ['creator', 'administrator', 'member', 'restricted'];
-        const isMember = validStatuses.includes(member.status) && (member.status !== 'restricted' || member.is_member !== false);
-
-        return sendJson(res, 200, { isMember, status: member.status });
-      } catch (err) {
-        console.warn(`[Bot] Membership check failed for ${telegramId} in ${chatId}:`, err.message);
-        // NOTE: previously defaulted to isMember: true on failure, which let anyone bypass
-        // the join-check simply by making the lookup fail (e.g. bot not admin, wrong chat id,
-        // transient API error). Since this endpoint exists specifically to gate task rewards,
-        // failing open defeats its purpose — default to false and surface the failure instead.
-        return sendJson(res, 200, { isMember: false, warning: 'Chat check unavailable', details: err.message });
+        try {
+          const member = await bot.telegram.getChatMember(targetChat, Number(telegramId));
+          const isMember = validStatuses.includes(member.status) && (member.status !== 'restricted' || member.is_member !== false);
+          results[targetChat] = isMember;
+          if (!isMember) allJoined = false;
+        } catch (err) {
+          console.warn(`[Bot] Membership check failed for ${telegramId} in ${targetChat}:`, err.message);
+          results[targetChat] = false;
+          allJoined = false;
+        }
       }
+
+      return sendJson(res, 200, { isMember: allJoined, results });
     }
 
     // ── Everything below requires Authorization: Bearer <API_SECRET> ────────

@@ -101,6 +101,7 @@ export interface FirestoreUser {
   leaderboardPinned?: boolean;
   leaderboardHidden?: boolean;
   isVerified?: boolean;
+  verifiedAt?: string;
   socialConnections?: SocialConnections;
 }
 
@@ -726,6 +727,7 @@ export const updateUserDatabaseValues = async (
     leaderboardPinned?: boolean;
     leaderboardHidden?: boolean;
     isVerified?: boolean;
+    verifiedAt?: string;
     photoUrl?: string;
   }
 ): Promise<boolean> => {

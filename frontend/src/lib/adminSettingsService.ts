@@ -54,6 +54,14 @@ export interface AdminSettings {
   botStartMessage: string;       // Custom welcome text sent when user runs /start in Telegram
   botStartButtonText: string;    // Custom text for launch app inline button (e.g. 🔥 Launch Elite Force App 🔥)
 
+  // Force Join & Community Verification Gate
+  forceJoinEnabled: boolean;
+  telegramChannelUrl: string;
+  telegramChannelId: string;
+  telegramGroupUrl: string;
+  telegramGroupId: string;
+  verificationCooldownSeconds: number;
+
   // Token Sale
   tokenSaleActive: boolean;
   tokenSalePrice: number;
@@ -150,6 +158,12 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   miniAppUrl: 'https://mini-telegram-app-c0fb4.web.app',
   botStartMessage: `🔥 <b>ELITE FORCE — EForce Token</b> 🔥\n\n👋 Welcome, <b>{name}</b>!\n\nYou've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Force rewards you for every action.\n\n━━━━━━━━━━━━━━━━━━━━\n⛏️  <b>Mine</b> EForce tokens passively\n✅  <b>Complete missions</b> & earn rewards\n🏆  <b>Climb</b> the global leaderboard\n👥  <b>Refer friends</b> and earn commissions\n💸  <b>Withdraw</b> USDT to your BEP-20 wallet\n━━━━━━━━━━━━━━━━━━━━\n\n🚀 Tap the button below to launch your dashboard!`,
   botStartButtonText: '🔥 Launch Elite Force App 🔥',
+  forceJoinEnabled: true,
+  telegramChannelUrl: 'https://t.me/EliteForceChannel',
+  telegramChannelId: '@EliteForceChannel',
+  telegramGroupUrl: 'https://t.me/EliteForceGroup',
+  telegramGroupId: '@EliteForceGroup',
+  verificationCooldownSeconds: 30,
   customTopMiners: [],
   loadingLogoUrl: '/loading-logo.png',
   coinIconUrl: '/coin.png',
