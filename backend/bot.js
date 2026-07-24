@@ -576,5 +576,18 @@ server.listen(API_PORT, () => {
   console.log(`🌐 Notification API listening on port ${API_PORT}`);
 });
 
+process.on('unhandledRejection', (reason) => {
+  const msg = reason?.message || String(reason);
+  if (msg.includes('Could not load the default credentials') || msg.includes('NO_ADC_FOUND')) {
+    console.warn('⚠️ [Firebase Admin] Unauthenticated mode: GCP ADC credentials not provided. Using default in-memory configuration.');
+  } else {
+    console.warn('⚠️ [Unhandled Rejection]', msg);
+  }
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('💥 [Uncaught Exception]', err.message || err);
+});
+
 process.once('SIGINT', () => { bot.stop('SIGINT'); server.close(); });
 process.once('SIGTERM', () => { bot.stop('SIGTERM'); server.close(); });

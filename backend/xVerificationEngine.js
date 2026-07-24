@@ -2,14 +2,51 @@
 // Official X (Twitter) OAuth 2.0, API v2 Task Verification, Anti-Fraud Engine & Periodical Scheduler
 
 import crypto from 'crypto';
-import { initializeApp, getApps } from 'firebase-admin/app';
+import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin
+function getFirebaseAdminCredential() {
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
+      const parsed = raw.startsWith('{') ? JSON.parse(raw) : JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
+      return cert(parsed);
+    } catch (e) {
+      console.warn('[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT:', e.message);
+    }
+  }
+
+  if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
+    try {
+      return cert({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4',
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+      });
+    } catch (e) {
+      console.warn('[Firebase Admin] Failed to parse clientEmail/privateKey:', e.message);
+    }
+  }
+
+  return null;
+}
+
+// Initialize Firebase Admin safely
 if (!getApps().length) {
-  initializeApp({
-    projectId: process.env.FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4',
-  });
+  try {
+    const credential = getFirebaseAdminCredential();
+    if (credential) {
+      initializeApp({ credential });
+      console.log('✅ [Firebase Admin] Initialized with Service Account Credentials!');
+    } else {
+      initializeApp({
+        projectId: process.env.FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4',
+      });
+      console.log('⚠️ [Firebase Admin] Initialized with Project ID (No Service Account credentials set).');
+    }
+  } catch (err) {
+    console.warn('[Firebase Admin] Initialization warning:', err.message);
+  }
 }
 
 const db = getFirestore();
