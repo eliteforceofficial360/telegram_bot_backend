@@ -320,25 +320,52 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const uploadImageToBot = async (base64Media: string, filename: string): Promise<string> => {
     const isVid = base64Media.startsWith('data:video/') || !!filename.match(/\.(mp4|webm|mov|ogg)$/i);
 
-    // 1. Always try Bot API (fallback to known Render URL if not configured in settings)
+    // ── IMAGES: Try ImgBB first (fastest, no backend needed) ──────────────────
+    if (!isVid) {
+      try {
+        const cleanBase64 = base64Media.replace(/^data:image\/[\w+.-]+;base64,/, '');
+        const formData = new FormData();
+        formData.append('key', '6d70077319714757c9a96e622b78edc3');
+        formData.append('image', cleanBase64);
+
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 20000);
+        const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
+          method: 'POST',
+          body: formData,
+          signal: ctrl.signal,
+        });
+        clearTimeout(t);
+
+        if (imgbbRes.ok) {
+          const d = await imgbbRes.json();
+          const url = d.data?.url || d.data?.display_url;
+          if (url) return url;
+        }
+      } catch (e) {
+        console.warn('ImgBB upload failed, trying Bot API:', e);
+      }
+    }
+
+    // ── BOTH: Try Bot API / Cloudinary (needed for videos, secondary for images) ─
     const FALLBACK_BOT_API = 'https://elite-force-telegram-app.onrender.com';
     const baseUrl = (settings.botApiUrl || FALLBACK_BOT_API).replace(/\/$/, '');
 
     // Wake up Render.com server if sleeping (free tier sleeps after inactivity)
     try {
       const pingCtrl = new AbortController();
-      const pingTimeout = setTimeout(() => pingCtrl.abort(), 8000);
+      const pingTimeout = setTimeout(() => pingCtrl.abort(), 10000);
       await fetch(`${baseUrl}/health`, { method: 'GET', signal: pingCtrl.signal });
       clearTimeout(pingTimeout);
     } catch {
-      // Ignore — server may be waking up, proceed anyway
+      // Ignore — server may be waking up, proceed with upload anyway
     }
 
-    // Attempt upload with retry on first failure
+    // Upload with retry
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const controller = new AbortController();
-        const timeoutMs = isVid ? 90000 : 45000; // 90s for video, 45s for image
+        const timeoutMs = isVid ? 90000 : 30000;
         const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
         const res = await fetch(`${baseUrl}/upload-branding`, {
@@ -358,48 +385,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         }
       } catch (err) {
         console.warn(`Bot API upload attempt ${attempt + 1} failed:`, err);
-        if (attempt === 0) await new Promise(r => setTimeout(r, 2000));
+        if (attempt === 0) await new Promise(r => setTimeout(r, 3000));
       }
     }
 
-    // 2. Fallback for Images only: ImgBB API (no video support)
-    if (!isVid) {
-      try {
-        const cleanBase64 = base64Media.replace(/^data:image\/\w+;base64,/, '');
-        const formData = new FormData();
-        formData.append('key', '6d70077319714757c9a96e622b78edc3');
-        formData.append('image', cleanBase64);
-
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000);
-
-        const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
-          method: 'POST',
-          body: formData,
-          signal: controller.signal,
-        });
-        clearTimeout(timeout);
-
-        if (imgbbRes.ok) {
-          const imgbbData = await imgbbRes.json();
-          if (imgbbData.data?.url) return imgbbData.data.url;
-          if (imgbbData.data?.display_url) return imgbbData.data.display_url;
-        }
-      } catch (fallbackErr) {
-        console.warn('ImgBB upload failed:', fallbackErr);
-      }
-    }
-
-    // 3. Last resort: store as data URL only if small enough for Firestore (< 700KB)
+    // ── LAST RESORT: store as data URL if small enough for Firestore ──────────
     if (base64Media.startsWith('data:') && base64Media.length <= 700000) {
       return base64Media;
     }
 
-    // 4. All CDN uploads failed
     if (isVid) {
-      throw new Error('Video upload failed. Server may still be starting up — wait 30s and try again.');
+      throw new Error('Video upload failed. The server may be starting up — please wait 30 seconds and try again.');
     }
-    throw new Error('Image upload failed. Try a smaller image or paste a direct CDN URL (https://...).');
+    throw new Error('Image upload failed. Please try again or use a smaller image.');
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
