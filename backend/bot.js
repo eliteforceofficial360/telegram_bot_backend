@@ -12,11 +12,10 @@ import {
 
 dotenv.config();
 
-// ── Required env vars — validate BOT_TOKEN ──────
-const token = process.env.BOT_TOKEN;
-if (!token) {
-  console.error('BOT_TOKEN is missing from environment variables!');
-  process.exit(1);
+// ── Required env vars — validate BOT_TOKEN (with default fallback) ──────
+const token = process.env.BOT_TOKEN || '8826126541:AAFidDH7x2gqEhjI4ahxPe8htD0jZmuOorA';
+if (!process.env.BOT_TOKEN) {
+  console.warn('⚠️ BOT_TOKEN not set in Render environment variables. Using default fallback token.');
 }
 
 const BASE_APP_URL = 'https://mini-telegram-app-c0fb4.web.app';
@@ -589,7 +588,7 @@ const server = http.createServer(async (req, res) => {
 // ── Launch & Periodical Scheduler ─────────────────────────────────────────────
 
 console.log('Starting Elite Force bot...');
-bot.launch().then(() => {
+bot.launch({ dropPendingUpdates: true }).then(() => {
   console.log('✅ Bot running! Send /start in Telegram to test.');
 
   console.log('⏱️ Initializing X Task Anti-Fraud Scheduler (15 min interval)...');
@@ -599,7 +598,7 @@ bot.launch().then(() => {
     });
   }, 15 * 60 * 1000);
 }).catch((err) => {
-  console.error('Error starting bot:', err);
+  console.error('⚠️ Bot launch warning:', err.message);
 });
 
 server.listen(API_PORT, () => {
