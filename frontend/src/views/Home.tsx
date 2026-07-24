@@ -92,13 +92,20 @@ export const Home: React.FC<HomeProps> = ({
   useEffect(() => { telegramUserRef.current = telegramUser; }, [telegramUser]);
 
   // --- Multi-Banner Hero Carousel (Right-to-Left Auto Slider) ---
-  const activeBanners = (settings.heroBanners && settings.heroBanners.length > 0)
-    ? settings.heroBanners
+  const validHeroBanners = (settings.heroBanners || []).filter(b => b && b.imageUrl);
+  const activeBanners = validHeroBanners.length > 0
+    ? validHeroBanners
     : settings.welcomeBannerUrl
     ? [{ id: 'default', imageUrl: settings.welcomeBannerUrl, title: '' }]
     : [];
 
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
+
+  useEffect(() => {
+    if (currentBannerIndex >= activeBanners.length) {
+      setCurrentBannerIndex(0);
+    }
+  }, [activeBanners.length, currentBannerIndex]);
 
   useEffect(() => {
     if (activeBanners.length <= 1) return;

@@ -237,7 +237,7 @@ export const getAdminSettings = async (): Promise<AdminSettings> => {
 export const saveAdminSettings = async (settings: Partial<AdminSettings>): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
   try {
-    const cleanData = { ...settings };
+    const cleanData = JSON.parse(JSON.stringify(settings));
     await setDoc(doc(db, 'adminSettings', 'config'), cleanData, { merge: true });
     return true;
   } catch (err) {
