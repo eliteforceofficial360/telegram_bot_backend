@@ -32,6 +32,7 @@ export const Connections = ({
   showToast,
 }: ConnectionsProps) => {
   const [activeModal, setActiveModal] = useState<PlatformType | null>(null);
+  const [disconnectTarget, setDisconnectTarget] = useState<PlatformType | null>(null);
   const [handleInput, setHandleInput] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -192,20 +193,22 @@ export const Connections = ({
     }
   };
 
-  const handleDisconnect = async (platId: PlatformType) => {
-    if (!telegramUser) return;
+  const confirmDisconnect = async () => {
+    if (!telegramUser || !disconnectTarget) return;
     setSaving(true);
-    const success = await removeSocialConnection(telegramUser.id, platId);
+    const success = await removeSocialConnection(telegramUser.id, disconnectTarget);
     setSaving(false);
+    setDisconnectTarget(null);
 
     if (success) {
-      showToast(`Disconnected ${platId.toUpperCase()} account.`, 'info');
+      showToast(`Disconnected ${disconnectTarget.toUpperCase()} account.`, 'info');
     } else {
       showToast('Failed to disconnect account.', 'error');
     }
   };
 
   const currentModalPlat = platforms.find((p) => p.id === activeModal);
+  const disconnectModalPlatObj = platforms.find((p) => p.id === disconnectTarget);
 
   return (
     <div className="w-full">
@@ -258,7 +261,7 @@ export const Connections = ({
                         <Check size={11} strokeWidth={3} />
                       </span>
                       <button
-                        onClick={() => handleDisconnect(plat.id)}
+                        onClick={() => setDisconnectTarget(plat.id)}
                         disabled={saving}
                         className="text-xs font-semibold text-slate-300 hover:text-white underline underline-offset-4 cursor-pointer transition-all disabled:opacity-50"
                       >
@@ -280,7 +283,48 @@ export const Connections = ({
         </div>
       </div>
 
-      {/* ── MODALS ── */}
+      {/* ── DISCONNECT CONFIRMATION POPUP ── */}
+      <AnimatePresence>
+        {disconnectTarget && disconnectModalPlatObj && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 15 }}
+              className="bg-[#1C1C1E] border border-white/10 rounded-[26px] p-6 max-w-sm w-full shadow-2xl flex flex-col gap-4 text-center"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center mx-auto mb-1 shadow-md">
+                <CloseIcon size={22} />
+              </div>
+
+              <h3 className="text-base font-extrabold text-white">
+                Disconnect Account?
+              </h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Disconnecting your <strong className="text-white">{disconnectModalPlatObj.name}</strong> account may lock related campaign tasks and rewards.
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                <button
+                  onClick={() => setDisconnectTarget(null)}
+                  className="h-11 rounded-xl bg-white/10 hover:bg-white/15 text-white font-extrabold text-xs transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDisconnect}
+                  disabled={saving}
+                  className="h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs shadow-lg transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {saving ? 'Disconnecting...' : 'Disconnect'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── LINK MODALS ── */}
       <AnimatePresence>
         {activeModal && currentModalPlat && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">

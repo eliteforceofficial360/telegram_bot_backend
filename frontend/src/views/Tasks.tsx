@@ -18,7 +18,7 @@ import {
   subscribeToUserTasks,
   claimTaskReward,
   checkTelegramMembership,
-  verifyXTaskWithBackend,
+  verifyTaskWithServer,
   type EForceTask,
 } from '../lib/taskService';
 import type { TelegramUser } from '../lib/telegramUser';
@@ -51,7 +51,28 @@ export const Tasks = ({
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());
   const [taskStatus, setTaskStatus] = useState<Record<string, TaskStatus>>({});
   const [taskSteps, setTaskSteps] = useState<Record<string, number>>({});
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({});
+  const [quizErrors, setQuizErrors] = useState<Record<string, string>>({});
+  const [taskCooldowns, setTaskCooldowns] = useState<Record<string, number>>({});
   const [loadingTasks, setLoadingTasks] = useState(true);
+
+  // Cooldown countdown timer for interrupted task ads
+  useEffect(() => {
+    const hasCooldowns = Object.values(taskCooldowns).some((c) => c > 0);
+    if (!hasCooldowns) return;
+
+    const timer = setInterval(() => {
+      setTaskCooldowns((prev) => {
+        const next: Record<string, number> = {};
+        Object.entries(prev).forEach(([id, sec]) => {
+          if (sec > 0) next[id] = sec - 1;
+        });
+        return next;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [taskCooldowns]);
 
   // Accordion Expand/Collapse States
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
@@ -99,79 +120,126 @@ export const Tasks = ({
   const isLimitReached = (task: EForceTask) =>
     task.totalCompletionLimit > 0 && task.completedCount >= task.totalCompletionLimit;
 
-  // Task click handler
+  // Campaign Task Verification Handler
   const handleTaskClick = async (task: EForceTask) => {
     if (!telegramUser) {
       showToast('Please open in Telegram to complete tasks.', 'warning');
       return;
     }
+
+    // 1. Prevent Duplicate Rewards
+    if (isCompleted(task)) {
+      showToast('Task Already Completed', 'info');
+      return;
+    }
+
+    // 2. Check Cooldown
+    if (taskCooldowns[task.id] > 0) {
+      showToast(`Verification Interrupted: Please wait ${taskCooldowns[task.id]}s before trying again.`, 'warning');
+      return;
+    }
+
     const currentStatus = taskStatus[task.id] || 'idle';
-    if (currentStatus !== 'idle' || isCompleted(task)) return;
+    if (currentStatus !== 'idle') return;
 
-    if (adminSettings.adEnabled) {
+    // 3. Quiz / Answer Validation (if applicable)
+    const userAnswer = (quizAnswers[task.id] || '').trim();
+    if (task.answer && task.answer.trim()) {
+      if (!userAnswer) {
+        setQuizErrors((prev) => ({ ...prev, [task.id]: 'Please enter your answer before verifying.' }));
+        showToast('Please enter your answer before verifying.', 'warning');
+        return;
+      }
+
+      const expected = task.answer.trim();
+      const isMatch = task.answerCaseSensitive ? expected === userAnswer : expected.toLowerCase() === userAnswer.toLowerCase();
+      if (!isMatch) {
+        setQuizErrors((prev) => ({ ...prev, [task.id]: '❌ Incorrect Answer. Please check your answer and try again.' }));
+        showToast('❌ Incorrect Answer. Please check your answer and try again.', 'error');
+        return; // NO AD SHOWN!
+      } else {
+        setQuizErrors((prev) => ({ ...prev, [task.id]: '' }));
+      }
+    }
+
+    // 4. Social OAuth Connection Verification (if required)
+    const reqPlatform = task.requireSocialConnection || (task.type === 'x' ? 'x' : task.type === 'discord' ? 'discord' : task.type === 'tiktok' ? 'tiktok' : task.type === 'instagram' ? 'instagram' : 'none');
+    if (reqPlatform && reqPlatform !== 'none') {
+      const conn = dbUser?.socialConnections?.[reqPlatform as keyof typeof dbUser.socialConnections];
+      if (!conn || !conn.connected) {
+        showToast(`Verification Failed: Please connect your ${reqPlatform.toUpperCase()} account in Profile first!`, 'error');
+        return;
+      }
+    }
+
+    // Open link if present
+    if (task.url && task.type !== 'quiz') {
       try {
-        showToast('Loading sponsored video...', 'info');
-        await showRewardedAd(adminSettings.monetagZoneId, adminSettings.monetagDirectLink);
-      } catch (err: any) {
-        showToast(err.message || 'Ad dismissed. Complete the ad to verify!', 'error');
-        return;
-      }
-    }
-
-    if (task.url) {
-      window.open(task.url, '_blank');
-    }
-
-    setTaskStatus((prev) => ({ ...prev, [task.id]: 'verifying' }));
-    await new Promise((res) => setTimeout(res, 2000));
-
-    if (task.type === 'channel' || task.type === 'group') {
-      const checkRes = await checkTelegramMembership(
-        telegramUser.id,
-        task.url || adminSettings.botUsername || 'EliteForceChannel',
-        adminSettings.botApiUrl
-      );
-      if (!checkRes.isMember) {
-        setTaskStatus((prev) => ({ ...prev, [task.id]: 'idle' }));
-        showToast(checkRes.reason || 'You have not joined the Telegram channel/group yet!', 'error');
-        return;
-      }
-    }
-
-    if (task.type === 'x') {
-      const xResult = await verifyXTaskWithBackend(telegramUser.id, task, adminSettings.botApiUrl);
-      if (!xResult.success) {
-        setTaskStatus((prev) => ({ ...prev, [task.id]: 'idle' }));
-        if (xResult.status === 'Verification Unavailable') {
-          showToast(`⚠️ Verification Unavailable: ${xResult.reason}`, 'warning');
+        if ((window as any).Telegram?.WebApp?.openLink) {
+          (window as any).Telegram.WebApp.openLink(task.url);
         } else {
-          showToast(xResult.reason || 'X Task verification failed on X API.', 'error');
+          window.open(task.url, '_blank');
         }
+      } catch {
+        window.open(task.url, '_blank');
+      }
+    }
+
+    // 5. Rewarded Advertisement Flow
+    let adSuccess = true;
+    if (adminSettings.adEnabled && task.requireRewardedAd !== false) {
+      try {
+        showToast('Loading Rewarded Advertisement...', 'info');
+        adSuccess = await showRewardedAd(adminSettings.monetagZoneId, adminSettings.monetagDirectLink);
+      } catch {
+        adSuccess = false;
+      }
+
+      if (!adSuccess) {
+        // Interrupted Ad -> Cancel Verification & Start Cooldown
+        setTaskCooldowns((prev) => ({ ...prev, [task.id]: task.cooldownSeconds || 30 }));
+        showToast('Verification Cancelled: You must watch the complete advertisement to verify this task.', 'warning');
         return;
       }
     }
 
-    const result = await claimTaskReward(telegramUser.id, task);
+    // 6. Server Verification & Reward Granting
+    setTaskStatus((prev) => ({ ...prev, [task.id]: 'verifying' }));
 
-    if (result.success) {
+    const serverRes = await verifyTaskWithServer(
+      telegramUser.id,
+      task,
+      userAnswer,
+      adSuccess,
+      adminSettings.botApiUrl
+    );
+
+    if (serverRes.success) {
       setTaskStatus((prev) => ({ ...prev, [task.id]: 'completed' }));
+      setCompletedTaskIds((prev) => new Set(prev).add(task.id));
+
+      const pointsEarned = serverRes.reward || task.reward;
+      const tokensEarned = serverRes.tokenReward || task.tokenReward;
+
       setEfcBalance((bal) => {
-        const newVal = bal + task.reward;
+        const newVal = bal + pointsEarned;
         syncPointsToFirestore(telegramUser.id, newVal).catch(() => {});
         return newVal;
       });
-      if (task.tokenReward > 0 && setEforceTokens) {
+
+      if (tokensEarned > 0 && setEforceTokens) {
         setEforceTokens((tok) => {
-          const newTok = tok + task.tokenReward;
+          const newTok = tok + tokensEarned;
           syncTokensToFirestore(telegramUser.id, newTok).catch(() => {});
           return newTok;
         });
       }
-      showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points${task.tokenReward > 0 ? ` & +${task.tokenReward} EST Tokens` : ''} earned!`, 'success');
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
+
+      showToast(`✅ Task Completed! +${pointsEarned.toLocaleString()} EFC Points${tokensEarned > 0 ? ` & +${tokensEarned} EST` : ''}`, 'success');
+      confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#4ADE80'] });
     } else {
       setTaskStatus((prev) => ({ ...prev, [task.id]: 'idle' }));
-      showToast(result.reason || 'Verification failed. Try again.', 'error');
+      showToast(serverRes.error || serverRes.reason || 'Verification failed on server.', 'error');
     }
   };
 
@@ -651,6 +719,38 @@ export const Tasks = ({
                                             </div>
                                           </div>
 
+                                          {/* Quiz Answer Input Box (if Quiz / Text Solution Task) */}
+                                          {task.answer && !done && (
+                                            <div className="flex flex-col gap-1.5 my-1">
+                                              <label className="text-[10px] text-slate-300 font-bold flex items-center justify-between">
+                                                <span>ENTER YOUR ANSWER:</span>
+                                                <span className="text-[9px] text-slate-500 font-normal">Server Validated</span>
+                                              </label>
+                                              <input
+                                                type="text"
+                                                placeholder="Type solution here..."
+                                                value={quizAnswers[task.id] || ''}
+                                                onChange={(e) => {
+                                                  const val = e.target.value;
+                                                  setQuizAnswers((prev) => ({ ...prev, [task.id]: val }));
+                                                  if (quizErrors[task.id]) setQuizErrors((prev) => ({ ...prev, [task.id]: '' }));
+                                                }}
+                                                className="w-full h-9 rounded-xl bg-black/40 border border-white/10 px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00] font-mono"
+                                              />
+                                              {quizErrors[task.id] && (
+                                                <span className="text-[10px] text-rose-400 font-bold">{quizErrors[task.id]}</span>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {/* Cooldown Timer Alert (Interrupted Ad) */}
+                                          {taskCooldowns[task.id] > 0 && !done && (
+                                            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-[10px] text-amber-300 font-bold">
+                                              <span>Verification Interrupted</span>
+                                              <span className="font-mono text-amber-400 font-black">00:{taskCooldowns[task.id] < 10 ? '0' : ''}{taskCooldowns[task.id]}</span>
+                                            </div>
+                                          )}
+
                                           {/* Status & Action Bar */}
                                           <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/5">
                                             <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
@@ -674,6 +774,13 @@ export const Tasks = ({
                                                 >
                                                   <Lock size={11} /> Closed
                                                 </button>
+                                              ) : taskCooldowns[task.id] > 0 ? (
+                                                <button
+                                                  disabled
+                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-amber-400 border border-amber-500/30 cursor-not-allowed font-mono"
+                                                >
+                                                  <Lock size={11} /> Verify ({taskCooldowns[task.id]}s)
+                                                </button>
                                               ) : status === 'verifying' ? (
                                                 <button
                                                   disabled
@@ -686,7 +793,7 @@ export const Tasks = ({
                                                   onClick={() => handleTaskClick(task)}
                                                   className="shrink-0 h-8 px-5 rounded-xl text-[10px] font-extrabold transition-all flex items-center justify-center gap-1 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer hover:scale-105"
                                                 >
-                                                  Go
+                                                  Verify Task
                                                 </button>
                                               ))}
 

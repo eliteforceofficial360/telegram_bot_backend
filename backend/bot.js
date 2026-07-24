@@ -582,6 +582,105 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, result);
     }
 
+    // ── PUBLIC: POST /api/tasks/verify ───────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/tasks/verify') {
+      const { telegramId, taskId, taskType, userAnswer, adCompleted, requireSocialConnection } = data;
+      if (!isValidTelegramId(telegramId) || !taskId) {
+        return sendJson(res, 400, { success: false, error: 'valid telegramId and taskId required' });
+      }
+
+      const numId = Number(telegramId);
+      const db = getFirestore();
+
+      try {
+        // 1. Check Duplicate Task Completion
+        const userTaskRef = db.collection('userTasks').doc(`${numId}_${taskId}`);
+        const userTaskSnap = await userTaskRef.get();
+        if (userTaskSnap.exists) {
+          return sendJson(res, 200, { success: false, error: 'Task Already Completed', isCompleted: true });
+        }
+
+        // 2. Check Task Definition in Firestore
+        const taskRef = db.collection('tasks').doc(String(taskId));
+        const taskSnap = await taskRef.get();
+        if (!taskSnap.exists) {
+          return sendJson(res, 404, { success: false, error: 'Task not found' });
+        }
+
+        const taskData = taskSnap.data();
+
+        // 3. Verify Answer / Quiz Solution on Server
+        if (taskData.answer && String(taskData.answer).trim()) {
+          const expected = String(taskData.answer).trim();
+          const provided = String(userAnswer || '').trim();
+          const isMatch = taskData.answerCaseSensitive ? expected === provided : expected.toLowerCase() === provided.toLowerCase();
+          if (!isMatch) {
+            return sendJson(res, 200, { success: false, error: '❌ Incorrect Answer. Please check your answer and try again.' });
+          }
+        }
+
+        // 4. Verify Social OAuth Connection on Server
+        const requiredPlatform = requireSocialConnection || taskData.requireSocialConnection;
+        if (requiredPlatform && requiredPlatform !== 'none') {
+          const userRef = db.collection('users').doc(String(numId));
+          const userSnap = await userRef.get();
+          const userData = userSnap.exists ? userSnap.data() : {};
+          const conn = userData.socialConnections?.[requiredPlatform];
+          if (!conn || !conn.connected) {
+            return sendJson(res, 200, {
+              success: false,
+              error: `Verification Failed: Please connect your ${requiredPlatform.toUpperCase()} account in Profile first!`,
+              requirePlatform: requiredPlatform,
+            });
+          }
+        }
+
+        // 5. Verify Rewarded Ad Completion
+        if (taskData.requireRewardedAd !== false && !adCompleted) {
+          return sendJson(res, 200, {
+            success: false,
+            error: 'Verification Cancelled: You must watch the complete advertisement to verify this task.',
+          });
+        }
+
+        // 6. Grant Reward & Store Completion Record
+        const rewardPoints = taskData.reward || 100;
+        const tokenReward = taskData.tokenReward || 0;
+
+        const batch = db.batch();
+        batch.set(userTaskRef, {
+          taskId: String(taskId),
+          telegramId: numId,
+          completedAt: FieldValue.serverTimestamp(),
+          rewardClaimed: true,
+          rewardPoints,
+          tokenReward,
+        });
+
+        const userRef = db.collection('users').doc(String(numId));
+        batch.set(userRef, {
+          points: FieldValue.increment(rewardPoints),
+          tokens: FieldValue.increment(tokenReward),
+        }, { merge: true });
+
+        batch.update(taskRef, {
+          completedCount: FieldValue.increment(1),
+        });
+
+        await batch.commit();
+
+        return sendJson(res, 200, {
+          success: true,
+          reward: rewardPoints,
+          tokenReward: tokenReward,
+          message: 'Task Completed',
+        });
+      } catch (err) {
+        console.error('[Bot] Task Verification Error:', err.message);
+        return sendJson(res, 500, { success: false, error: 'Server error during task verification.' });
+      }
+    }
+
     return sendJson(res, 404, { error: 'Not found' });
   } catch (err) {
     console.error('[Server] Unhandled error:', err);

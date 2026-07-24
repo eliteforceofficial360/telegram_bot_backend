@@ -572,7 +572,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [tasks, setTasks] = useState<EForceTask[]>([]);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState<EForceTask | null>(null);
-  const blankTask = { title: '', description: '', type: 'channel' as TaskType, reward: 500, tokenReward: 0, url: '', dailyLimit: 0, totalCompletionLimit: 0, expiryDate: '', isEnabled: true, isMandatory: false, autoApprove: true };
+  const blankTask = { title: '', description: '', type: 'channel' as TaskType, reward: 500, tokenReward: 0, url: '', dailyLimit: 0, totalCompletionLimit: 0, expiryDate: '', isEnabled: true, isMandatory: false, autoApprove: true, answer: '', requireSocialConnection: 'none' as const, requireRewardedAd: true, cooldownSeconds: 30 };
   const [taskForm, setTaskForm] = useState(blankTask);
   useEffect(() => { const unsub = subscribeToTasks(setTasks); return unsub; }, []);
   const handleSaveTask = async () => {
@@ -600,7 +600,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
   const startEditTask = (t: EForceTask) => {
     setEditingTask(t);
-    setTaskForm({ title: t.title, description: t.description, type: t.type, reward: t.reward, tokenReward: t.tokenReward, url: t.url, dailyLimit: t.dailyLimit, totalCompletionLimit: t.totalCompletionLimit, expiryDate: t.expiryDate || '', isEnabled: t.isEnabled, isMandatory: t.isMandatory ?? false, autoApprove: t.autoApprove });
+    setTaskForm({ title: t.title, description: t.description, type: t.type, reward: t.reward, tokenReward: t.tokenReward, url: t.url, dailyLimit: t.dailyLimit, totalCompletionLimit: t.totalCompletionLimit, expiryDate: t.expiryDate || '', isEnabled: t.isEnabled, isMandatory: t.isMandatory ?? false, autoApprove: t.autoApprove, answer: t.answer || '', requireSocialConnection: (t.requireSocialConnection || 'none') as any, requireRewardedAd: t.requireRewardedAd ?? true, cooldownSeconds: t.cooldownSeconds || 30 });
     setShowTaskForm(true);
   };
 
@@ -1575,18 +1575,81 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               <div key={f.key}><label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">{f.label}</label><input type="number" value={(taskForm as any)[f.key]} onChange={e => setTaskForm(p => ({ ...p, [f.key]: Number(e.target.value) }))} className={inputCls + ' text-right'} style={inputStyle} /></div>
                             ))}
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                            <div><label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Type</label>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div>
+                              <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Type</label>
                               <select value={taskForm.type} onChange={e => setTaskForm(p => ({ ...p, type: e.target.value as TaskType }))} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
-                                <option value="channel">Telegram Channel</option><option value="group">Telegram Group</option><option value="x">Follow on X</option><option value="website">Visit Website</option><option value="video">Watch Video</option><option value="daily">Daily Mission</option><option value="ad">Reward Ad</option>
+                                <option value="channel">Telegram Channel</option>
+                                <option value="group">Telegram Group</option>
+                                <option value="x">Follow on X</option>
+                                <option value="discord">Discord Server</option>
+                                <option value="tiktok">TikTok Channel</option>
+                                <option value="instagram">Instagram Page</option>
+                                <option value="quiz">Quiz / Secret Answer</option>
+                                <option value="website">Visit Website</option>
+                                <option value="video">Watch Video</option>
+                                <option value="daily">Daily Mission</option>
+                                <option value="ad">Reward Ad</option>
                               </select>
                             </div>
-                            <div><label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Expiry Date</label><input type="date" value={taskForm.expiryDate} onChange={e => setTaskForm(p => ({ ...p, expiryDate: e.target.value }))} className={inputCls} style={inputStyle} /></div>
-                            <div className="flex gap-5 items-center pt-5">
-                              <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer"><input type="checkbox" checked={taskForm.isEnabled} onChange={e => setTaskForm(p => ({ ...p, isEnabled: e.target.checked }))} className="accent-[#FF8A00]" />Enabled</label>
-                              <label className="flex items-center gap-2 text-[10px] text-slate-400 cursor-pointer"><input type="checkbox" checked={taskForm.autoApprove} onChange={e => setTaskForm(p => ({ ...p, autoApprove: e.target.checked }))} className="accent-[#FF8A00]" />Auto-approve</label>
-                              <label className="flex items-center gap-2 text-[10px] cursor-pointer font-bold" style={{ color: taskForm.isMandatory ? '#FF8A00' : '#64748b' }}><input type="checkbox" checked={(taskForm as any).isMandatory ?? false} onChange={e => setTaskForm(p => ({ ...p, isMandatory: e.target.checked }))} className="accent-[#FF8A00]" />🔒 Mandatory</label>
+
+                            <div>
+                              <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Quiz Answer / Secret Code</label>
+                              <input
+                                type="text"
+                                placeholder="Correct answer for user verification..."
+                                value={taskForm.answer || ''}
+                                onChange={e => setTaskForm(p => ({ ...p, answer: e.target.value }))}
+                                className={inputCls}
+                                style={inputStyle}
+                              />
                             </div>
+
+                            <div>
+                              <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Required Social Account</label>
+                              <select
+                                value={taskForm.requireSocialConnection || 'none'}
+                                onChange={e => setTaskForm(p => ({ ...p, requireSocialConnection: e.target.value as any }))}
+                                className={inputCls + ' cursor-pointer'}
+                                style={{ ...inputStyle, background: '#0A0D1A' }}
+                              >
+                                <option value="none">None (Open Access)</option>
+                                <option value="x">Require X (Twitter) OAuth</option>
+                                <option value="discord">Require Discord OAuth</option>
+                                <option value="tiktok">Require TikTok</option>
+                                <option value="instagram">Require Instagram</option>
+                              </select>
+                            </div>
+
+                            <div>
+                              <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Interrupted Cooldown (Seconds)</label>
+                              <input
+                                type="number"
+                                value={taskForm.cooldownSeconds ?? 30}
+                                onChange={e => setTaskForm(p => ({ ...p, cooldownSeconds: Number(e.target.value) }))}
+                                className={inputCls + ' text-right'}
+                                style={inputStyle}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-5 items-center pt-2 border-t border-white/5">
+                            <label className="flex items-center gap-2 text-[10px] text-slate-300 font-bold cursor-pointer">
+                              <input type="checkbox" checked={taskForm.isEnabled} onChange={e => setTaskForm(p => ({ ...p, isEnabled: e.target.checked }))} className="accent-[#FF8A00]" />
+                              Enabled
+                            </label>
+                            <label className="flex items-center gap-2 text-[10px] text-slate-300 font-bold cursor-pointer">
+                              <input type="checkbox" checked={taskForm.requireRewardedAd ?? true} onChange={e => setTaskForm(p => ({ ...p, requireRewardedAd: e.target.checked }))} className="accent-[#FF8A00]" />
+                              Require Rewarded Ad
+                            </label>
+                            <label className="flex items-center gap-2 text-[10px] text-slate-300 font-bold cursor-pointer">
+                              <input type="checkbox" checked={taskForm.autoApprove} onChange={e => setTaskForm(p => ({ ...p, autoApprove: e.target.checked }))} className="accent-[#FF8A00]" />
+                              Auto-approve
+                            </label>
+                            <label className="flex items-center gap-2 text-[10px] cursor-pointer font-bold" style={{ color: taskForm.isMandatory ? '#FF8A00' : '#64748b' }}>
+                              <input type="checkbox" checked={(taskForm as any).isMandatory ?? false} onChange={e => setTaskForm(p => ({ ...p, isMandatory: e.target.checked }))} className="accent-[#FF8A00]" />
+                              🔒 Mandatory
+                            </label>
                           </div>
                           <div className="flex gap-2">
                             <button onClick={handleSaveTask} className={`${Btn.primary} flex-1 h-10 rounded-xl text-xs`} style={btnStyle.primary}>

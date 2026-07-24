@@ -24,6 +24,10 @@ export type TaskType =
   | 'group'
   | 'website'
   | 'x'
+  | 'discord'
+  | 'tiktok'
+  | 'instagram'
+  | 'quiz'
   | 'video'
   | 'daily'
   | 'ad';
@@ -42,6 +46,11 @@ export interface EForceTask {
   dailyLimit: number;    // max completions per user per day (0 = unlimited)
   totalCompletionLimit: number; // max total completions (0 = unlimited)
   expiryDate: string | null; // ISO date string or null
+  answer?: string;       // Correct answer for quiz / text input verification (server validated)
+  answerCaseSensitive?: boolean;
+  requireSocialConnection?: 'x' | 'discord' | 'tiktok' | 'instagram' | 'none';
+  requireRewardedAd?: boolean;
+  cooldownSeconds?: number;
   completedCount: number;
   createdAt: unknown;
 }
@@ -294,6 +303,42 @@ export const verifyXTaskWithBackend = async (
       success: false,
       status: 'Verification Unavailable',
       reason: 'Could not connect to X Verification Engine. Verification skipped.',
+    };
+  }
+};
+
+/**
+ * Universal Server-Side Task Verification & Reward Engine Endpoint.
+ * Validates Answer, Social OAuth Connection, Rewarded Ad Completion, Cooldown, & Duplicate Prevention on Server.
+ */
+export const verifyTaskWithServer = async (
+  telegramId: number,
+  task: EForceTask,
+  userAnswer?: string,
+  adCompleted?: boolean,
+  botApiUrl?: string
+): Promise<{ success: boolean; reward?: number; tokenReward?: number; error?: string; reason?: string; requirePlatform?: string }> => {
+  const baseUrl = botApiUrl ? botApiUrl.replace(/\/$/, '') : 'https://elite-force-telegram-app.onrender.com';
+  try {
+    const res = await fetch(`${baseUrl}/api/tasks/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegramId,
+        taskId: task.id,
+        taskType: task.type,
+        userAnswer: userAnswer || '',
+        adCompleted: !!adCompleted,
+        requireSocialConnection: task.requireSocialConnection || 'none',
+      }),
+    });
+    const data = await res.json();
+    return data;
+  } catch (err: any) {
+    console.warn('[taskService] verifyTaskWithServer error:', err);
+    return {
+      success: false,
+      error: err.message || 'Server connection error during task verification.',
     };
   }
 };
