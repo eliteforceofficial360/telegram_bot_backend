@@ -814,11 +814,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);
-    saveAdminSettings(settingsRef.current).catch(() => {});
-    setTimeout(() => {
-      setSavingSettings(false);
-      showToast('⚡ Settings saved & live synced to users!', 'success');
-    }, 150);
+    await saveAdminSettings(settings);
+    setSavingSettings(false);
+    showToast('⚡ Settings saved & live synced to users!', 'success');
   };
 
   // --- Custom Top Miners ---
@@ -2832,7 +2830,6 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 });
                               }}
                               onBlur={() => {
-                                saveAdminSettings(settingsRef.current);
                                 showToast(`⚡ ${item.label} saved & synced live!`, 'success');
                               }}
                               className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono transition-all focus:border-[#FF8A00]"
