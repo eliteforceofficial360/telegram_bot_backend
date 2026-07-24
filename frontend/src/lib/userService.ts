@@ -380,7 +380,6 @@ export const upsertUser = async (
       ipHistory.push(clientIp);
     }
 
-    // If new overlap detected, increment flags and apply temporary ban
     let updateFields: any = {
       firstName: telegramUser.firstName || '',
       lastName: telegramUser.lastName || '',
@@ -428,6 +427,20 @@ export const upsertUser = async (
         banUntil: newBanUntil,
         riskLevel: 'high',
       };
+    }
+
+    // If existing user has no referredBy set, check if they opened via a referral link
+    const parsedRef = parseReferralFromStartParam();
+    if (!user.referredBy && parsedRef && parsedRef !== telegramUser.id) {
+      updateFields.referredBy = parsedRef;
+      let referrerFp = '';
+      try {
+        const referrerSnap = await getDoc(doc(db, USERS_COLLECTION, String(parsedRef)));
+        if (referrerSnap.exists()) {
+          referrerFp = referrerSnap.data().deviceFingerprint || '';
+        }
+      } catch { /* noop */ }
+      recordReferral(parsedRef, telegramUser.id, deviceFingerprint, referrerFp).catch(() => {});
     }
 
     await updateDoc(userRef, updateFields);

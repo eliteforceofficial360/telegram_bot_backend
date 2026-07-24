@@ -469,17 +469,22 @@ const server = http.createServer(async (req, res) => {
       for (const rawChat of chats) {
         if (!rawChat) continue;
         let targetChat = String(rawChat).trim();
-        if (!targetChat.startsWith('@') && !targetChat.startsWith('-100') && isNaN(Number(targetChat))) {
+        if (targetChat.includes('t.me/')) {
+          const parts = targetChat.split('t.me/')[1].split('?')[0].split('/')[0].replace('+', '');
+          targetChat = parts ? `@${parts}` : targetChat;
+        } else if (!targetChat.startsWith('@') && !targetChat.startsWith('-100') && isNaN(Number(targetChat))) {
           targetChat = `@${targetChat}`;
         }
 
         try {
           const member = await bot.telegram.getChatMember(targetChat, Number(telegramId));
           const isMember = validStatuses.includes(member.status) && (member.status !== 'restricted' || member.is_member !== false);
+          results[rawChat] = isMember;
           results[targetChat] = isMember;
           if (!isMember) allJoined = false;
         } catch (err) {
           console.warn(`[Bot] Membership check failed for ${telegramId} in ${targetChat}:`, err.message);
+          results[rawChat] = false;
           results[targetChat] = false;
           allJoined = false;
         }

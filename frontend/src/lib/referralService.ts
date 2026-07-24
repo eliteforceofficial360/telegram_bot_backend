@@ -57,7 +57,20 @@ export const parseReferralFromStartParam = (): number | null => {
     if (startParam) {
       const cleanParam = startParam.replace(/^ref_/, '');
       const id = parseInt(cleanParam, 10);
-      return !isNaN(id) && id > 0 ? id : null;
+      if (!isNaN(id) && id > 0) {
+        try {
+          sessionStorage.setItem('savedReferrerId', String(id));
+          localStorage.setItem('savedReferrerId', String(id));
+        } catch { /* noop */ }
+        return id;
+      }
+    }
+
+    // Fallback: check session/local storage
+    const saved = sessionStorage.getItem('savedReferrerId') || localStorage.getItem('savedReferrerId');
+    if (saved) {
+      const id = parseInt(saved, 10);
+      if (!isNaN(id) && id > 0) return id;
     }
   } catch { /* noop */ }
   return null;
@@ -97,24 +110,25 @@ export const recordReferral = async (
   // Fetch admin settings for dynamic rewards
   const settings = await getAdminSettings();
 
-  // Check device fingerprint match (suspicious ONLY if non-empty and matching)
+  // Check device fingerprint match (suspicious ONLY if non-empty, non-generic, and matching)
   const fp1 = (deviceFingerprint || '').trim();
   const fp2 = (referrerDeviceFingerprint || '').trim();
-  const deviceMatch = !!(fp1 && fp2 && fp1 === fp2);
+  const isGeneric = fp1 === '' || fp1 === 'unknown' || fp1.length < 5;
+  const deviceMatch = !isGeneric && !!(fp1 && fp2 && fp1 === fp2);
 
-  // Mark valid if non-matching device
+  // Mark valid
   const isValid = !deviceMatch;
 
-  const rewardUsdt = isValid ? (settings.referralRewardUsdt ?? 0.05) : 0;
-  const rewardTokens = 0;
-  const rewardPoints = isValid ? (settings.referralRewardPoints ?? 250) : 0;
+  const rewardUsdt = (settings.referralRewardUsdt !== undefined && settings.referralRewardUsdt !== null) ? settings.referralRewardUsdt : 0.05;
+  const rewardTokens = settings.referralRewardToken ?? 0;
+  const rewardPoints = (settings.referralRewardPoints !== undefined && settings.referralRewardPoints !== null) ? settings.referralRewardPoints : 250;
 
   await setDoc(ref, {
     referrerId,
     referredId,
     createdAt: serverTimestamp(),
     isValid,
-    rewardPaid: isValid,
+    rewardPaid: true,
     deviceMatch,
     networkSuspicion: false,
     rewardUsdt,
@@ -122,39 +136,49 @@ export const recordReferral = async (
     rewardPoints,
   } satisfies Omit<ReferralRecord, 'id'>);
 
-  // Update referrer's referral count, wallet, and points in users collection
-  if (isValid) {
-    try {
-      const userRef = doc(db, 'users', String(referrerId));
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const data = userSnap.data();
-        const currentReferrals = Number(data.referrals || data.referralCount || 0);
-        const currentWallet = Number(data.wallet || 0);
-        const currentPoints = Number(data.points || 0);
+  // Update referrer's referral count, wallet, points, and tokens in users collection
+  try {
+    const userRef = doc(db, 'users', String(referrerId));
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      const currentReferrals = Number(data.referrals || 0);
+      const currentReferralCount = Number(data.referralCount || 0);
+      const currentWallet = Number(data.wallet || 0);
+      const currentPoints = Number(data.points || 0);
+      const currentTokens = Number(data.tokens || 0);
 
-        await updateDoc(userRef, {
-          referrals: currentReferrals + 1,
-          referralCount: currentReferrals + 1,
-          wallet: Number((currentWallet + rewardUsdt).toFixed(4)),
-          points: currentPoints + rewardPoints,
-        });
+      const updatedWallet = Number((currentWallet + (isValid ? rewardUsdt : 0)).toFixed(4));
+      const updatedPoints = currentPoints + (isValid ? rewardPoints : 0);
+      const updatedTokens = currentTokens + (isValid ? rewardTokens : 0);
 
-        // Notify referrer via bot API if enabled
-        if (settings.botApiUrl) {
-          fetch(`${settings.botApiUrl.replace(/\/$/, '')}/notify/referral`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer elite_force_secret_2024`
-            },
-            body: JSON.stringify({ referrerId, refereeName: `User #${referredId}` })
-          }).catch(() => {});
-        }
-      }
-    } catch (err) {
-      console.error("Error updating referrer rewards:", err);
+      await updateDoc(userRef, {
+        referrals: currentReferrals + 1,
+        referralCount: currentReferralCount + (isValid ? 1 : 0),
+        wallet: updatedWallet,
+        points: updatedPoints,
+        tokens: updatedTokens,
+      });
+
+      // Clear savedReferrerId once successfully recorded
+      try {
+        sessionStorage.removeItem('savedReferrerId');
+        localStorage.removeItem('savedReferrerId');
+      } catch { /* noop */ }
+
+      // Notify referrer via bot API if enabled
+      const targetApi = settings.botApiUrl || 'https://elite-force-telegram-app.onrender.com';
+      fetch(`${targetApi.replace(/\/$/, '')}/notify/referral`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer https://elite-force-telegram-app.onrender.com`
+        },
+        body: JSON.stringify({ referrerId, refereeName: `User #${referredId}` })
+      }).catch(() => {});
     }
+  } catch (err) {
+    console.error("Error updating referrer rewards:", err);
   }
 
   return { recorded: true, valid: isValid };
