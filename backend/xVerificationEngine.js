@@ -2,6 +2,8 @@
 // Official X (Twitter) OAuth 2.0, API v2 Task Verification, Anti-Fraud Engine & Periodical Scheduler
 
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { initializeApp, cert, getApps } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 
@@ -26,6 +28,19 @@ function getFirebaseAdminCredential() {
     } catch (e) {
       console.warn('[Firebase Admin] Failed to parse clientEmail/privateKey:', e.message);
     }
+  }
+
+  // Look for any local firebase-adminsdk *.json file in working directory
+  try {
+    const cwd = process.cwd();
+    const files = fs.readdirSync(cwd);
+    const saFile = files.find(f => f.includes('firebase-adminsdk') && f.endsWith('.json'));
+    if (saFile) {
+      const content = fs.readFileSync(path.join(cwd, saFile), 'utf8');
+      return cert(JSON.parse(content));
+    }
+  } catch (e) {
+    /* silent catch */
   }
 
   return null;
