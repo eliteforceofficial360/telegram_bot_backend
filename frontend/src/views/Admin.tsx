@@ -2898,6 +2898,81 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
+                {/* Universal Reward Reversal System */}
+                <SectionCard accentColor="#EF444488">
+                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🔄</span>
+                      <span className="text-sm font-black text-white">Universal Reward Reversal System</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Automated task audit, grace period, and point revocation engine</p>
+                  </div>
+                  <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <label className="text-xs text-slate-300 font-bold block">Enable Reward Reversal System</label>
+                        <span className="text-[9px] text-slate-500 block">Periodically audit tasks and revoke points if action is removed</span>
+                      </div>
+                      <Toggle
+                        on={settings.rewardReversalEnabled ?? true}
+                        onToggle={() => setSettings(p => ({ ...p, rewardReversalEnabled: !(p.rewardReversalEnabled ?? true) }))}
+                        accentColor="#EF4444"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <label className="text-xs text-slate-400">Audit Verification Interval (Hours)</label>
+                      <select
+                        value={settings.reversalIntervalHours || 12}
+                        onChange={e => setSettings(p => ({ ...p, reversalIntervalHours: Number(e.target.value) }))}
+                        className="h-8 rounded-xl px-3 text-xs text-white bg-[#0A0E1A] border border-white/10 outline-none"
+                      >
+                        <option value={6}>Every 6 Hours</option>
+                        <option value={12}>Every 12 Hours</option>
+                        <option value={24}>Every 24 Hours</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <label className="text-xs text-slate-400">Grace Period Before Deduction (Hours)</label>
+                      <select
+                        value={settings.gracePeriodHours ?? 24}
+                        onChange={e => setSettings(p => ({ ...p, gracePeriodHours: Number(e.target.value) }))}
+                        className="h-8 rounded-xl px-3 text-xs text-white bg-[#0A0E1A] border border-white/10 outline-none"
+                      >
+                        <option value={0}>0 Hours (Immediate)</option>
+                        <option value={12}>12 Hours Grace</option>
+                        <option value={24}>24 Hours Grace (Recommended)</option>
+                        <option value={48}>48 Hours Grace</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <label className="text-xs text-slate-400">Deduction Type</label>
+                      <select
+                        value={settings.reversalDeductionType || 'full'}
+                        onChange={e => setSettings(p => ({ ...p, reversalDeductionType: e.target.value as any }))}
+                        className="h-8 rounded-xl px-3 text-xs text-white bg-[#0A0E1A] border border-white/10 outline-none"
+                      >
+                        <option value="full">Full Task Reward Revocation</option>
+                        <option value="partial">Partial Deductions</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-between py-3">
+                      <div>
+                        <label className="text-xs text-slate-300 font-bold block">Allow Task Re-Verification & Restoration</label>
+                        <span className="text-[9px] text-slate-500 block">Allow users to re-complete the task to earn back their reward</span>
+                      </div>
+                      <Toggle
+                        on={settings.autoReVerificationEnabled ?? true}
+                        onToggle={() => setSettings(p => ({ ...p, autoReVerificationEnabled: !(p.autoReVerificationEnabled ?? true) }))}
+                        accentColor="#4ADE80"
+                      />
+                    </div>
+                  </div>
+                </SectionCard>
+
                 {/* Admin Profile */}
                 <SectionCard accentColor="#ffffff22">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>

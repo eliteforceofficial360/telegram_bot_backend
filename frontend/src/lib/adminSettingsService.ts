@@ -78,6 +78,13 @@ export interface AdminSettings {
   dailyTokenWithdrawLimit: number; // EForce token daily withdraw limit
   humanVerificationOpen: boolean;
 
+  // Universal Reward Reversal System
+  rewardReversalEnabled?: boolean;
+  reversalIntervalHours?: number;
+  gracePeriodHours?: number;
+  reversalDeductionType?: 'full' | 'partial';
+  autoReVerificationEnabled?: boolean;
+
   // Bot & Admin Username
   botUsername: string;
   adminUsername: string;
@@ -149,6 +156,11 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   dailyWithdrawLimit: 50.00,
   dailyTokenWithdrawLimit: 1000,
   humanVerificationOpen: false,
+  rewardReversalEnabled: true,
+  reversalIntervalHours: 12,
+  gracePeriodHours: 24,
+  reversalDeductionType: 'full',
+  autoReVerificationEnabled: true,
   botUsername: 'EliteForceBot',
   adminUsername: '',
   discordClientId: '',

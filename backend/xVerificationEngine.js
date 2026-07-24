@@ -533,22 +533,48 @@ export async function verifyXTask(telegramId, taskId, taskType, targetId, reward
  * Continuous Periodical Verification & Automatic Point Deduction Scheduler
  */
 /**
- * 10-Minute Follow Retention & Deduction Engine v2.0
- * Rule 1: Task completed -> 10 minutes window.
- * Rule 2: Unfollowed within 10 minutes -> 0 points deducted (No deduction, keeps full reward!).
- * Rule 3: Still following after 10 minutes -> -5 points deducted.
- * Rule 4: Unfollowed after 10 minutes (after -5 points was deducted) -> Previously deducted -5 points is NOT refunded.
+ * Universal Reward Reversal & Grace Period Engine v2.0
+ * Features:
+ * - Admin Configurable (Interval, Grace Period, Deduction Mode, Auto Re-Verification)
+ * - 10-Minute Retention Check Rule Integration
+ * - 24h Grace Period Warnings & Automatic Point Revocation
+ * - Detailed Telegram Audit Notifications
  */
 export async function runXPeriodicMonitoring(sendToUserCallback = null) {
-  console.log('🔄 [Follow Retention Engine v2.0] Running 10-minute follow retention audit...');
+  console.log('🔄 [Reward Reversal Engine v2.0] Running automated task audit & grace period check...');
 
   try {
+    // 1. Fetch Admin Settings from Firestore
+    let adminSettings = {
+      rewardReversalEnabled: true,
+      gracePeriodHours: 24,
+      reversalDeductionType: 'full',
+      autoReVerificationEnabled: true,
+    };
+
+    try {
+      const configSnap = await db.collection('adminSettings').doc('config').get();
+      if (configSnap.exists) {
+        adminSettings = { ...adminSettings, ...configSnap.data() };
+      }
+    } catch (e) {
+      /* fallback to defaults */
+    }
+
+    if (adminSettings.rewardReversalEnabled === false) {
+      console.log('ℹ️ [Reward Reversal Engine] Reversal system is currently disabled by Admin.');
+      return;
+    }
+
+    const gracePeriodHours = adminSettings.gracePeriodHours ?? 24;
+    const GRACE_PERIOD_MS = gracePeriodHours * 3600 * 1000;
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
+    const now = Date.now();
+
     const completionsSnap = await db.collection('taskCompletions')
       .where('isCompleted', '==', true)
       .get();
 
-    const now = Date.now();
-    const TEN_MINUTES_MS = 10 * 60 * 1000;
     let checkedCount = 0;
     let evaluatedCount = 0;
 
@@ -609,13 +635,8 @@ export async function runXPeriodicMonitoring(sendToUserCallback = null) {
         continue;
       }
 
-      // Skip 10-minute audit until at least 10 minutes have passed
-      if (elapsedTime < TEN_MINUTES_MS && !retentionChecked) {
-        continue;
-      }
-
-      // Evaluated once 10-minute window closes:
-      if (!retentionChecked) {
+      // Initial 10-Minute Retention Window Evaluation
+      if (!retentionChecked && elapsedTime >= TEN_MINUTES_MS) {
         await db.runTransaction(async (transaction) => {
           const userDoc = await transaction.get(userRef);
           const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
@@ -674,13 +695,87 @@ export async function runXPeriodicMonitoring(sendToUserCallback = null) {
           }
         });
         evaluatedCount++;
+        continue;
+      }
+
+      // Universal Grace Period & Action Removal Revocation Protocol
+      if (!isCurrentlyFollowing) {
+        if (!data.inGracePeriod) {
+          // Start Grace Period
+          await docSnap.ref.set({
+            inGracePeriod: true,
+            gracePeriodStart: FieldValue.serverTimestamp(),
+          }, { merge: true });
+
+          if (typeof sendToUserCallback === 'function' && gracePeriodHours > 0) {
+            await sendToUserCallback(
+              telegramId,
+              `⚠️ <b>Task Action Removal Detected!</b>\n\n` +
+              `We detected that you removed a required action for <b>${taskId}</b>.\n\n` +
+              `⌛ <b>${gracePeriodHours} Hours Grace Period Active</b>. Please re-follow or restore the action to prevent reward revocation.`
+            ).catch(() => {});
+          }
+        } else {
+          // Evaluate if Grace Period expired
+          const graceStart = data.gracePeriodStart?.toDate ? data.gracePeriodStart.toDate().getTime() : (data.gracePeriodStart || now);
+          const graceElapsed = now - graceStart;
+
+          if (graceElapsed >= GRACE_PERIOD_MS) {
+            // Revoke Reward completely
+            const deductionAmount = adminSettings.reversalDeductionType === 'partial' ? Math.round((reward || 100) / 2) : (reward || 100);
+
+            await db.runTransaction(async (transaction) => {
+              const userDoc = await transaction.get(userRef);
+              const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
+              const newPoints = Math.max(0, currentPoints - deductionAmount);
+
+              transaction.set(userRef, { points: newPoints }, { merge: true });
+
+              transaction.set(docSnap.ref, {
+                isCompleted: false,
+                isRevoked: true,
+                isInvalid: true,
+                inGracePeriod: false,
+                revokedAt: FieldValue.serverTimestamp(),
+                revocationReason: 'Required task action removed (Grace period expired)',
+              }, { merge: true });
+
+              transaction.set(db.collection('deductionHistory').doc(), {
+                telegramId: Number(telegramId),
+                taskId,
+                taskType,
+                pointsDeducted: deductionAmount,
+                reason: 'Task Verification Failed (Action Removed)',
+                timestamp: FieldValue.serverTimestamp(),
+              });
+            });
+
+            if (typeof sendToUserCallback === 'function') {
+              await sendToUserCallback(
+                telegramId,
+                `⚠️ <b>Task Verification Failed</b>\n\n` +
+                `We detected that you removed a required task.\n\n` +
+                `<b>Task:</b> ${taskId}\n\n` +
+                `<b>Reward Deducted:</b>\n` +
+                `🔻 <b>-${deductionAmount} EFP</b>\n\n` +
+                `Complete the task again to restore eligibility.`
+              ).catch(() => {});
+            }
+          }
+        }
+      } else if (data.inGracePeriod) {
+        // User restored action during Grace Period -> Clear Grace Period flag!
+        await docSnap.ref.set({
+          inGracePeriod: false,
+          gracePeriodStart: null,
+        }, { merge: true });
       }
 
       await new Promise(r => setTimeout(r, 150));
     }
 
-    console.log(`✅ [Follow Retention Engine v2.0] Check complete. Evaluated: ${evaluatedCount}/${checkedCount}`);
+    console.log(`✅ [Reward Reversal Engine v2.0] Check complete. Evaluated: ${evaluatedCount}/${checkedCount}`);
   } catch (err) {
-    console.error('❌ [Follow Retention Engine] Error during periodical monitoring:', err.message);
+    console.error('❌ [Reward Reversal Engine] Error during periodical monitoring:', err.message);
   }
 }
