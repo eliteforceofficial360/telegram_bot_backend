@@ -236,7 +236,7 @@ export const Tasks = ({
       }
 
       showToast(`✅ Task Completed! +${pointsEarned.toLocaleString()} EFC Points${tokensEarned > 0 ? ` & +${tokensEarned} EST` : ''}`, 'success');
-      confetti({ particleCount: 60, spread: 70, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#4ADE80'] });
+      confetti({ particleCount: 20, spread: 45, origin: { y: 0.7 }, ticks: 80, disableForReducedMotion: true, colors: ['#FF8A00', '#00E5FF', '#4ADE80'] });
     } else {
       setTaskStatus((prev) => ({ ...prev, [task.id]: 'idle' }));
       showToast(serverRes.error || serverRes.reason || 'Verification failed on server.', 'error');
@@ -302,7 +302,7 @@ export const Tasks = ({
         });
       }
       showToast(`✅ Verified! +${task.reward.toLocaleString()} EFC Points${task.tokenReward > 0 ? ` & +${task.tokenReward} EST Tokens` : ''} earned!`, 'success');
-      confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 }, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
+      confetti({ particleCount: 20, spread: 45, origin: { y: 0.7 }, ticks: 80, disableForReducedMotion: true, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
     } else {
       setTaskStatus((prev) => ({ ...prev, [task.id]: 'idle' }));
       showToast(result.reason || 'Verification failed. Try again.', 'error');
@@ -347,7 +347,7 @@ export const Tasks = ({
 
         if (result.success) {
           showToast(`🎉 Ad completed! +${adminSettings.adTokenReward || 1} EForce Token added!`, 'success');
-          confetti({ particleCount: 60, spread: 50, origin: { y: 0.65 }, colors: ['#00E5FF', '#B388FF'] });
+          confetti({ particleCount: 20, spread: 40, origin: { y: 0.65 }, ticks: 80, disableForReducedMotion: true, colors: ['#00E5FF', '#B388FF'] });
         } else {
           showToast(result.reason || 'Verification failed.', 'error');
         }

@@ -201,7 +201,7 @@ export const Home: React.FC<HomeProps> = ({
       }
 
       showToast(`🎁 Claimed +${rewardToClaim.toLocaleString()} EFC Points! Next mining session started.`, 'success');
-      confetti({ particleCount: 90, spread: 70, origin: { y: 0.6 }, colors: ['#FF8A00', '#00E5FF', '#FFD700'] });
+      confetti({ particleCount: 22, spread: 45, origin: { y: 0.6 }, ticks: 90, disableForReducedMotion: true, colors: ['#FF8A00', '#00E5FF', '#FFD700'] });
     } catch {
       showToast('Error claiming mining rewards.', 'error');
     } finally {
@@ -278,7 +278,7 @@ export const Home: React.FC<HomeProps> = ({
       localStorage.setItem('lastClaimDate', new Date().toISOString().slice(0, 10));
       localStorage.setItem('dailyStreak', String(result.newStreak));
       showToast(`🎁 Day ${result.newStreak} reward: +${result.reward.toLocaleString()} EFC Points!`, 'success');
-      confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 }, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
+      confetti({ particleCount: 20, spread: 45, origin: { y: 0.6 }, ticks: 90, disableForReducedMotion: true, colors: ['#FF8A00', '#00E5FF', '#B388FF'] });
     } else {
       showToast(result.reason || 'Already claimed today!', result.reason ? 'error' : 'warning');
     }
@@ -312,7 +312,7 @@ export const Home: React.FC<HomeProps> = ({
         await syncPointsToFirestore(telegramUser.id, efcBalance + reward);
         
         showToast(`🎉 Ad watch complete! +${reward} EFC Points added.`, 'success');
-        confetti({ particleCount: 40, spread: 45, origin: { y: 0.6 }, colors: ['#FF8A00', '#00E5FF'] });
+        confetti({ particleCount: 20, spread: 40, origin: { y: 0.6 }, ticks: 80, disableForReducedMotion: true, colors: ['#FF8A00', '#00E5FF'] });
       } else {
         showToast('⚠️ Ad closed too early! Watch the complete ad (min 7s) to earn rewards.', 'warning');
       }

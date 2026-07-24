@@ -215,7 +215,7 @@ export const Wallet: React.FC<WalletProps> = ({
             updateUserDatabaseValues(telegramUser.id, { tokens: newTokenBalance }).catch(() => {});
             showToast(`Withdrawal request of ${amountNum.toFixed(3)} EForce Token submitted!`, 'success');
           }
-          confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 }, colors: ['#00FF88', '#00E5FF', '#ffffff'] });
+          confetti({ particleCount: 20, spread: 45, origin: { y: 0.6 }, ticks: 80, disableForReducedMotion: true, colors: ['#00FF88', '#00E5FF', '#ffffff'] });
           setTimeout(() => { setShowWithdrawModal(false); }, 2200);
         } else {
           showToast(res.reason || 'Failed to submit withdrawal.', 'error');
@@ -257,8 +257,10 @@ export const Wallet: React.FC<WalletProps> = ({
     setShowSwapModal(false);
 
     confetti({
-      particleCount: 60,
-      spread: 60,
+      particleCount: 20,
+      spread: 45,
+      ticks: 80,
+      disableForReducedMotion: true,
       colors: ['#00E5FF', '#B388FF']
     });
   };
