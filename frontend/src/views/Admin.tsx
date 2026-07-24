@@ -2540,7 +2540,13 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       </div>
                       <Toggle
                         on={settings.forceJoinEnabled ?? true}
-                        onToggle={() => setSettings(p => ({ ...p, forceJoinEnabled: !(p.forceJoinEnabled ?? true) }))}
+                        onToggle={async () => {
+                          const nextVal = !(settings.forceJoinEnabled ?? true);
+                          const updated = { ...settings, forceJoinEnabled: nextVal };
+                          setSettings(updated);
+                          await saveAdminSettings(updated);
+                          showToast(nextVal ? '✅ Force Join Gate ENABLED & Live Synced!' : '⚠️ Force Join Gate DISABLED & Live Synced!', nextVal ? 'success' : 'info');
+                        }}
                         accentColor="#4ADE80"
                       />
                     </div>
@@ -2552,7 +2558,15 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           type="text"
                           placeholder="https://t.me/EliteForceChannel"
                           value={settings.telegramChannelUrl || ''}
-                          onChange={e => setSettings(p => ({ ...p, telegramChannelUrl: e.target.value }))}
+                          onChange={e => {
+                            const urlVal = e.target.value;
+                            let autoId = settings.telegramChannelId;
+                            if (urlVal.includes('t.me/')) {
+                              const parsed = urlVal.split('t.me/')[1].split('?')[0].split('/')[0].replace('+', '');
+                              if (parsed) autoId = `@${parsed}`;
+                            }
+                            setSettings(p => ({ ...p, telegramChannelUrl: urlVal, telegramChannelId: autoId }));
+                          }}
                           className={inputCls}
                           style={inputStyle}
                         />
@@ -2563,7 +2577,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           type="text"
                           placeholder="@EliteForceChannel"
                           value={settings.telegramChannelId || ''}
-                          onChange={e => setSettings(p => ({ ...p, telegramChannelId: e.target.value }))}
+                          onChange={e => {
+                            let val = e.target.value.trim();
+                            if (val && !val.startsWith('@') && !val.startsWith('-100') && !val.includes('t.me/')) val = `@${val}`;
+                            setSettings(p => ({ ...p, telegramChannelId: val }));
+                          }}
                           className={inputCls}
                           style={inputStyle}
                         />
@@ -2577,7 +2595,15 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           type="text"
                           placeholder="https://t.me/EliteForceGroup"
                           value={settings.telegramGroupUrl || ''}
-                          onChange={e => setSettings(p => ({ ...p, telegramGroupUrl: e.target.value }))}
+                          onChange={e => {
+                            const urlVal = e.target.value;
+                            let autoId = settings.telegramGroupId;
+                            if (urlVal.includes('t.me/')) {
+                              const parsed = urlVal.split('t.me/')[1].split('?')[0].split('/')[0].replace('+', '');
+                              if (parsed) autoId = `@${parsed}`;
+                            }
+                            setSettings(p => ({ ...p, telegramGroupUrl: urlVal, telegramGroupId: autoId }));
+                          }}
                           className={inputCls}
                           style={inputStyle}
                         />
@@ -2588,7 +2614,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           type="text"
                           placeholder="@EliteForceGroup"
                           value={settings.telegramGroupId || ''}
-                          onChange={e => setSettings(p => ({ ...p, telegramGroupId: e.target.value }))}
+                          onChange={e => {
+                            let val = e.target.value.trim();
+                            if (val && !val.startsWith('@') && !val.startsWith('-100') && !val.includes('t.me/')) val = `@${val}`;
+                            setSettings(p => ({ ...p, telegramGroupId: val }));
+                          }}
                           className={inputCls}
                           style={inputStyle}
                         />
@@ -2608,6 +2638,16 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         style={inputStyle}
                       />
                     </div>
+
+                    <button
+                      onClick={async () => {
+                        await saveAdminSettings(settings);
+                        showToast('✅ Force Join Gate settings saved & live synced to users!', 'success');
+                      }}
+                      className="h-10 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.01] transition-all mt-1"
+                    >
+                      <Save size={14} /> Save Force Join Gate Settings
+                    </button>
                   </div>
                 </SectionCard>
 

@@ -43,6 +43,23 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
   const [groupJoined, setGroupJoined] = useState<boolean | null>(null);
   const [isInitialChecking, setIsInitialChecking] = useState<boolean>(true);
 
+  // Helpers to sanitize channel & group IDs for API calls
+  const getCleanChatId = (input: string, fallback: string) => {
+    if (!input || !input.trim()) return fallback;
+    const str = input.trim();
+    if (str.includes('t.me/')) {
+      const parsed = str.split('t.me/')[1].split('?')[0].split('/')[0].replace('+', '');
+      return parsed ? `@${parsed}` : str;
+    }
+    if (!str.startsWith('@') && !str.startsWith('-100') && isNaN(Number(str))) {
+      return `@${str}`;
+    }
+    return str;
+  };
+
+  const cleanChannelId = getCleanChatId(channelId, '@EliteForceChannel');
+  const cleanGroupId = getCleanChatId(groupId, '@EliteForceGroup');
+
   // Auto-check membership status on mount
   useEffect(() => {
     let isMounted = true;
@@ -54,15 +71,15 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             telegramId,
-            chatIds: [channelId || '@EliteForceChannel', groupId || '@EliteForceGroup'],
+            chatIds: [cleanChannelId, cleanGroupId, channelId, groupId].filter(Boolean),
           }),
         });
 
         if (res.ok && isMounted) {
           const data = await res.json();
           if (data.results) {
-            const cJoined = data.results[channelId || '@EliteForceChannel'] ?? false;
-            const gJoined = data.results[groupId || '@EliteForceGroup'] ?? false;
+            const cJoined = data.results[cleanChannelId] ?? data.results[channelId] ?? false;
+            const gJoined = data.results[cleanGroupId] ?? data.results[groupId] ?? false;
             setChannelJoined(cJoined);
             setGroupJoined(gJoined);
             if (data.isMember) {
@@ -81,7 +98,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [telegramId, channelId, groupId, botApiUrl, onVerificationSuccess]);
+  }, [telegramId, channelId, groupId, cleanChannelId, cleanGroupId, botApiUrl, onVerificationSuccess]);
 
   // Cooldown countdown timer
   useEffect(() => {
@@ -95,8 +112,9 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
   const handleOpenLink = (url: string) => {
     if (!url) return;
     try {
-      if ((window as any).Telegram?.WebApp?.openTelegramLink) {
-        (window as any).Telegram.WebApp.openTelegramLink(url);
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.openTelegramLink && url.includes('t.me/')) {
+        tg.openTelegramLink(url);
       } else {
         window.open(url, '_blank');
       }
@@ -149,7 +167,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegramId,
-          chatIds: [channelId || '@EliteForceChannel', groupId || '@EliteForceGroup'],
+          chatIds: [cleanChannelId, cleanGroupId, channelId, groupId].filter(Boolean),
         }),
       });
 
@@ -161,8 +179,8 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
       setIsVerifying(false);
 
       if (data.results) {
-        const cJoined = data.results[channelId || '@EliteForceChannel'] ?? false;
-        const gJoined = data.results[groupId || '@EliteForceGroup'] ?? false;
+        const cJoined = data.results[cleanChannelId] ?? data.results[channelId] ?? false;
+        const gJoined = data.results[cleanGroupId] ?? data.results[groupId] ?? false;
         setChannelJoined(cJoined);
         setGroupJoined(gJoined);
       }
