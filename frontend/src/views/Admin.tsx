@@ -325,7 +325,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 6000);
+        const timeout = setTimeout(() => controller.abort(), 30000); // 30s for video/large files
 
         const res = await fetch(url, {
           method: 'POST',
@@ -347,7 +347,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       }
     }
 
-    // 2. Primary for Images: ImgBB API
+    // 2. Primary for Images: ImgBB API (images only, no video)
     if (!isVid) {
       try {
         const cleanBase64 = base64Media.replace(/^data:image\/\w+;base64,/, '');
@@ -356,7 +356,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         formData.append('image', cleanBase64);
 
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 4000);
+        const timeout = setTimeout(() => controller.abort(), 15000); // 15s for large images
 
         const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
           method: 'POST',
@@ -371,19 +371,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
           if (imgbbData.data?.display_url) return imgbbData.data.display_url;
         }
       } catch (fallbackErr) {
-        console.warn('Fast ImgBB upload failed:', fallbackErr);
+        console.warn('ImgBB upload failed:', fallbackErr);
       }
     }
 
-    // 3. Fallback: Data URL size check to guarantee Firestore 1MB document limit is never exceeded
-    if (base64Media.startsWith('data:')) {
-      if (base64Media.length > 750000) {
-        throw new Error('Video/Photo file size too large (>500KB). Please upload a smaller file or paste a direct CDN URL.');
-      }
+    // 3. Last resort: store as data URL only if small enough for Firestore (< 700KB)
+    if (base64Media.startsWith('data:') && base64Media.length <= 700000) {
       return base64Media;
     }
 
-    throw new Error('Media processing failed. Please paste a direct image or video URL.');
+    // 4. File too large and all CDN uploads failed
+    if (isVid) {
+      throw new Error('Video upload failed. Make sure the Bot API server is running and configured in System Config.');
+    }
+    throw new Error('Image upload failed. Please try a smaller image or paste a direct CDN URL (e.g. https://...).');
   };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
