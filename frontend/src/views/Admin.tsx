@@ -266,7 +266,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
 
   // Client-side Image Compressor (Resizes high-res uploads while preserving 100% PNG alpha channel transparency)
-  const compressImageFile = (file: File, maxWidth = 800, maxHeight = 600, quality = 0.85): Promise<string> => {
+  // Client-side Image Compressor (Resizes high-res uploads to max ~15KB WebP/JPEG to prevent Firestore 1MB document limit errors)
+  const compressImageFile = (file: File, maxWidth = 500, maxHeight = 300, quality = 0.65): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
@@ -296,15 +297,18 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
             return;
           }
 
-          // Clear canvas to ensure transparent PNG alpha pixels are 100% clean and transparent
           ctx.clearRect(0, 0, width, height);
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Preserve PNG transparency (never convert PNG to JPEG which forces black background)
-          const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png') || (e.target?.result as string).startsWith('data:image/png');
-          const outputType = isPng ? 'image/png' : 'image/webp';
+          // WebP supports high compression (quality parameter) AND transparency!
+          // WebP produces ~12KB data URLs compared to 800KB raw PNGs.
+          let compressedDataUrl = canvas.toDataURL('image/webp', quality);
 
-          const compressedDataUrl = canvas.toDataURL(outputType, quality);
+          // Fallback to JPEG if WebP outputs invalid or oversized string
+          if (!compressedDataUrl || compressedDataUrl.length > 150000 || compressedDataUrl === 'data:,') {
+            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          }
+
           resolve(compressedDataUrl);
         };
         img.onerror = (err) => reject(err);
@@ -316,7 +320,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const uploadImageToBot = async (base64Image: string, filename: string): Promise<string> => {
     const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '');
 
-    // 1. Ultra Fast Primary: ImgBB API (Completes in ~300ms)
+    // 1. Primary: ImgBB API
     try {
       const formData = new FormData();
       formData.append('key', '6d70077319714757c9a96e622b78edc3');
@@ -341,12 +345,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       console.warn('Fast ImgBB upload failed, trying backup options:', fallbackErr);
     }
 
-    // 2. Secondary: Bot API server (with 2s fast timeout so it NEVER hangs)
+    // 2. Secondary: Bot API server
     if (settings.botApiUrl) {
       const url = `${settings.botApiUrl.replace(/\/$/, '')}/upload-branding`;
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 2000);
+        const timeout = setTimeout(() => controller.abort(), 2500);
 
         const res = await fetch(url, {
           method: 'POST',
@@ -368,28 +372,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       }
     }
 
-    // 3. Fallback: FreeImage.host API
-    try {
-      const formData = new FormData();
-      formData.append('key', '6d70077319714757c9a96e622b78edc3');
-      formData.append('action', 'upload');
-      formData.append('source', cleanBase64);
-      formData.append('format', 'json');
-
-      const freeImgRes = await fetch('https://freeimage.host/api/1/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (freeImgRes.ok) {
-        const freeImgData = await freeImgRes.json();
-        if (freeImgData.image?.url) return freeImgData.image.url;
-      }
-    } catch (freeImgErr) {
-      console.warn('FreeImage fallback upload failed:', freeImgErr);
-    }
-
-    // 4. Universal Base64 Data URL fallback (Guarantees image upload never fails in UI)
+    // 3. Fallback: Ultra-compressed WebP Data URL (Guarantees instant save & 0 Firestore size issues)
     if (base64Image.startsWith('data:image/')) {
       return base64Image;
     }

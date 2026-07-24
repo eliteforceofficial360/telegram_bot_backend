@@ -225,9 +225,11 @@ export const getAdminSettings = async (): Promise<AdminSettings> => {
 export const saveAdminSettings = async (settings: Partial<AdminSettings>): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
   try {
-    await setDoc(doc(db, 'adminSettings', 'config'), settings, { merge: true });
+    const cleanData = { ...settings };
+    await setDoc(doc(db, 'adminSettings', 'config'), cleanData, { merge: true });
     return true;
-  } catch {
+  } catch (err) {
+    console.error('[AdminSettingsService] Save failed:', err);
     return false;
   }
 };
