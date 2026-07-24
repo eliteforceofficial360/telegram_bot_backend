@@ -12,13 +12,14 @@ import { Leaderboard } from './views/Leaderboard';
 import { Admin } from './views/Admin';
 import { AdminLogin } from './views/AdminLogin';
 import { getTelegramWebAppData, type TelegramUser } from './lib/telegramUser';
-import { upsertUser, setUserOffline, syncPointsToFirestore, getOnlineUserCount, subscribeToUser, checkUserBan, updateUserDatabaseValues, saveSocialConnection, type FirestoreUser } from './lib/userService';
+import { upsertUser, setUserOffline, syncPointsToFirestore, getOnlineUserCount, subscribeToUser, checkUserBan, updateUserDatabaseValues, type FirestoreUser } from './lib/userService';
 import { subscribeToAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings } from './lib/adminSettingsService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './lib/firebase';
 import { loadRecaptcha } from './utils/loadRecaptcha';
 import { initMonetag, showRewardedAd } from './lib/monetag';
 import { ForceJoinModal } from './components/ForceJoinModal';
+import { OAuthCallbackPage } from './components/OAuthCallbackPage';
 
 interface Toast {
   id: number;
@@ -26,11 +27,23 @@ interface Toast {
   type: 'success' | 'error' | 'warning' | 'info';
 }
 
+/**
+ * AppRouter — top-level router component.
+ * Renders OAuthCallbackPage at /auth/x/callback so the OAuth redirect
+ * is handled in any browser (not just inside Telegram WebView).
+ * All other paths render the main App component.
+ */
+export default function AppRouter() {
+  if (window.location.pathname === '/auth/x/callback') {
+    return <OAuthCallbackPage />;
+  }
+  return <App />;
+}
 
-
-export default function App() {
+function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
+
   
   // Persisted state loading helper
   const getPersisted = <T,>(key: string, defaultValue: T): T => {
@@ -147,52 +160,10 @@ export default function App() {
     link.href = fav;
   }, [adminSettings.faviconUrl, adminSettings.loadingLogoUrl]);
 
-  // X & Social OAuth 2.0 PKCE Callback Code Listener & Auto-Return to Telegram Bot via startapp Deep Link
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get('code');
-    const state = urlParams.get('state');
+  // NOTE: OAuth code exchange is handled by OAuthCallbackPage at /auth/x/callback.
+  // App.tsx no longer needs to listen for ?code= params here.
 
-    if (code) {
-      console.log('🔄 OAuth Code detected in URL, exchanging with backend...');
-      const botApiUrl = adminSettings.botApiUrl || 'https://elite-force-telegram-app.onrender.com';
-      const botUsername = adminSettings.botUsername || 'Elite_Force_Official_Mining_bot';
 
-      fetch(`${botApiUrl.replace(/\/$/, '')}/api/x/callback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, state }),
-      })
-        .then(res => res.json())
-        .then(data => {
-          if (data.ok) {
-            showToast(`✅ Successfully authenticated X account (@${data.xUsername})!`, 'success');
-            if (telegramUser?.id) {
-              saveSocialConnection(telegramUser.id, 'x', `@${data.xUsername}`).catch(() => {});
-            }
-          } else {
-            showToast(data.error || 'Failed to complete X OAuth authentication.', 'error');
-          }
-        })
-        .catch(err => {
-          console.error('OAuth exchange error:', err);
-        })
-        .finally(() => {
-          window.history.replaceState({}, document.title, window.location.pathname);
-          // Return user back to Telegram Mini App via startapp Deep Link
-          setTimeout(() => {
-            const tg = (window as any).Telegram?.WebApp;
-            // Use Telegram startapp deep link so Mini App opens with start_param=oauth_success
-            const deepLink = `https://t.me/${botUsername}?startapp=oauth_success`;
-            if (tg?.openTelegramLink) {
-              tg.openTelegramLink(deepLink);
-            } else {
-              window.location.replace(deepLink);
-            }
-          }, 800);
-        });
-    }
-  }, [adminSettings.botApiUrl, adminSettings.botUsername, telegramUser]);
 
   const [captchaVerified, setCaptchaVerified] = useState(false);
 
@@ -290,13 +261,38 @@ export default function App() {
     const isTg = !!(window as any).Telegram?.WebApp?.initData || navigator.userAgent.includes('Telegram');
     setIsTelegramWebview(isTg);
 
-    // Read start_param from Telegram Mini App deep link (e.g. startapp=oauth_success)
+    // ── Read start_param from Telegram deep link ─────────────────────────────────────
+    // When the user returns from X OAuth via:
+    //   https://t.me/Elite_Force_Official_Mining_bot?startapp=oauth_success
+    // we read the one-time sessionToken that OAuthCallbackPage stored in
+    // localStorage, call the backend to verify it (one-time use — deleted on
+    // first read), mark the X connection in Firestore, award points, and
+    // navigate the user directly to the Tasks tab.
     const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || '';
     if (startParam === 'oauth_success') {
-      console.log('✅ [startapp] OAuth success detected via start_param. Triggering post-OAuth flow...');
-      showToast('✅ Social account connected successfully!', 'success');
+      const sessionToken = localStorage.getItem('x_oauth_session_token');
+      if (sessionToken) {
+        const botApiUrl = (DEFAULT_ADMIN_SETTINGS.botApiUrl || 'https://elite-force-telegram-app.onrender.com').replace(/\/$/, '');
+        fetch(`${botApiUrl}/api/x/verify-oauth-session?sessionToken=${encodeURIComponent(sessionToken)}`)
+          .then(r => r.json())
+          .then(d => {
+            localStorage.removeItem('x_oauth_session_token'); // consume token
+            if (d.ok) {
+              showToast(`✅ X account @${d.xUsername} connected! Reward will be credited.`, 'success');
+              // Navigate to Tasks tab so user can see their completed X task
+              setTimeout(() => setActiveTab('tasks'), 600);
+            } else {
+              showToast(d.error || 'X verification failed. Please reconnect.', 'error');
+            }
+          })
+          .catch(err => console.error('[start_param] verify-oauth-session error:', err));
+      } else {
+        // No token — still show a success message (session may already be verified)
+        showToast('✅ Welcome back! X account connected successfully.', 'success');
+        setTimeout(() => setActiveTab('tasks'), 600);
+      }
     } else if (startParam?.startsWith('ref_')) {
-      // referral handled via existing referral flow
+      // Referral handled by existing referral flow
       console.log('[startapp] Referral param detected:', startParam);
     }
 

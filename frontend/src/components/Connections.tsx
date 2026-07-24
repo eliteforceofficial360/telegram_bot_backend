@@ -35,6 +35,8 @@ export const Connections = ({
   const [disconnectTarget, setDisconnectTarget] = useState<PlatformType | null>(null);
   const [handleInput, setHandleInput] = useState('');
   const [saving, setSaving] = useState(false);
+  // Tracks when we are fetching the OAuth URL from the backend
+  const [isOauthLoading, setIsOauthLoading] = useState(false);
 
   const socialConnections: SocialConnections = dbUser?.socialConnections || {};
 
@@ -125,6 +127,11 @@ export const Connections = ({
     },
   ];
 
+  /**
+   * Open a plain external link for non-OAuth platforms (Discord invite, etc.)
+   * Uses Telegram WebApp.openLink when available so the link opens inside
+   * Telegram's in-app browser rather than a separate app.
+   */
   const openExternalUrl = (url: string) => {
     try {
       if ((window as any).Telegram?.WebApp?.openLink) {
@@ -137,20 +144,54 @@ export const Connections = ({
     }
   };
 
-  const getOAuthUrl = (platId: PlatformType): string => {
-    if (platId === 'x') {
-      const clientId = adminSettings.xClientId?.trim() || 'TTJzVW9MZEFlYXRHRmZTMHR6Si06MTpjaQ';
-      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/x/callback`);
-      const scope = encodeURIComponent('tweet.read users.read follows.read like.read offline.access');
-      return `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=x_auth&code_challenge=challenge&code_challenge_method=plain`;
+  /**
+   * Fetch a real PKCE OAuth URL from the backend, save the state for CSRF
+   * validation, then open the X authorization page.
+   *
+   * Why backend? X requires a real SHA-256 code_challenge (S256 method).
+   * Generating it client-side and passing a fake "plain" challenge causes
+   * X to return "Something went wrong. You weren't able to give access."
+   * The backend (xVerificationEngine.js) already generates proper PKCE.
+   */
+  const fetchAndOpenXOAuth = async () => {
+    if (!telegramUser) {
+      showToast('Please open in Telegram to connect your X account.', 'warning');
+      return;
     }
-    if (platId === 'discord') {
-      const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
-      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
-      const scope = encodeURIComponent('openid identify email');
-      return `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
+    if (isOauthLoading) return;
+
+    setIsOauthLoading(true);
+    showToast('Preparing X OAuth…', 'info');
+
+    try {
+      const botApiUrl = (adminSettings.botApiUrl || 'https://elite-force-telegram-app.onrender.com').replace(/\/$/, '');
+      const res = await fetch(`${botApiUrl}/api/x/auth-url?telegramId=${telegramUser.id}`);
+      if (!res.ok) throw new Error(`Backend returned HTTP ${res.status}`);
+
+      const data = await res.json();
+      if (!data.ok || !data.authUrl) throw new Error(data.error || 'No authUrl returned from backend');
+
+      // Save state in localStorage so OAuthCallbackPage can validate it (CSRF)
+      if (data.state) {
+        localStorage.setItem('x_oauth_state', data.state);
+      }
+
+      // Open the real X authorization URL (S256 PKCE, valid state, correct redirect_uri)
+      const tg = (window as any).Telegram?.WebApp;
+      if (tg?.openLink) {
+        // Opens in Telegram's external browser — required so X can redirect back
+        tg.openLink(data.authUrl);
+      } else {
+        window.open(data.authUrl, '_blank', 'noopener,noreferrer');
+      }
+
+      showToast('X authorization page opened. Please grant access.', 'info');
+    } catch (err) {
+      console.error('[Connections] fetchAndOpenXOAuth error:', err);
+      showToast('Failed to start X authentication. Please try again.', 'error');
+    } finally {
+      setIsOauthLoading(false);
     }
-    return '';
   };
 
   const handleOpenConnectModal = (plat: PlatformConfig) => {
@@ -162,14 +203,22 @@ export const Connections = ({
     setHandleInput('');
     setActiveModal(plat.id);
 
-    if (plat.isOauth) {
-      const oauthUrl = getOAuthUrl(plat.id);
-      if (oauthUrl) {
-        openExternalUrl(oauthUrl);
-        showToast(`Opening ${plat.name} OAuth 2.0 authorization...`, 'info');
-      }
+    if (plat.isOauth && plat.id === 'x') {
+      // Use backend-driven PKCE OAuth — never generate URL client-side
+      fetchAndOpenXOAuth();
+      return;
+    }
+
+    if (plat.isOauth && plat.id === 'discord') {
+      const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
+      const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
+      const scope = encodeURIComponent('openid identify email');
+      const discordUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
+      openExternalUrl(discordUrl);
+      showToast('Opening Discord OAuth 2.0 authorization…', 'info');
     }
   };
+
 
   const handleSaveConnection = async () => {
     if (!telegramUser || !activeModal) return;
@@ -361,17 +410,23 @@ export const Connections = ({
                     </p>
                     <button
                       onClick={() => {
-                        const url = getOAuthUrl(currentModalPlat.id);
-                        if (url) {
-                          openExternalUrl(url);
+                        if (currentModalPlat.id === 'x') {
+                          // Use backend-driven PKCE — never generate client-side
+                          fetchAndOpenXOAuth();
+                        } else if (currentModalPlat.id === 'discord') {
+                          const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
+                          const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
+                          const scope = encodeURIComponent('openid identify email');
+                          openExternalUrl(`https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`);
                         } else {
-                          showToast(`OAuth Client ID not configured for ${currentModalPlat.name}. Enter @handle below.`, 'warning');
+                          showToast(`OAuth not configured for ${currentModalPlat.name}.`, 'warning');
                         }
                       }}
-                      className="w-full h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                      disabled={isOauthLoading}
+                      className="w-full h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                     >
                       <span className="shrink-0">{currentModalPlat.icon}</span>
-                      <span>Authorize with {currentModalPlat.name}</span>
+                      <span>{isOauthLoading && currentModalPlat.id === 'x' ? 'Preparing…' : `Authorize with ${currentModalPlat.name}`}</span>
                     </button>
                   </div>
                 )}

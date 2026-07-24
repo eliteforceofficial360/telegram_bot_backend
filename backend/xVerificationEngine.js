@@ -71,7 +71,8 @@ const X_CLIENT_SECRET = process.env.X_CLIENT_SECRET || 'Gud3evcnm97ShMJNYpJe_z1c
 const X_CALLBACK_URL = process.env.X_CALLBACK_URL || 'https://mini-telegram-app-c0fb4.web.app/auth/x/callback';
 
 // In-memory sessions & rate-limiting maps
-const pkceSessions = new Map();
+const pkceSessions = new Map();       // state → { telegramId, codeVerifier, createdAt }
+const oauthSessions = new Map();      // sessionToken → { telegramId, xUsername, expiresAt } — one-time use
 const verificationRateLimits = new Map();
 
 /**
@@ -270,10 +271,32 @@ export async function handleXOAuthCallback(code, state, codeVerifierInput = null
 
   if (state) pkceSessions.delete(state);
 
+  // ── Generate one-time sessionToken for Mini App deep-link verification ──
+  // After OAuth the external browser redirects to the OAuthCallbackPage.
+  // That page stores this token in localStorage, then opens:
+  //   https://t.me/<bot>?startapp=oauth_success
+  // When the Mini App resumes it reads the token from localStorage and calls
+  //   GET /api/x/verify-oauth-session?sessionToken=xxx
+  // to confirm the auth and auto-complete any pending X task.
+  const sessionToken = crypto.randomBytes(24).toString('hex');
+  const SESSION_TTL_MS = 10 * 60 * 1000; // 10 minutes
+  oauthSessions.set(sessionToken, {
+    telegramId: Number(telegramId),
+    xUsername: xUser.username,
+    xUserId: xUser.id,
+    expiresAt: Date.now() + SESSION_TTL_MS,
+  });
+
+  // Clean up expired sessions lazily
+  for (const [token, sess] of oauthSessions.entries()) {
+    if (Date.now() > sess.expiresAt) oauthSessions.delete(token);
+  }
+
   return {
     telegramId,
     xUserId: xUser.id,
     xUsername: xUser.username,
+    sessionToken, // ← returned to OAuthCallbackPage
     authenticated: true,
   };
 }
@@ -778,4 +801,37 @@ export async function runXPeriodicMonitoring(sendToUserCallback = null) {
   } catch (err) {
     console.error('❌ [Reward Reversal Engine] Error during periodical monitoring:', err.message);
   }
+}
+
+/**
+ * Verify one-time OAuth session token (called by Mini App after startapp deep link return).
+ * This is a one-time-use token: it is deleted immediately after verification.
+ *
+ * @param {string} sessionToken  - The token returned by handleXOAuthCallback
+ * @returns {{ telegramId: number, xUsername: string, xUserId: string } | null}
+ */
+export function verifyOAuthSession(sessionToken) {
+  if (!sessionToken) return null;
+
+  const session = oauthSessions.get(sessionToken);
+  if (!session) {
+    console.warn('[X Engine] verifyOAuthSession: token not found or already consumed.');
+    return null;
+  }
+
+  if (Date.now() > session.expiresAt) {
+    oauthSessions.delete(sessionToken);
+    console.warn('[X Engine] verifyOAuthSession: token expired.');
+    return null;
+  }
+
+  // One-time use — delete immediately
+  oauthSessions.delete(sessionToken);
+
+  console.log(`✅ [X Engine] OAuth session verified: telegramId=${session.telegramId} xUsername=@${session.xUsername}`);
+  return {
+    telegramId: session.telegramId,
+    xUsername: session.xUsername,
+    xUserId: session.xUserId,
+  };
 }

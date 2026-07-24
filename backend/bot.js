@@ -6,6 +6,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import {
   getXOAuthAuthUrl,
   handleXOAuthCallback,
+  verifyOAuthSession,
   verifyXTask,
   runXPeriodicMonitoring,
 } from './xVerificationEngine.js';
@@ -635,8 +636,39 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'POST' && url === '/api/x/callback') {
       const { code, state, codeVerifier } = data;
       if (!code) return sendJson(res, 400, { error: 'OAuth code is required' });
-      const result = await handleXOAuthCallback(code, state, codeVerifier);
-      return sendJson(res, 200, { ok: true, ...result });
+      try {
+        const result = await handleXOAuthCallback(code, state, codeVerifier);
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        console.error('[OAuth Callback] handleXOAuthCallback error:', err.message);
+        return sendJson(res, 400, { ok: false, error: err.message });
+      }
+    }
+
+    // ── GET /api/x/verify-oauth-session ──────────────────────────────────────
+    // Called by the Mini App after it resumes via startapp=oauth_success.
+    // Verifies the one-time sessionToken stored in localStorage by OAuthCallbackPage.
+    // On success marks the user's X connection as confirmed and returns user info.
+    if (req.method === 'GET' && url.startsWith('/api/x/verify-oauth-session')) {
+      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+      const sessionToken = urlParams.get('sessionToken');
+
+      if (!sessionToken) {
+        return sendJson(res, 400, { ok: false, error: 'sessionToken is required' });
+      }
+
+      const session = verifyOAuthSession(sessionToken);
+      if (!session) {
+        return sendJson(res, 401, { ok: false, error: 'Invalid or expired OAuth session token' });
+      }
+
+      console.log(`✅ [verify-oauth-session] Verified: telegramId=${session.telegramId} xUsername=@${session.xUsername}`);
+      return sendJson(res, 200, {
+        ok: true,
+        telegramId: session.telegramId,
+        xUsername: session.xUsername,
+        xUserId: session.xUserId,
+      });
     }
 
     if (req.method === 'POST' && url === '/api/x/verify-task') {
