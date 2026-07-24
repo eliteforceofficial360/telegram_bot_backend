@@ -50,13 +50,27 @@ export function initMonetag(zoneId: string): Promise<boolean> {
 }
 
 /**
- * Triggers Monetag SDK Ad.
- * Tries global window.show_ZONEID(), Monetag TG SDK handler(), Rewarded Pop, and Direct Link fallback.
+ * Triggers Monetag SDK Ad instantly.
+ * Enforces mandatory 6.5-second minimum watch duration so users backing out early get 0 rewards.
  */
 export function showRewardedAd(zoneId: string, directLink?: string): Promise<boolean> {
+  const startTime = Date.now();
+  const MIN_WATCH_TIME_MS = 6500; // Minimum 6.5 seconds watch requirement
+
+  const isWatchedLongEnough = () => (Date.now() - startTime) >= MIN_WATCH_TIME_MS;
+
+  const verifyWatchAndResolve = (success: boolean): boolean => {
+    if (!success) return false;
+    if (!isWatchedLongEnough()) {
+      console.warn('[Monetag] User backed out too quickly! Reward denied.');
+      return false;
+    }
+    return true;
+  };
+
   if (!zoneId || zoneId === '123456') {
     if (directLink) {
-      return openDirectAdLink(directLink);
+      return openDirectAdLink(directLink, MIN_WATCH_TIME_MS);
     }
     console.info('[Monetag] No active Monetag zone ID provided.');
     return Promise.resolve(true);
@@ -64,34 +78,34 @@ export function showRewardedAd(zoneId: string, directLink?: string): Promise<boo
 
   const sdkFuncName = `show_${zoneId}`;
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const globalShowFn = (window as any)[sdkFuncName];
 
     const fallbackHandler = () => {
       const handler = getHandler(zoneId);
       if (!handler) {
-        if (directLink) return openDirectAdLink(directLink).then(resolve).catch(reject);
-        return resolve(true);
+        if (directLink) {
+          return openDirectAdLink(directLink, MIN_WATCH_TIME_MS).then(resolve);
+        }
+        return resolve(false);
       }
 
-      // Try Rewarded Interstitial first
+      // Try Rewarded Interstitial
       handler()
         .then(() => {
-          console.log('[Monetag] Rewarded Interstitial ad completed');
-          resolve(true);
+          resolve(verifyWatchAndResolve(true));
         })
         .catch((err1: any) => {
-          console.warn('[Monetag] Rewarded Interstitial failed/closed, trying Rewarded Pop:', err1);
+          console.warn('[Monetag] Rewarded Interstitial failed/closed:', err1);
           // Try Rewarded Pop
           handler('pop')
             .then(() => {
-              console.log('[Monetag] Rewarded Pop ad completed');
-              resolve(true);
+              resolve(verifyWatchAndResolve(true));
             })
             .catch((err2: any) => {
               console.warn('[Monetag] Rewarded Pop failed/closed:', err2);
               if (directLink) {
-                openDirectAdLink(directLink).then(resolve);
+                openDirectAdLink(directLink, MIN_WATCH_TIME_MS).then(resolve);
               } else {
                 resolve(false);
               }
@@ -102,7 +116,7 @@ export function showRewardedAd(zoneId: string, directLink?: string): Promise<boo
     if (typeof globalShowFn === 'function') {
       try {
         globalShowFn()
-          .then(() => resolve(true))
+          .then(() => resolve(verifyWatchAndResolve(true)))
           .catch(() => fallbackHandler());
       } catch (e) {
         fallbackHandler();
@@ -113,18 +127,65 @@ export function showRewardedAd(zoneId: string, directLink?: string): Promise<boo
   });
 }
 
-function openDirectAdLink(url: string): Promise<boolean> {
+function openDirectAdLink(url: string, minWatchTimeMs: number = 6500): Promise<boolean> {
   return new Promise((resolve) => {
+    const startTime = Date.now();
+
     try {
       if ((window as any).Telegram?.WebApp?.openLink) {
         (window as any).Telegram.WebApp.openLink(url);
       } else {
         window.open(url, '_blank');
       }
-      resolve(true);
     } catch (e) {
       resolve(false);
+      return;
     }
+
+    // Monitor when user switches back to the app window/tab
+    let resolved = false;
+
+    const checkAndResolve = () => {
+      if (resolved) return;
+      resolved = true;
+      cleanup();
+
+      const elapsed = Date.now() - startTime;
+      if (elapsed < minWatchTimeMs) {
+        console.warn(`[Monetag] Direct link closed in ${elapsed}ms (<${minWatchTimeMs}ms). Reward denied.`);
+        resolve(false);
+      } else {
+        resolve(true);
+      }
+    };
+
+    const handleFocus = () => {
+      setTimeout(checkAndResolve, 300);
+    };
+
+    const cleanup = () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleFocus();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Safety timeout fallback (e.g. 10 seconds)
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        cleanup();
+        const elapsed = Date.now() - startTime;
+        resolve(elapsed >= minWatchTimeMs);
+      }
+    }, 10000);
   });
 }
 

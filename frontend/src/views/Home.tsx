@@ -297,7 +297,7 @@ export const Home: React.FC<HomeProps> = ({
 
     setWatchingAd(true);
     try {
-      showToast('Loading sponsored video...', 'info');
+      showToast('Launching sponsored ad...', 'info');
       const completed = await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
       if (completed) {
         // Add point reward to user
@@ -309,11 +309,12 @@ export const Home: React.FC<HomeProps> = ({
         setAdWatchesToday(updatedCount);
         localStorage.setItem('adWatchCount', String(updatedCount));
         
-        // We can use syncPointsToFirestore or custom updater
         await syncPointsToFirestore(telegramUser.id, efcBalance + reward);
         
         showToast(`🎉 Ad watch complete! +${reward} EFC Points added.`, 'success');
         confetti({ particleCount: 40, spread: 45, origin: { y: 0.6 }, colors: ['#FF8A00', '#00E5FF'] });
+      } else {
+        showToast('⚠️ Ad closed too early! Watch the complete ad (min 7s) to earn rewards.', 'warning');
       }
     } catch (err: any) {
       showToast(err.message || 'Ad skipped or dismissed.', 'error');
