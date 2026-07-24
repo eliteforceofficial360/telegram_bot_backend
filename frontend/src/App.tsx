@@ -147,7 +147,7 @@ export default function App() {
     link.href = fav;
   }, [adminSettings.faviconUrl, adminSettings.loadingLogoUrl]);
 
-  // X & Social OAuth 2.0 PKCE Callback Code Listener & Auto-Return to Telegram Bot
+  // X & Social OAuth 2.0 PKCE Callback Code Listener & Auto-Return to Telegram Bot via startapp Deep Link
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -156,6 +156,8 @@ export default function App() {
     if (code) {
       console.log('🔄 OAuth Code detected in URL, exchanging with backend...');
       const botApiUrl = adminSettings.botApiUrl || 'https://elite-force-telegram-app.onrender.com';
+      const botUsername = adminSettings.botUsername || 'Elite_Force_Official_Mining_bot';
+
       fetch(`${botApiUrl.replace(/\/$/, '')}/api/x/callback`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -177,18 +179,20 @@ export default function App() {
         })
         .finally(() => {
           window.history.replaceState({}, document.title, window.location.pathname);
-          // Return user directly back into Telegram Bot Mini App
+          // Return user back to Telegram Mini App via startapp Deep Link
           setTimeout(() => {
             const tg = (window as any).Telegram?.WebApp;
-            if (tg?.close) {
-              tg.close();
+            // Use Telegram startapp deep link so Mini App opens with start_param=oauth_success
+            const deepLink = `https://t.me/${botUsername}?startapp=oauth_success`;
+            if (tg?.openTelegramLink) {
+              tg.openTelegramLink(deepLink);
             } else {
-              window.location.href = 'https://t.me/EliteForce_Official_bot/app';
+              window.location.replace(deepLink);
             }
-          }, 1200);
+          }, 800);
         });
     }
-  }, [adminSettings.botApiUrl, telegramUser]);
+  }, [adminSettings.botApiUrl, adminSettings.botUsername, telegramUser]);
 
   const [captchaVerified, setCaptchaVerified] = useState(false);
 
@@ -285,6 +289,16 @@ export default function App() {
     // Detect Telegram WebApp
     const isTg = !!(window as any).Telegram?.WebApp?.initData || navigator.userAgent.includes('Telegram');
     setIsTelegramWebview(isTg);
+
+    // Read start_param from Telegram Mini App deep link (e.g. startapp=oauth_success)
+    const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || '';
+    if (startParam === 'oauth_success') {
+      console.log('✅ [startapp] OAuth success detected via start_param. Triggering post-OAuth flow...');
+      showToast('✅ Social account connected successfully!', 'success');
+    } else if (startParam?.startsWith('ref_')) {
+      // referral handled via existing referral flow
+      console.log('[startapp] Referral param detected:', startParam);
+    }
 
     // Extract device metrics
     const ua = navigator.userAgent;
