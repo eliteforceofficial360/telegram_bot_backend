@@ -158,35 +158,65 @@ async function uploadBase64ToImgbb(dataUrl) {
   }
 }
 
-/** Resolves any imageUrl (base64 or plain URL) to a URL Telegram can fetch. */
+/** Resolves any imageUrl (base64 or plain URL) to a format Telegraf sendPhoto accepts directly. */
 async function resolveImageUrl(imageUrl) {
   if (!imageUrl) return null;
-  if (imageUrl.startsWith('data:image/')) {
-    return await uploadBase64ToImgbb(imageUrl);
-  }
-  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+  if (typeof imageUrl === 'object' && (imageUrl.source || imageUrl.url)) {
     return imageUrl;
   }
+  if (typeof imageUrl !== 'string') return null;
+  const trimmed = imageUrl.trim();
+  if (!trimmed) return null;
+
+  // 1. If Base64 data URL -> convert directly to Node Buffer so Telegraf uploads straight to Telegram!
+  if (trimmed.startsWith('data:image/')) {
+    try {
+      const base64Data = trimmed.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      if (buffer.length > 0) {
+        return { source: buffer };
+      }
+    } catch (err) {
+      console.warn('[Bot] Failed to parse base64 image buffer:', err.message);
+    }
+  }
+
+  // 2. Try ImgBB upload if API key is set
+  if (trimmed.startsWith('data:image/') && IMGBB_API_KEY) {
+    const imgbbUrl = await uploadBase64ToImgbb(trimmed);
+    if (imgbbUrl) return imgbbUrl;
+  }
+
+  // 3. If HTTP/HTTPS URL -> return directly
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed;
+  }
+
   return null;
 }
 
 /** Send a Telegram HTML message or photo to a specific user. Returns true/false. */
-async function sendToUser(telegramId, html, extra = {}, imageUrl = null) {
+async function sendToUser(telegramId, html, extra = {}, photoInput = null) {
   try {
-    const finalPhotoUrl = await resolveImageUrl(imageUrl);
+    let finalPhoto = photoInput;
+    if (typeof photoInput === 'string') {
+      finalPhoto = await resolveImageUrl(photoInput);
+    } else if (photoInput && typeof photoInput === 'object' && (photoInput.source || photoInput.url)) {
+      finalPhoto = photoInput;
+    }
 
-    if (finalPhotoUrl) {
+    if (finalPhoto) {
       try {
         // Telegram caption limit is 1024 chars. If text is longer, send photo then a separate message.
         if (html.length > 1024) {
-          await bot.telegram.sendPhoto(telegramId, finalPhotoUrl);
+          await bot.telegram.sendPhoto(telegramId, finalPhoto);
           await bot.telegram.sendMessage(telegramId, html, {
             parse_mode: 'HTML',
             disable_web_page_preview: true,
             ...extra,
           });
         } else {
-          await bot.telegram.sendPhoto(telegramId, finalPhotoUrl, {
+          await bot.telegram.sendPhoto(telegramId, finalPhoto, {
             caption: html,
             parse_mode: 'HTML',
             ...extra,
@@ -194,7 +224,38 @@ async function sendToUser(telegramId, html, extra = {}, imageUrl = null) {
         }
         return true;
       } catch (photoErr) {
-        console.warn(`[Bot] Failed to send photo to ${telegramId}, falling back to text:`, photoErr.message);
+        console.warn(`[Bot] Failed to send photo to ${telegramId}:`, photoErr.message);
+
+        // Fallback: If photo was a URL string and Telegram servers couldn't fetch it directly, download to Buffer and send!
+        if (typeof finalPhoto === 'string' && (finalPhoto.startsWith('http://') || finalPhoto.startsWith('https://'))) {
+          try {
+            const imgRes = await fetch(finalPhoto);
+            if (imgRes.ok) {
+              const arrayBuf = await imgRes.arrayBuffer();
+              const buffer = Buffer.from(arrayBuf);
+              if (buffer.length > 0) {
+                const bufPhoto = { source: buffer };
+                if (html.length > 1024) {
+                  await bot.telegram.sendPhoto(telegramId, bufPhoto);
+                  await bot.telegram.sendMessage(telegramId, html, {
+                    parse_mode: 'HTML',
+                    disable_web_page_preview: true,
+                    ...extra,
+                  });
+                } else {
+                  await bot.telegram.sendPhoto(telegramId, bufPhoto, {
+                    caption: html,
+                    parse_mode: 'HTML',
+                    ...extra,
+                  });
+                }
+                return true;
+              }
+            }
+          } catch (fetchErr) {
+            console.warn(`[Bot] Buffer fallback fetch failed for ${finalPhoto}:`, fetchErr.message);
+          }
+        }
       }
     }
 
@@ -213,10 +274,10 @@ async function sendToUser(telegramId, html, extra = {}, imageUrl = null) {
 /** Send a message/photo to a list of Telegram IDs (announcement), with pacing to avoid rate limits. */
 async function broadcast(ids, html, extra = {}, imageUrl = null, delayMs = 60) {
   let sent = 0, failed = 0;
-  const finalPhotoUrl = await resolveImageUrl(imageUrl); // convert once, reuse per recipient
+  const finalPhoto = await resolveImageUrl(imageUrl);
 
   for (const id of ids) {
-    const ok = await sendToUser(id, html, extra, finalPhotoUrl);
+    const ok = await sendToUser(id, html, extra, finalPhoto);
     ok ? sent++ : failed++;
     if (ids.length > 20) await new Promise((r) => setTimeout(r, delayMs));
   }
