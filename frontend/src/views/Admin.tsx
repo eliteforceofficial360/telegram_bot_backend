@@ -869,14 +869,26 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      showToast('Compressing & uploading banner image...', 'info');
-      const compressed = await compressImageFile(file, 800, 400, 0.8);
-      const url = await uploadImageToBot(compressed, `hero_banner_${Date.now()}`);
-      setNewBannerUrl(url);
+      let finalUrl = '';
+      const isVideo = file.type.startsWith('video/') || !!file.name.match(/\.(mp4|webm|mov|ogg)$/i);
+
+      if (isVideo) {
+        showToast('Processing & uploading video banner...', 'info');
+        finalUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      } else {
+        showToast('Compressing & uploading banner image...', 'info');
+        const compressed = await compressImageFile(file, 800, 400, 0.8);
+        finalUrl = await uploadImageToBot(compressed, `hero_banner_${Date.now()}`);
+      }
 
       const newBanner = {
         id: String(Date.now()),
-        imageUrl: url,
+        imageUrl: finalUrl,
         title: newBannerTitle.trim() || undefined,
         linkUrl: newBannerLink.trim() || undefined,
       };
@@ -887,7 +899,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       setNewBannerUrl('');
       setNewBannerTitle('');
       setNewBannerLink('');
-      showToast('✅ Banner image uploaded & added to Carousel!', 'success');
+      showToast(isVideo ? '🎬 Video Banner added to Carousel!' : '✅ Banner Image added to Carousel!', 'success');
     } catch (err: any) {
       showToast(err.message || 'Upload failed.', 'error');
     }
@@ -2653,7 +2665,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         <input
                           type="text"
-                          placeholder="Banner Image URL"
+                          placeholder="Banner Image or Video URL (MP4, WebM)"
                           value={newBannerUrl}
                           onChange={e => setNewBannerUrl(e.target.value)}
                           className={inputCls}
@@ -2679,10 +2691,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                       <div className="flex items-center gap-3 mt-1">
                         <label className="h-9 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 text-black text-xs font-black flex items-center gap-2 cursor-pointer shadow-lg hover:scale-[1.02] transition-all">
-                          <Upload size={13} /> Upload Image
+                          <Upload size={13} /> Upload Image / Video
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/*,video/*"
                             onChange={handleAddBannerUpload}
                             className="hidden"
                           />
@@ -2705,22 +2717,38 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           No multi-banners added yet. Default single banner will be shown.
                         </div>
                       ) : (
-                        (settings.heroBanners || []).map((b, idx) => (
-                          <div key={b.id || idx} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
-                            <img src={b.imageUrl} alt="" className="w-16 h-10 object-cover rounded-xl border border-white/10 shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-xs font-bold text-white truncate">{b.title || `Banner #${idx + 1}`}</div>
-                              {b.linkUrl && <div className="text-[10px] text-cyan-400 truncate">{b.linkUrl}</div>}
+                        (settings.heroBanners || []).map((b, idx) => {
+                          const isVid = b.imageUrl?.toLowerCase().includes('.mp4') ||
+                                        b.imageUrl?.toLowerCase().includes('.webm') ||
+                                        b.imageUrl?.toLowerCase().includes('.mov') ||
+                                        b.imageUrl?.toLowerCase().startsWith('data:video/');
+                          return (
+                            <div key={b.id || idx} className="flex items-center gap-3 p-3 rounded-2xl bg-white/[0.03] border border-white/5">
+                              {isVid ? (
+                                <div className="w-16 h-10 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-black relative flex items-center justify-center">
+                                  <video src={b.imageUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                                  <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-black/70 px-1 py-0.5 rounded text-amber-400 font-bold">🎬 Video</span>
+                                </div>
+                              ) : (
+                                <img src={b.imageUrl} alt="" className="w-16 h-10 object-cover rounded-xl border border-white/10 shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="text-xs font-bold text-white truncate flex items-center gap-1.5">
+                                  <span>{b.title || `Banner #${idx + 1}`}</span>
+                                  {isVid && <span className="text-[9px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded font-mono">Video Banner</span>}
+                                </div>
+                                {b.linkUrl && <div className="text-[10px] text-cyan-400 truncate">{b.linkUrl}</div>}
+                              </div>
+                              <button
+                                onClick={() => handleRemoveHeroBanner(idx)}
+                                className="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all cursor-pointer"
+                                title="Delete Banner"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
-                            <button
-                              onClick={() => handleRemoveHeroBanner(idx)}
-                              className="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all cursor-pointer"
-                              title="Delete Banner"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        ))
+                          );
+                        })
                       )}
                     </div>
                   </div>

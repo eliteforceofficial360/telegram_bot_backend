@@ -377,11 +377,25 @@ export const Home: React.FC<HomeProps> = ({
               }}
               className={`absolute inset-0 w-full h-full ${activeBanners[currentBannerIndex]?.linkUrl ? 'cursor-pointer' : ''}`}
             >
-              <img
-                src={activeBanners[currentBannerIndex]?.imageUrl}
-                alt={activeBanners[currentBannerIndex]?.title || 'Hero Banner'}
-                className="w-full h-full object-cover"
-              />
+              {activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.mp4') ||
+               activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.webm') ||
+               activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.mov') ||
+               activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().startsWith('data:video/') ? (
+                <video
+                  src={activeBanners[currentBannerIndex]?.imageUrl}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <img
+                  src={activeBanners[currentBannerIndex]?.imageUrl}
+                  alt={activeBanners[currentBannerIndex]?.title || 'Hero Banner'}
+                  className="w-full h-full object-cover"
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
               {activeBanners[currentBannerIndex]?.title && (
                 <div className="absolute bottom-3 left-4 right-4">
