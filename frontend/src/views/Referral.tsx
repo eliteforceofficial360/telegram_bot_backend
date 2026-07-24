@@ -53,22 +53,57 @@ export const Referral: React.FC<ReferralProps> = ({
   }, [referralsCount, settings.withdrawMinReferrals]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    showToast('Referral link copied!', 'success');
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(referralLink);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = referralLink;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      showToast('Referral link copied to clipboard!', 'success');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      showToast('Failed to copy link.', 'error');
+    }
   };
 
   const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'Elite Force (EForce)',
-        text: `Join Elite Force Web3 platform and earn EForce coins! My referral link:`,
-        url: referralLink,
-      }).catch(() => handleCopy());
-    } else {
-      handleCopy();
+    const shareText = `🚀 Join Elite Force Web3 & start earning EForce Tokens & USDT today! 💥`;
+    const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
+
+    // 1. If running inside Telegram WebApp, use openTelegramLink for native share dialog
+    if ((window as any).Telegram?.WebApp?.openTelegramLink) {
+      try {
+        (window as any).Telegram.WebApp.openTelegramLink(shareUrl);
+        showToast('Opening Telegram Share...', 'info');
+        return;
+      } catch (err) {
+        console.warn('openTelegramLink error:', err);
+      }
     }
+
+    // 2. Fallback to Web Share API if available
+    if (navigator.share) {
+      navigator
+        .share({
+          title: 'Elite Force (EForce)',
+          text: shareText,
+          url: referralLink,
+        })
+        .catch(() => {
+          window.open(shareUrl, '_blank');
+        });
+      return;
+    }
+
+    // 3. Direct Telegram web share link fallback
+    window.open(shareUrl, '_blank');
+    handleCopy();
   };
 
   const validReferrals = referralRecords.filter(r => r.isValid).length;
