@@ -864,8 +864,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       title: newBannerTitle.trim() || undefined,
       linkUrl: newBannerLink.trim() || undefined,
     };
-    const updatedBanners = [...(settingsRef.current.heroBanners || []), newBanner];
-    const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
+    const updatedBanners = [...(settings.heroBanners || []), newBanner];
+    const updatedSettings = { ...settings, heroBanners: updatedBanners };
     setSettings(updatedSettings);
     await saveAdminSettings(updatedSettings);
     setNewBannerUrl('');
@@ -875,8 +875,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
 
   const handleRemoveHeroBanner = async (index: number) => {
-    const updatedBanners = (settingsRef.current.heroBanners || []).filter((_, i) => i !== index);
-    const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
+    const updatedBanners = (settings.heroBanners || []).filter((_, i) => i !== index);
+    const updatedSettings = { ...settings, heroBanners: updatedBanners };
     setSettings(updatedSettings);
     await saveAdminSettings(updatedSettings);
     showToast('Banner removed.', 'info');
@@ -886,11 +886,25 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      showToast('Compressing & uploading banner...', 'info');
+      showToast('Compressing & uploading banner image...', 'info');
       const compressed = await compressImageFile(file, 800, 400, 0.8);
       const url = await uploadImageToBot(compressed, `hero_banner_${Date.now()}`);
       setNewBannerUrl(url);
-      showToast('✅ Banner image uploaded! Click "Add to Carousel" to save.', 'success');
+
+      const newBanner = {
+        id: String(Date.now()),
+        imageUrl: url,
+        title: newBannerTitle.trim() || undefined,
+        linkUrl: newBannerLink.trim() || undefined,
+      };
+      const updatedBanners = [...(settings.heroBanners || []), newBanner];
+      const updatedSettings = { ...settings, heroBanners: updatedBanners };
+      setSettings(updatedSettings);
+      await saveAdminSettings(updatedSettings);
+      setNewBannerUrl('');
+      setNewBannerTitle('');
+      setNewBannerLink('');
+      showToast('✅ Banner image uploaded & added to Carousel!', 'success');
     } catch (err: any) {
       showToast(err.message || 'Upload failed.', 'error');
     }
@@ -910,7 +924,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       const secureUrl = await uploadImageToBot(compressedDataUrl, `${String(targetField)}_${Date.now()}`);
 
       // 3. Update settings state & save directly to Firestore
-      const updated = { ...settingsRef.current, [targetField]: secureUrl };
+      const updated = { ...settings, [targetField]: secureUrl };
       setSettings(updated);
       await saveAdminSettings(updated);
 
