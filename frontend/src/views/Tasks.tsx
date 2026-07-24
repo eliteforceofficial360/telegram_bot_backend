@@ -524,7 +524,14 @@ export const Tasks = ({
       {/* Header Banner (if set by Admin) */}
       {adminSettings.tasksBannerUrl && (
         <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          <img src={adminSettings.tasksBannerUrl} alt="Tasks Banner" className="w-full h-full object-cover" />
+          {adminSettings.tasksBannerUrl.toLowerCase().includes('.mp4') ||
+           adminSettings.tasksBannerUrl.toLowerCase().includes('.webm') ||
+           adminSettings.tasksBannerUrl.toLowerCase().includes('.mov') ||
+           adminSettings.tasksBannerUrl.toLowerCase().startsWith('data:video/') ? (
+            <video src={adminSettings.tasksBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+          ) : (
+            <img src={adminSettings.tasksBannerUrl} alt="Tasks Banner" className="w-full h-full object-cover" />
+          )}
         </div>
       )}
 

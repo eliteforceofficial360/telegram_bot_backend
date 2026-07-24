@@ -914,14 +914,23 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setUploadingImageField(String(targetField));
 
     try {
-      // 1. Compress image to max 600x400 ~20KB to ensure instant upload & 0 Firestore document size errors
-      const compressedDataUrl = await compressImageFile(file, 600, 400, 0.75);
+      let finalUrl = '';
+      const isVideo = file.type.startsWith('video/') || !!file.name.match(/\.(mp4|webm|mov|ogg)$/i);
 
-      // 2. Upload to ImgBB / CDN host
-      const secureUrl = await uploadImageToBot(compressedDataUrl, `${String(targetField)}_${Date.now()}`);
+      if (isVideo) {
+        showToast('Processing video upload...', 'info');
+        finalUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      } else {
+        const compressedDataUrl = await compressImageFile(file, 600, 400, 0.75);
+        finalUrl = await uploadImageToBot(compressedDataUrl, `${String(targetField)}_${Date.now()}`);
+      }
 
-      // 3. Update settings state & save directly to Firestore
-      const updated = { ...settings, [targetField]: secureUrl };
+      const updated = { ...settings, [targetField]: finalUrl };
       setSettings(updated);
       await saveAdminSettings(updated);
 
@@ -2785,6 +2794,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     ].map(item => {
                       const displayUrl = (settings as any)[item.key] || item.defaultVal;
                       const isUploading = uploadingImageField === item.key;
+                      const isVid = displayUrl.toLowerCase().includes('.mp4') ||
+                                    displayUrl.toLowerCase().includes('.webm') ||
+                                    displayUrl.toLowerCase().includes('.mov') ||
+                                    displayUrl.toLowerCase().startsWith('data:video/');
                       return (
                         <div key={item.key} className="flex items-center justify-between gap-4 py-3">
                           <div className="min-w-0 flex-1">
@@ -2793,7 +2806,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           </div>
                           <div className="flex items-center gap-2.5 shrink-0">
                             <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
-                              <ImageWithFallback src={displayUrl} fallbackLetter="🖼️" className="w-full h-full object-contain" />
+                              {isVid ? (
+                                <video src={displayUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                              ) : (
+                                <ImageWithFallback src={displayUrl} fallbackLetter="🖼️" className="w-full h-full object-contain" />
+                              )}
                             </div>
                             <input
                               type="text"
@@ -2819,7 +2836,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               {isUploading ? 'Uploading...' : 'Upload'}
                               <input
                                 type="file"
-                                accept="image/*"
+                                accept="image/*,video/*"
                                 onChange={e => handleBrandingUpload(e, item.key as any)}
                                 className="hidden"
                                 disabled={isUploading}

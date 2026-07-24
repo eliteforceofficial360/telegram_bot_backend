@@ -61,7 +61,14 @@ export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser, admin
       {/* Header Banner (if set by Admin) */}
       {adminSettings?.leaderboardBannerUrl && (
         <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          <img src={adminSettings.leaderboardBannerUrl} alt="Leaderboard Banner" className="w-full h-full object-cover" />
+          {adminSettings.leaderboardBannerUrl.toLowerCase().includes('.mp4') ||
+           adminSettings.leaderboardBannerUrl.toLowerCase().includes('.webm') ||
+           adminSettings.leaderboardBannerUrl.toLowerCase().includes('.mov') ||
+           adminSettings.leaderboardBannerUrl.toLowerCase().startsWith('data:video/') ? (
+            <video src={adminSettings.leaderboardBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+          ) : (
+            <img src={adminSettings.leaderboardBannerUrl} alt="Leaderboard Banner" className="w-full h-full object-cover" />
+          )}
         </div>
       )}
 

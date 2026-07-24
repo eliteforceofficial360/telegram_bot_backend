@@ -128,7 +128,14 @@ export const Referral: React.FC<ReferralProps> = ({
       {/* Header Banner (if set by Admin) */}
       {adminSettings.referralBannerUrl && (
         <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          <img src={adminSettings.referralBannerUrl} alt="Referral Banner" className="w-full h-full object-cover" />
+          {adminSettings.referralBannerUrl.toLowerCase().includes('.mp4') ||
+           adminSettings.referralBannerUrl.toLowerCase().includes('.webm') ||
+           adminSettings.referralBannerUrl.toLowerCase().includes('.mov') ||
+           adminSettings.referralBannerUrl.toLowerCase().startsWith('data:video/') ? (
+            <video src={adminSettings.referralBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+          ) : (
+            <img src={adminSettings.referralBannerUrl} alt="Referral Banner" className="w-full h-full object-cover" />
+          )}
         </div>
       )}
 

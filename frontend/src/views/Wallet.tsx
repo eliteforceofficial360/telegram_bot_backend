@@ -282,7 +282,14 @@ export const Wallet: React.FC<WalletProps> = ({
       {/* Header Banner (if set by Admin) */}
       {settings.walletBannerUrl && (
         <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          <img src={settings.walletBannerUrl} alt="Wallet Banner" className="w-full h-full object-cover" />
+          {settings.walletBannerUrl.toLowerCase().includes('.mp4') ||
+           settings.walletBannerUrl.toLowerCase().includes('.webm') ||
+           settings.walletBannerUrl.toLowerCase().includes('.mov') ||
+           settings.walletBannerUrl.toLowerCase().startsWith('data:video/') ? (
+            <video src={settings.walletBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+          ) : (
+            <img src={settings.walletBannerUrl} alt="Wallet Banner" className="w-full h-full object-cover" />
+          )}
         </div>
       )}
 
