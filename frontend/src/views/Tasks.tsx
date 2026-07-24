@@ -35,17 +35,21 @@ interface TasksProps {
   telegramUser: TelegramUser | null;
   adminSettings: AdminSettings;
   dbUser: FirestoreUser | null;
+  setActiveTab?: (tab: string) => void;
 }
 
 type TaskStatus = 'idle' | 'verifying' | 'completed';
 
 export const Tasks = ({
+  efcBalance: _efcBalance,
   setEfcBalance,
+  eforceTokens: _eforceTokens,
   setEforceTokens,
   showToast,
   telegramUser,
   adminSettings,
   dbUser,
+  setActiveTab,
 }: TasksProps) => {
   const [tasks, setTasks] = useState<EForceTask[]>([]);
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());
@@ -163,11 +167,33 @@ export const Tasks = ({
     }
 
     // 4. Social OAuth Connection Verification (if required)
-    const reqPlatform = task.requireSocialConnection || (task.type === 'x' ? 'x' : task.type === 'discord' ? 'discord' : task.type === 'tiktok' ? 'tiktok' : task.type === 'instagram' ? 'instagram' : 'none');
+    const inferPlatform = (t: EForceTask): string => {
+      if (t.requireSocialConnection && t.requireSocialConnection !== 'none') {
+        return t.requireSocialConnection.toLowerCase();
+      }
+      const typeStr = (t.type || '').toLowerCase();
+      const platformStr = ((t as any).platform || '').toLowerCase();
+      const titleStr = (t.title || '').toLowerCase();
+      const urlStr = (t.url || '').toLowerCase();
+
+      if (typeStr.includes('x') || typeStr.includes('twitter') || platformStr.includes('x') || platformStr.includes('twitter') || urlStr.includes('x.com') || urlStr.includes('twitter.com') || titleStr.includes('follow x') || titleStr.includes('retweet') || titleStr.includes('like x')) return 'x';
+      if (typeStr.includes('discord') || platformStr.includes('discord') || urlStr.includes('discord.') || titleStr.includes('discord')) return 'discord';
+      if (typeStr.includes('youtube') || platformStr.includes('youtube') || urlStr.includes('youtube.com') || urlStr.includes('youtu.be') || titleStr.includes('youtube')) return 'youtube';
+      if (typeStr.includes('instagram') || platformStr.includes('instagram') || urlStr.includes('instagram.com') || titleStr.includes('instagram')) return 'instagram';
+      if (typeStr.includes('tiktok') || platformStr.includes('tiktok') || urlStr.includes('tiktok.com') || titleStr.includes('tiktok')) return 'tiktok';
+      if (typeStr.includes('reddit') || platformStr.includes('reddit') || urlStr.includes('reddit.com') || titleStr.includes('reddit')) return 'reddit';
+
+      return 'none';
+    };
+
+    const reqPlatform = inferPlatform(task);
     if (reqPlatform && reqPlatform !== 'none') {
       const conn = dbUser?.socialConnections?.[reqPlatform as keyof typeof dbUser.socialConnections];
-      if (!conn || !conn.connected) {
-        showToast(`Verification Failed: Please connect your ${reqPlatform.toUpperCase()} account in Profile first!`, 'error');
+      if (!conn || !conn.connected || !conn.handle) {
+        showToast(`🔒 Authentication Required: Connect your ${reqPlatform.toUpperCase()} account in Profile first!`, 'error');
+        if (setActiveTab) {
+          setTimeout(() => setActiveTab('profile'), 1200);
+        }
         return;
       }
     }

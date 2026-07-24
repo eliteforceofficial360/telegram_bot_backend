@@ -12,7 +12,7 @@ import { Leaderboard } from './views/Leaderboard';
 import { Admin } from './views/Admin';
 import { AdminLogin } from './views/AdminLogin';
 import { getTelegramWebAppData, type TelegramUser } from './lib/telegramUser';
-import { upsertUser, setUserOffline, syncPointsToFirestore, getOnlineUserCount, subscribeToUser, checkUserBan, updateUserDatabaseValues, type FirestoreUser } from './lib/userService';
+import { upsertUser, setUserOffline, syncPointsToFirestore, getOnlineUserCount, subscribeToUser, checkUserBan, updateUserDatabaseValues, saveSocialConnection, type FirestoreUser } from './lib/userService';
 import { subscribeToAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings } from './lib/adminSettingsService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './lib/firebase';
@@ -147,7 +147,7 @@ export default function App() {
     link.href = fav;
   }, [adminSettings.faviconUrl, adminSettings.loadingLogoUrl]);
 
-  // X OAuth 2.0 PKCE Callback Code Listener
+  // X & Social OAuth 2.0 PKCE Callback Code Listener & Auto-Return to Telegram Bot
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const code = urlParams.get('code');
@@ -164,7 +164,10 @@ export default function App() {
         .then(res => res.json())
         .then(data => {
           if (data.ok) {
-            showToast(`✅ Successfully linked X account (@${data.xUsername})!`, 'success');
+            showToast(`✅ Successfully authenticated X account (@${data.xUsername})!`, 'success');
+            if (telegramUser?.id) {
+              saveSocialConnection(telegramUser.id, 'x', `@${data.xUsername}`).catch(() => {});
+            }
           } else {
             showToast(data.error || 'Failed to complete X OAuth authentication.', 'error');
           }
@@ -174,9 +177,18 @@ export default function App() {
         })
         .finally(() => {
           window.history.replaceState({}, document.title, window.location.pathname);
+          // Return user directly back into Telegram Bot Mini App
+          setTimeout(() => {
+            const tg = (window as any).Telegram?.WebApp;
+            if (tg?.close) {
+              tg.close();
+            } else {
+              window.location.href = 'https://t.me/EliteForce_Official_bot/app';
+            }
+          }, 1200);
         });
     }
-  }, [adminSettings.botApiUrl]);
+  }, [adminSettings.botApiUrl, telegramUser]);
 
   const [captchaVerified, setCaptchaVerified] = useState(false);
 
@@ -682,6 +694,7 @@ export default function App() {
             telegramUser={telegramUser}
             adminSettings={adminSettings}
             dbUser={dbUser}
+            setActiveTab={(tab: string) => setActiveTab(tab as ActiveTab)}
           />
         );
       case 'referral':
