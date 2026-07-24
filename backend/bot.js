@@ -68,8 +68,6 @@ You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Forc
 🚀 Tap the button below to launch your dashboard!`;
 }
 
-}
-
 // REST API sync for Firestore admin settings (works 100% on Render without GCP Service Account / ADC credentials)
 async function syncAdminSettingsFromRest() {
   try {
