@@ -48,8 +48,11 @@ export interface AdminSettings {
   adDailyLimitNormal: number;    // Ad watch limit normal
   adDailyLimitPremium: number;   // Ad watch limit premium
 
-  // Bot Notifications
+  // Bot Notifications & App Configuration
   botApiUrl: string;             // Backend bot API URL for push notifications
+  miniAppUrl: string;            // Telegram Mini App Web URL (e.g. https://mini-telegram-app-c0fb4.web.app)
+  botStartMessage: string;       // Custom welcome text sent when user runs /start in Telegram
+  botStartButtonText: string;    // Custom text for launch app inline button (e.g. 🔥 Launch Elite Force App 🔥)
 
   // Token Sale
   tokenSaleActive: boolean;
@@ -144,6 +147,9 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   xAuthUrl: 'https://x.com/oauth2/authorize?client_id=',
   whatsappNumber: '+9613578241',
   botApiUrl: '',
+  miniAppUrl: 'https://mini-telegram-app-c0fb4.web.app',
+  botStartMessage: `🔥 <b>ELITE FORCE — EForce Token</b> 🔥\n\n👋 Welcome, <b>{name}</b>!\n\nYou've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Force rewards you for every action.\n\n━━━━━━━━━━━━━━━━━━━━\n⛏️  <b>Mine</b> EForce tokens passively\n✅  <b>Complete missions</b> & earn rewards\n🏆  <b>Climb</b> the global leaderboard\n👥  <b>Refer friends</b> and earn commissions\n💸  <b>Withdraw</b> USDT to your BEP-20 wallet\n━━━━━━━━━━━━━━━━━━━━\n\n🚀 Tap the button below to launch your dashboard!`,
+  botStartButtonText: '🔥 Launch Elite Force App 🔥',
   customTopMiners: [],
   loadingLogoUrl: '/loading-logo.png',
   coinIconUrl: '/coin.png',

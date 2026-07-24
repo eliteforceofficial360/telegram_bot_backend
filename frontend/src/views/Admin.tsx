@@ -2381,7 +2381,62 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         <label className="text-xs text-slate-400 block">Bot API URL</label>
                         <span className="text-[9px] text-slate-600">Your running backend URL (for notifications)</span>
                       </div>
-                      <input type="text" placeholder="http://your-server:4000" value={settings.botApiUrl || ''} onChange={e => setSettings(prev => ({ ...prev, botApiUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                      <input type="text" placeholder="http://your-server:4000" value={settings.botApiUrl || ''} onChange={e => setSettings(prev => ({ ...prev, botApiUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono" style={inputStyle} />
+                    </div>
+                  </div>
+                </SectionCard>
+
+                {/* Telegram Bot Welcome & App Link Customization */}
+                <SectionCard accentColor="#38BDF888">
+                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">🤖</span>
+                      <span className="text-sm font-black text-white">Telegram Bot Start Message & App Link</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Customize the /start welcome message, button text, and Mini App URL sent in Telegram</p>
+                  </div>
+                  <div className="p-4 flex flex-col gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-300 font-bold">Mini App URL (Web App Link)</label>
+                      <span className="text-[9px] text-slate-500">The URL opened when users click the bot button</span>
+                      <input
+                        type="text"
+                        placeholder="https://mini-telegram-app-c0fb4.web.app"
+                        value={settings.miniAppUrl || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, miniAppUrl: e.target.value }))}
+                        className="w-full h-9 rounded-xl px-3 text-xs text-white outline-none font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-300 font-bold">Launch App Button Text</label>
+                      <span className="text-[9px] text-slate-500">Text displayed on the Telegram inline web app button</span>
+                      <input
+                        type="text"
+                        placeholder="🔥 Launch Elite Force App 🔥"
+                        value={settings.botStartButtonText || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, botStartButtonText: e.target.value }))}
+                        className="w-full h-9 rounded-xl px-3 text-xs text-white outline-none font-bold"
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-300 font-bold">Telegram /start Welcome Text</label>
+                      <textarea
+                        rows={7}
+                        placeholder="Welcome message sent when user runs /start..."
+                        value={settings.botStartMessage || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, botStartMessage: e.target.value }))}
+                        className="w-full rounded-xl p-3 text-xs text-white outline-none resize-y font-sans"
+                        style={{ ...inputStyle, minHeight: 130 }}
+                      />
+                      <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-300 space-y-1">
+                        <div>💡 <strong>Available Placeholders & Formatting:</strong></div>
+                        <div>• Use <code>{'{name}'}</code> or <code>{'{username}'}</code> to automatically insert user's name.</div>
+                        <div>• Telegram HTML tags supported: <code>&lt;b&gt;bold&lt;/b&gt;</code>, <code>&lt;i&gt;italic&lt;/i&gt;</code>, <code>&lt;code&gt;code&lt;/code&gt;</code>, <code>&lt;a href="..."&gt;link&lt;/a&gt;</code></div>
+                      </div>
                     </div>
                   </div>
                 </SectionCard>

@@ -2,6 +2,7 @@ import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import http from 'http';
 import crypto from 'crypto';
+import { getFirestore } from 'firebase-admin/firestore';
 import {
   getXOAuthAuthUrl,
   handleXOAuthCallback,
@@ -29,6 +30,67 @@ const RECAPTCHA_PROJECT_ID = process.env.RECAPTCHA_PROJECT_ID; // e.g. 'balmy-ac
 const RECAPTCHA_SITE_KEY = process.env.RECAPTCHA_SITE_KEY;
 
 const bot = new Telegraf(token);
+const db = getFirestore();
+
+// ── Dynamic Admin Settings Cache & Firestore Real-time Listener ──────────────
+let dynamicSettings = {
+  miniAppUrl: webAppUrl,
+  botStartMessage: '',
+  botStartButtonText: '🔥 Launch Elite Force App 🔥',
+};
+
+function getEffectiveAppUrl() {
+  let raw = (dynamicSettings.miniAppUrl || process.env.MINI_APP_URL || BASE_APP_URL).trim();
+  if (raw.endsWith('/')) raw = raw.slice(0, -1);
+  return raw;
+}
+
+function getWelcomeMessage(firstName = 'Force Agent') {
+  const safeName = escapeHTML(firstName);
+  if (dynamicSettings.botStartMessage && dynamicSettings.botStartMessage.trim()) {
+    let msg = dynamicSettings.botStartMessage;
+    return msg.replace(/\{name\}/gi, safeName).replace(/\{username\}/gi, safeName);
+  }
+
+  return `🔥 <b>ELITE FORCE — EForce Token</b> 🔥
+
+👋 Welcome, <b>${safeName}</b>!
+
+You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Force rewards you for every action.
+
+━━━━━━━━━━━━━━━━━━━━
+⛏️  <b>Mine</b> EForce tokens passively
+✅  <b>Complete missions</b> & earn rewards
+🏆  <b>Climb</b> the global leaderboard
+👥  <b>Refer friends</b> and earn commissions
+💸  <b>Withdraw</b> USDT to your BEP-20 wallet
+━━━━━━━━━━━━━━━━━━━━
+
+🚀 Tap the button below to launch your dashboard!`;
+}
+
+// Real-time Firestore sync for admin configuration
+try {
+  db.collection('adminSettings').doc('config').onSnapshot((snap) => {
+    if (snap.exists) {
+      const data = snap.data();
+      if (data.miniAppUrl && typeof data.miniAppUrl === 'string' && data.miniAppUrl.trim()) {
+        dynamicSettings.miniAppUrl = data.miniAppUrl.trim();
+      }
+      if (typeof data.botStartMessage === 'string') {
+        dynamicSettings.botStartMessage = data.botStartMessage;
+      }
+      if (data.botStartButtonText && typeof data.botStartButtonText === 'string' && data.botStartButtonText.trim()) {
+        dynamicSettings.botStartButtonText = data.botStartButtonText.trim();
+      }
+      console.log('🤖 [Bot] Real-time Admin Settings synced from Firestore!');
+    }
+  }, (err) => {
+    console.warn('[Bot] Firestore settings listener warning:', err.message);
+  });
+} catch (err) {
+  console.warn('[Bot] Could not attach Firestore settings listener:', err.message);
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -157,29 +219,15 @@ function sendJson(res, status, payload) {
 bot.start(async (ctx) => {
   const username = ctx.from.first_name || 'Force Agent';
   const payload = ctx.startPayload || '';
-  const finalUrl = payload ? `${webAppUrl}?tgWebAppStartParam=${encodeURIComponent(payload)}` : webAppUrl;
-
-  const welcomeMsg =
-`🔥 <b>ELITE FORCE — EForce Token</b> 🔥
-
-👋 Welcome, <b>${escapeHTML(username)}</b>!
-
-You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Force rewards you for every action.
-
-━━━━━━━━━━━━━━━━━━━━
-⛏️  <b>Mine</b> EForce tokens passively
-✅  <b>Complete missions</b> & earn rewards
-🏆  <b>Climb</b> the global leaderboard
-👥  <b>Refer friends</b> and earn commissions
-💸  <b>Withdraw</b> USDT to your BEP-20 wallet
-━━━━━━━━━━━━━━━━━━━━
-
-🚀 Tap the button below to launch your dashboard!`;
+  const currentAppUrl = getEffectiveAppUrl();
+  const finalUrl = payload ? `${currentAppUrl}?tgWebAppStartParam=${encodeURIComponent(payload)}` : currentAppUrl;
+  const welcomeMsg = getWelcomeMessage(username);
+  const btnText = dynamicSettings.botStartButtonText || '🔥  Launch Elite Force App  🔥';
 
   await ctx.replyWithHTML(
     welcomeMsg,
     Markup.inlineKeyboard([
-      [Markup.button.webApp('🔥  Launch Elite Force App  🔥', finalUrl)],
+      [Markup.button.webApp(btnText, finalUrl)],
     ])
   ).catch((err) => console.error('Error replying start welcome:', err));
 
@@ -198,7 +246,7 @@ You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Forc
         await sendToUser(
           inviterId,
           `🎉 <b>New Referral!</b>\n\nUser <b>${inviteeDisplay}</b> joined using your referral link!\n\n💰 You'll receive your referral reward once they start mining!\n\n🚀 Keep sharing your link to earn more!`,
-          { reply_markup: Markup.inlineKeyboard([[Markup.button.webApp('📊 View Referrals', webAppUrl)]]).reply_markup }
+          { reply_markup: Markup.inlineKeyboard([[Markup.button.webApp('📊 View Referrals', currentAppUrl)]]).reply_markup }
         );
 
         await ctx.replyWithHTML(
@@ -212,13 +260,16 @@ You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Forc
 });
 
 bot.command('app', (ctx) => {
+  const currentAppUrl = getEffectiveAppUrl();
+  const btnText = dynamicSettings.botStartButtonText || '🚀 Open App';
   ctx.reply('Opening Elite Force...', Markup.inlineKeyboard([
-    [Markup.button.webApp('🚀 Open App', webAppUrl)],
+    [Markup.button.webApp(btnText, currentAppUrl)],
   ]));
 });
 
 bot.command('status', async (ctx) => {
-  await ctx.replyWithHTML(`⚡ <b>Elite Force Bot</b> is online!\n\n🌐 App: ${webAppUrl}\n🤖 Bot: @${ctx.me}`);
+  const currentAppUrl = getEffectiveAppUrl();
+  await ctx.replyWithHTML(`⚡ <b>Elite Force Bot</b> is online!\n\n🌐 App: ${currentAppUrl}\n🤖 Bot: @${ctx.me}`);
 });
 
 // ── HTTP Notification API ─────────────────────────────────────────────────────
