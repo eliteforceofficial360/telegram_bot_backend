@@ -60,7 +60,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
   const cleanChannelId = getCleanChatId(channelId, '@EliteForceChannel');
   const cleanGroupId = getCleanChatId(groupId, '@EliteForceGroup');
 
-  // Auto-check membership status on mount
+  // Auto-check membership status on mount (Updates UI badges ONLY; does NOT grant access until user clicks Verification button)
   useEffect(() => {
     let isMounted = true;
     const performInitialCheck = async () => {
@@ -82,9 +82,6 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
             const gJoined = data.results[cleanGroupId] ?? data.results[groupId] ?? false;
             setChannelJoined(cJoined);
             setGroupJoined(gJoined);
-            if (data.isMember) {
-              onVerificationSuccess();
-            }
           }
         }
       } catch {
@@ -98,7 +95,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [telegramId, channelId, groupId, cleanChannelId, cleanGroupId, botApiUrl, onVerificationSuccess]);
+  }, [telegramId, channelId, groupId, cleanChannelId, cleanGroupId, botApiUrl]);
 
   // Cooldown countdown timer
   useEffect(() => {
@@ -109,17 +106,29 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
     return () => clearInterval(timer);
   }, [cooldownRemaining]);
 
-  const handleOpenLink = (url: string) => {
-    if (!url) return;
+  const handleOpenLink = (e: React.MouseEvent | undefined, url: string) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (!url || !url.trim()) return;
+
+    let targetUrl = url.trim();
+    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+      targetUrl = `https://${targetUrl}`;
+    }
+
     try {
       const tg = (window as any).Telegram?.WebApp;
-      if (tg?.openTelegramLink && url.includes('t.me/')) {
-        tg.openTelegramLink(url);
+      if (tg?.openTelegramLink && targetUrl.includes('t.me/')) {
+        tg.openTelegramLink(targetUrl);
+      } else if (tg?.openLink) {
+        tg.openLink(targetUrl);
       } else {
-        window.open(url, '_blank');
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
       }
     } catch {
-      window.open(url, '_blank');
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
@@ -319,7 +328,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
         {/* Join Links Buttons */}
         <div className="grid grid-cols-2 gap-2.5 mb-5">
           <button
-            onClick={() => handleOpenLink(channelUrl || 'https://t.me/EliteForceChannel')}
+            onClick={(e) => handleOpenLink(e, channelUrl || 'https://t.me/EliteForceChannel')}
             className="h-11 rounded-xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 hover:from-emerald-500/30 hover:to-teal-500/30 border border-emerald-500/30 text-emerald-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-md"
           >
             <span>📢 Join Channel</span>
@@ -327,7 +336,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
           </button>
 
           <button
-            onClick={() => handleOpenLink(groupUrl || 'https://t.me/EliteForceGroup')}
+            onClick={(e) => handleOpenLink(e, groupUrl || 'https://t.me/EliteForceGroup')}
             className="h-11 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30 text-cyan-300 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 shadow-md"
           >
             <span>👥 Join Group</span>

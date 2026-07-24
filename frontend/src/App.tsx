@@ -434,10 +434,13 @@ export default function App() {
         if (res.ok) {
           const data = await res.json();
           if (data.isMember) {
-            setIsForceJoinVerified(true);
-            setIsAccessRestricted(false);
-            localStorage.setItem('isForceJoinVerified', 'true');
+            // Only maintain verified state if user ALREADY completed explicit verification click
+            if (localStorage.getItem('isForceJoinVerified') === 'true') {
+              setIsForceJoinVerified(true);
+              setIsAccessRestricted(false);
+            }
           } else {
+            // If user left channel/group after verifying, revoke access
             setIsForceJoinVerified(false);
             setIsAccessRestricted(true);
             localStorage.setItem('isForceJoinVerified', 'false');
@@ -450,20 +453,6 @@ export default function App() {
     };
 
     checkMembershipOnServer();
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        checkMembershipOnServer();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', checkMembershipOnServer);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', checkMembershipOnServer);
-    };
   }, [telegramUser, adminSettings.forceJoinEnabled, adminSettings.telegramChannelId, adminSettings.telegramGroupId, adminSettings.botApiUrl]);
 
   // Sync Firestore online user count every 30 seconds
