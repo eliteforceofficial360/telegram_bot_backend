@@ -532,87 +532,155 @@ export async function verifyXTask(telegramId, taskId, taskType, targetId, reward
 /**
  * Continuous Periodical Verification & Automatic Point Deduction Scheduler
  */
+/**
+ * 10-Minute Follow Retention & Deduction Engine v2.0
+ * Rule 1: Task completed -> 10 minutes window.
+ * Rule 2: Unfollowed within 10 minutes -> 0 points deducted (No deduction, keeps full reward!).
+ * Rule 3: Still following after 10 minutes -> -5 points deducted.
+ * Rule 4: Unfollowed after 10 minutes (after -5 points was deducted) -> Previously deducted -5 points is NOT refunded.
+ */
 export async function runXPeriodicMonitoring(sendToUserCallback = null) {
-  console.log('🔄 [X Scheduler v2.0] Running periodical re-verification check on X tasks...');
+  console.log('🔄 [Follow Retention Engine v2.0] Running 10-minute follow retention audit...');
 
   try {
     const completionsSnap = await db.collection('taskCompletions')
       .where('isCompleted', '==', true)
-      .where('isRevoked', '==', false)
       .get();
 
+    const now = Date.now();
+    const TEN_MINUTES_MS = 10 * 60 * 1000;
     let checkedCount = 0;
-    let deductedCount = 0;
+    let evaluatedCount = 0;
 
     for (const docSnap of completionsSnap.docs) {
       const data = docSnap.data();
-      const { telegramId, taskId, taskType, targetId, reward, xUserId } = data;
+      const { telegramId, taskId, taskType, targetId, reward, verifiedAt, xUserId, retentionChecked, retentionDeducted } = data;
 
       if (!taskType || !taskType.startsWith('x')) continue;
-
       checkedCount++;
 
+      const completionTime = verifiedAt?.toDate ? verifiedAt.toDate().getTime() : (typeof verifiedAt === 'number' ? verifiedAt : now - (11 * 60 * 1000));
+      const elapsedTime = now - completionTime;
+
+      // Check current follow status on X API
       const userTokens = await getValidXAccessToken(telegramId);
-      if (!userTokens || !userTokens.accessToken) continue;
+      let isCurrentlyFollowing = true;
 
-      let checkResult = { verifiable: false, isDone: true };
-
-      if (taskType === 'x_follow' || taskType === 'x') {
-        checkResult = await verifyFollowOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
-      } else if (taskType === 'x_like') {
-        checkResult = await verifyLikeOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
-      } else if (taskType === 'x_repost' || taskType === 'x_retweet') {
-        checkResult = await verifyRepostOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
-      }
-
-      if (!checkResult.verifiable) continue;
-
-      // If action is no longer valid (e.g. unfollowed or unliked) -> Deduct points
-      if (!checkResult.isDone) {
-        console.warn(`⚠️ [X Scheduler v2.0] Action no longer valid for user ${telegramId} on task ${taskId}. Deducting ${reward} points...`);
-
-        const userRef = db.collection('users').doc(String(telegramId));
-        await db.runTransaction(async (transaction) => {
-          const userDoc = await transaction.get(userRef);
-          const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
-          const newPoints = Math.max(0, currentPoints - reward);
-
-          transaction.set(userRef, { points: newPoints }, { merge: true });
-
-          transaction.set(docSnap.ref, {
-            isRevoked: true,
-            isInvalid: true,
-            revokedAt: FieldValue.serverTimestamp(),
-            revocationReason: checkResult.message || 'Action removed on X (unfollowed/unliked)',
-          }, { merge: true });
-
-          transaction.set(db.collection('deductionHistory').doc(), {
-            telegramId: Number(telegramId),
-            taskId,
-            taskType,
-            pointsDeducted: reward,
-            reason: checkResult.message || 'Action removed on X (unfollowed/unliked)',
-            timestamp: FieldValue.serverTimestamp(),
-          });
-        });
-
-        deductedCount++;
-
-        await writeLog('auditLogs', { telegramId, event: 'POINT_DEDUCTED', amount: reward, taskId, reason: checkResult.code });
-
-        if (typeof sendToUserCallback === 'function') {
-          await sendToUserCallback(
-            telegramId,
-            `⚠️ <b>EFC Points Deducted!</b>\n\nYour X task completion for <b>${taskId}</b> is no longer valid (${checkResult.message}).\n\n🔻 <b>-${reward} EFC Points</b> have been deducted from your balance.`
-          ).catch(() => {});
+      if (userTokens && userTokens.accessToken) {
+        let checkResult = { verifiable: false, isDone: true };
+        if (taskType === 'x_follow' || taskType === 'x') {
+          checkResult = await verifyFollowOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
+        } else if (taskType === 'x_like') {
+          checkResult = await verifyLikeOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
+        } else if (taskType === 'x_repost' || taskType === 'x_retweet') {
+          checkResult = await verifyRepostOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
+        }
+        if (checkResult.verifiable) {
+          isCurrentlyFollowing = checkResult.isDone;
         }
       }
 
-      await new Promise(r => setTimeout(r, 200));
+      const userRef = db.collection('users').doc(String(telegramId));
+
+      // CASE 3: Unfollowed AFTER 10 minutes (previously deducted -5 points)
+      if (retentionChecked && retentionDeducted) {
+        if (!isCurrentlyFollowing && !data.notifiedLateUnfollow) {
+          await db.runTransaction(async (transaction) => {
+            const userDoc = await transaction.get(userRef);
+            const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
+
+            transaction.set(docSnap.ref, {
+              unfollowedAfter10Min: true,
+              notifiedLateUnfollow: true,
+            }, { merge: true });
+
+            if (typeof sendToUserCallback === 'function') {
+              await sendToUserCallback(
+                telegramId,
+                `📋 <b>টাস্ক ফলো স্ট্যাটাস রিপোর্ট</b>\n\n` +
+                `টাস্ক: <b>Daily Check-in (ID: ${taskId})</b> – সফল ✅\n` +
+                `ফলো স্ট্যাটাস: <b>টাস্কের পরে আনফলো করা হয়েছে, তবে পূর্বের -5 পয়েন্ট বজায় আছে</b>\n` +
+                `বর্তমান ব্যালেন্স: <b>${currentPoints} পয়েন্ট</b>`
+              ).catch(() => {});
+            }
+          });
+          evaluatedCount++;
+        }
+        continue;
+      }
+
+      // Skip 10-minute audit until at least 10 minutes have passed
+      if (elapsedTime < TEN_MINUTES_MS && !retentionChecked) {
+        continue;
+      }
+
+      // Evaluated once 10-minute window closes:
+      if (!retentionChecked) {
+        await db.runTransaction(async (transaction) => {
+          const userDoc = await transaction.get(userRef);
+          const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
+
+          if (!isCurrentlyFollowing) {
+            // CASE 1: Unfollowed WITHIN 10 minutes -> 0 points deducted (No deduction!)
+            transaction.set(docSnap.ref, {
+              retentionChecked: true,
+              unfollowedWithin10Min: true,
+              retentionDeducted: false,
+              checkedAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+
+            if (typeof sendToUserCallback === 'function') {
+              await sendToUserCallback(
+                telegramId,
+                `📋 <b>টাস্ক ফলো স্ট্যাটাস রিপোর্ট</b>\n\n` +
+                `টাস্ক: <b>Daily Check-in (ID: ${taskId})</b> – সফল ✅\n` +
+                `ফলো স্ট্যাটাস: <b>আনফলো করা হয়েছে → কোন পয়েন্ট কাটা নেই</b>\n` +
+                `বর্তমান ব্যালেন্স: <b>${currentPoints} পয়েন্ট</b>`
+              ).catch(() => {});
+            }
+          } else {
+            // CASE 2: Still Following after 10 minutes -> Deduct 5 points!
+            const deduction = 5;
+            const newPoints = Math.max(0, currentPoints - deduction);
+
+            transaction.set(userRef, { points: newPoints }, { merge: true });
+
+            transaction.set(docSnap.ref, {
+              retentionChecked: true,
+              unfollowedWithin10Min: false,
+              retentionDeducted: true,
+              pointsDeducted: deduction,
+              checkedAt: FieldValue.serverTimestamp(),
+            }, { merge: true });
+
+            transaction.set(db.collection('deductionHistory').doc(), {
+              telegramId: Number(telegramId),
+              taskId,
+              taskType,
+              pointsDeducted: deduction,
+              reason: 'Still following after 10 minutes (-5 points retention rule applied)',
+              timestamp: FieldValue.serverTimestamp(),
+            });
+
+            if (typeof sendToUserCallback === 'function') {
+              await sendToUserCallback(
+                telegramId,
+                `📋 <b>টাস্ক ফলো স্ট্যাটাস রিপোর্ট</b>\n\n` +
+                `টাস্ক: <b>Daily Check-in (ID: ${taskId})</b> – সফল ✅\n` +
+                `ফলো স্ট্যাটাস: <b>এখনও ফলো করা আছে → -5 পয়েন্ট</b>\n` +
+                `বর্তমান ব্যালেন্স: <b>${newPoints} পয়েন্ট</b>`
+              ).catch(() => {});
+            }
+          }
+        });
+        evaluatedCount++;
+      }
+
+      await new Promise(r => setTimeout(r, 150));
     }
 
-    console.log(`✅ [X Scheduler v2.0] Re-verification complete. Checked: ${checkedCount}, Deductions: ${deductedCount}`);
+    console.log(`✅ [Follow Retention Engine v2.0] Check complete. Evaluated: ${evaluatedCount}/${checkedCount}`);
   } catch (err) {
-    console.error('❌ [X Scheduler v2.0] Error during periodical monitoring:', err.message);
+    console.error('❌ [Follow Retention Engine] Error during periodical monitoring:', err.message);
   }
 }
