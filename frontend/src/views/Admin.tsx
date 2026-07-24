@@ -2773,7 +2773,6 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       { key: 'appHeaderLogoUrl', label: 'App Top Header Left Logo', desc: 'Logo image in top navigation header bar (Left)', defaultVal: '/loading-logo.png' },
                       { key: 'appHeaderRightLogoUrl', label: 'App Top Header Right Avatar / Badge', desc: 'Circular avatar icon in top right of Home header bar', defaultVal: '/coin.png' },
                       { key: 'faviconUrl', label: 'Browser Tab Favicon Icon', desc: 'Favicon icon shown on browser tabs', defaultVal: '/loading-logo.png' },
-                      { key: 'welcomeBannerUrl', label: 'Home Dashboard Hero Banner', desc: 'Top banner image on Home screen', defaultVal: '/coin-logo.jpg' },
                       { key: 'tasksBannerUrl', label: 'Tasks & Missions Header Banner', desc: 'Header banner image on Tasks page', defaultVal: '/coin-logo.jpg' },
                       { key: 'referralBannerUrl', label: 'Referral & Earn Header Banner', desc: 'Header banner image on Referral page', defaultVal: '/coin-logo.jpg' },
                       { key: 'walletBannerUrl', label: 'Wallet & Payout Header Banner', desc: 'Header banner image on Wallet page', defaultVal: '/coin.jpg' },
