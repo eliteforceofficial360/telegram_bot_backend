@@ -20,11 +20,11 @@ const TOTAL_STEPS = 6; // Condensed into 6 smart steps
 const INPUT_FIELD_OPTIONS = [
   { id: 'telegram_username', label: 'Telegram Username', icon: '✈️' },
   { id: 'x_username', label: 'X Username', icon: '𝕏' },
-  { id: 'wallet_address', label: 'Wallet Address', icon: '👛' },
-  { id: 'email', label: 'Email', icon: '📧' },
+  { id: 'wallet_address', label: 'Wallet Address', icon: '💳' },
+  { id: 'email', label: 'Email', icon: '✉️' },
   { id: 'uid', label: 'User ID / UID', icon: '🔑' },
   { id: 'tx_hash', label: 'Transaction Hash', icon: '🔗' },
-  { id: 'screenshot', label: 'Screenshot Upload', icon: '📸' },
+  { id: 'screenshot', label: 'Screenshot Upload', icon: '📷' },
   { id: 'custom', label: 'Custom Field', icon: '✏️' },
 ];
 
@@ -35,7 +35,7 @@ const VERIFICATION_TYPES = [
 ];
 
 const AUDIENCE_TYPES = [
-  { id: 'everyone', label: 'Everyone', icon: '🌍' },
+  { id: 'everyone', label: 'Everyone', icon: '🌐' },
   { id: 'premium', label: 'Premium Only', icon: '⭐' },
   { id: 'level', label: 'By Level', icon: '🎯' },
   { id: 'country', label: 'By Country', icon: '🗺️' },

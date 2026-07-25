@@ -1,24 +1,14 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { Star } from 'lucide-react';
 import { type MarketTask } from '../../../lib/marketService';
+import { PlatformIcon, getPlatformColor } from './PlatformIcons';
 
 interface MarketTaskCardProps {
   task: MarketTask;
   onClick: (task: MarketTask) => void;
   compact?: boolean;
 }
-
-const PLATFORM_COLORS: Record<string, string> = {
-  Telegram: '#2AABEE', X: '#FFFFFF', Discord: '#5865F2', Instagram: '#E1306C',
-  TikTok: '#FF0050', YouTube: '#FF0000', Facebook: '#1877F2', Website: '#10B981',
-  Quiz: '#8B5CF6', Apps: '#F59E0B', Custom: '#64748B',
-};
-
-const PLATFORM_ICONS: Record<string, string> = {
-  Telegram: '✈️', X: '𝕏', Discord: '🎮', Instagram: '📸',
-  TikTok: '🎵', YouTube: '▶️', Facebook: '👤', Website: '🌐',
-  Quiz: '❓', Apps: '📲', Custom: '✏️',
-};
 
 const DIFFICULTY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   easy: { label: 'Easy', color: '#00FF88', bg: 'rgba(0,255,136,0.12)' },
@@ -36,8 +26,7 @@ function timeLeft(expiresAt: string): string {
 }
 
 export const MarketTaskCard: React.FC<MarketTaskCardProps> = ({ task, onClick, compact = false }) => {
-  const platformColor = PLATFORM_COLORS[task.platform] || '#FF8A00';
-  const platformIcon = PLATFORM_ICONS[task.platform] || '📋';
+  const platformColor = getPlatformColor(task.platform);
   const diff = DIFFICULTY_CONFIG[task.difficulty] || DIFFICULTY_CONFIG.easy;
   const progress = task.workerLimit > 0
     ? Math.min(100, ((task.workerLimit - task.remainingSlots) / task.workerLimit) * 100)
@@ -59,10 +48,10 @@ export const MarketTaskCard: React.FC<MarketTaskCardProps> = ({ task, onClick, c
         {/* Platform badge */}
         <div className="flex items-center gap-2">
           <span
-            className="w-7 h-7 rounded-xl flex items-center justify-center text-sm shrink-0"
+            className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
             style={{ background: `${platformColor}22`, border: `1px solid ${platformColor}44` }}
           >
-            {platformIcon}
+            <PlatformIcon platformId={task.platform} size={14} color={platformColor} />
           </span>
           <span className="text-[9px] font-bold uppercase tracking-wider" style={{ color: platformColor }}>
             {task.platform}
@@ -114,14 +103,14 @@ export const MarketTaskCard: React.FC<MarketTaskCardProps> = ({ task, onClick, c
     >
       {/* Platform icon */}
       <span
-        className="w-11 h-11 rounded-2xl flex items-center justify-center text-xl shrink-0"
+        className="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0"
         style={{
           background: `${platformColor}18`,
           border: `1px solid ${platformColor}35`,
           boxShadow: `0 0 12px ${platformColor}20`,
         }}
       >
-        {platformIcon}
+        <PlatformIcon platformId={task.platform} size={20} color={platformColor} />
       </span>
 
       {/* Content */}
@@ -131,9 +120,9 @@ export const MarketTaskCard: React.FC<MarketTaskCardProps> = ({ task, onClick, c
             {task.platform} · {task.action}
           </span>
           {task.featured && (
-            <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full"
+            <span className="inline-flex items-center gap-0.5 text-[8px] font-black px-1.5 py-0.5 rounded-full"
               style={{ background: 'rgba(255,215,0,0.15)', color: '#FFD700', border: '1px solid rgba(255,215,0,0.3)' }}>
-              ⭐ FEATURED
+              <Star size={8} fill="#FFD700" color="#FFD700" /> FEATURED
             </span>
           )}
         </div>
@@ -163,8 +152,7 @@ export const MarketTaskCard: React.FC<MarketTaskCardProps> = ({ task, onClick, c
 
 // ── Featured Hero Card ────────────────────────────────────────────────────────
 export const FeaturedTaskCard: React.FC<{ task: MarketTask; onClick: (task: MarketTask) => void }> = ({ task, onClick }) => {
-  const platformColor = PLATFORM_COLORS[task.platform] || '#FF8A00';
-  const platformIcon = PLATFORM_ICONS[task.platform] || '📋';
+  const platformColor = getPlatformColor(task.platform);
   const progress = task.workerLimit > 0
     ? Math.min(100, ((task.workerLimit - task.remainingSlots) / task.workerLimit) * 100)
     : 0;
@@ -203,7 +191,7 @@ export const FeaturedTaskCard: React.FC<{ task: MarketTask; onClick: (task: Mark
                 border: '1px solid rgba(255,215,0,0.35)',
                 color: '#FFD700',
               }}>
-              ⭐ FEATURED CAMPAIGN
+              <Star size={10} fill="#FFD700" color="#FFD700" /> FEATURED CAMPAIGN
             </span>
 
             <h3 className="text-sm font-black text-white leading-tight mb-1">{task.title}</h3>
@@ -223,8 +211,9 @@ export const FeaturedTaskCard: React.FC<{ task: MarketTask; onClick: (task: Mark
               <div className="w-px h-6 bg-white/10" />
               <div>
                 <div className="text-[8px] font-bold text-slate-500 uppercase tracking-wider">Platform</div>
-                <div className="text-sm font-black" style={{ color: platformColor }}>
-                  {platformIcon} {task.platform}
+                <div className="flex items-center gap-1.5 text-sm font-black" style={{ color: platformColor }}>
+                  <PlatformIcon platformId={task.platform} size={14} color={platformColor} />
+                  {task.platform}
                 </div>
               </div>
             </div>
@@ -250,14 +239,14 @@ export const FeaturedTaskCard: React.FC<{ task: MarketTask; onClick: (task: Mark
 
           {/* Platform orb */}
           <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl shrink-0"
+            className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0"
             style={{
               background: `${platformColor}20`,
               border: `1.5px solid ${platformColor}50`,
               boxShadow: `0 0 20px ${platformColor}30`,
             }}
           >
-            {platformIcon}
+            <PlatformIcon platformId={task.platform} size={28} color={platformColor} />
           </div>
         </div>
       </div>

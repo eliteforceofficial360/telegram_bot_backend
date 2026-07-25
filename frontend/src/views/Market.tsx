@@ -96,13 +96,13 @@ export const Market: React.FC<MarketProps> = ({
       {/* ── Top Header ────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between pt-2 px-1">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-2xl flex items-center justify-center text-lg"
+          <div className="w-9 h-9 rounded-2xl flex items-center justify-center"
             style={{
               background: 'linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,138,0,0.1))',
               border: '1px solid rgba(255,215,0,0.3)',
               boxShadow: '0 0 15px rgba(255,215,0,0.2)',
             }}>
-            🏪
+            <Store size={18} color="#FFD700" />
           </div>
           <div>
             <h1 className="text-base font-black tracking-tight text-white flex items-center gap-1.5">

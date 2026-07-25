@@ -11,11 +11,11 @@ interface FilterDrawerProps {
 }
 
 const SORT_OPTIONS = [
-  { id: 'newest', label: '🕐 Newest First' },
-  { id: 'highest_reward', label: '⬆️ Highest Reward' },
-  { id: 'lowest_reward', label: '⬇️ Lowest Reward' },
-  { id: 'ending_soon', label: '⏳ Ending Soon' },
-  { id: 'trending', label: '🔥 Trending' },
+  { id: 'newest', label: 'Newest First' },
+  { id: 'highest_reward', label: 'Highest Reward' },
+  { id: 'lowest_reward', label: 'Lowest Reward' },
+  { id: 'ending_soon', label: 'Ending Soon' },
+  { id: 'trending', label: 'Trending' },
 ];
 
 const DIFFICULTY_OPTIONS = [
