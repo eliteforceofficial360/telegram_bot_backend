@@ -153,9 +153,6 @@ export default function App() {
     link.href = fav;
   }, [adminSettings.faviconUrl, adminSettings.loadingLogoUrl]);
 
-  // NOTE: OAuth code exchange is handled by OAuthCallbackPage at /auth/x/callback.
-  // App.tsx no longer needs to listen for ?code= params here.
-
 
 
   const [captchaVerified, setCaptchaVerified] = useState(false);
@@ -255,36 +252,8 @@ export default function App() {
     setIsTelegramWebview(isTg);
 
     // ── Read start_param from Telegram deep link ─────────────────────────────────────
-    // When the user returns from X OAuth via:
-    //   https://t.me/Elite_Force_Official_Mining_bot?startapp=oauth_success
-    // we read the one-time sessionToken that OAuthCallbackPage stored in
-    // localStorage, call the backend to verify it (one-time use — deleted on
-    // first read), mark the X connection in Firestore, award points, and
-    // navigate the user directly to the Tasks tab.
     const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || '';
-    if (startParam === 'oauth_success') {
-      const sessionToken = localStorage.getItem('x_oauth_session_token');
-      if (sessionToken) {
-        const botApiUrl = (DEFAULT_ADMIN_SETTINGS.botApiUrl || 'https://elite-force-telegram-app.onrender.com').replace(/\/$/, '');
-        fetch(`${botApiUrl}/api/x/verify-oauth-session?sessionToken=${encodeURIComponent(sessionToken)}`)
-          .then(r => r.json())
-          .then(d => {
-            localStorage.removeItem('x_oauth_session_token'); // consume token
-            if (d.ok) {
-              showToast(`✅ X account @${d.xUsername} connected! Reward will be credited.`, 'success');
-              // Navigate to Tasks tab so user can see their completed X task
-              setTimeout(() => setActiveTab('tasks'), 600);
-            } else {
-              showToast(d.error || 'X verification failed. Please reconnect.', 'error');
-            }
-          })
-          .catch(err => console.error('[start_param] verify-oauth-session error:', err));
-      } else {
-        // No token — still show a success message (session may already be verified)
-        showToast('✅ Welcome back! X account connected successfully.', 'success');
-        setTimeout(() => setActiveTab('tasks'), 600);
-      }
-    } else if (startParam?.startsWith('ref_')) {
+    if (startParam?.startsWith('ref_')) {
       // Referral handled by existing referral flow
       console.log('[startapp] Referral param detected:', startParam);
     }

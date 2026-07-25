@@ -314,7 +314,7 @@ export const Tasks = ({
       }
     }
 
-    // 4. Social OAuth Connection Verification (if required)
+    // 4. Social Connection Verification (username-based, server-side — no OAuth)
     const inferPlatform = (t: EForceTask): string => {
       if (t.requireSocialConnection && t.requireSocialConnection !== 'none') {
         return t.requireSocialConnection.toLowerCase();

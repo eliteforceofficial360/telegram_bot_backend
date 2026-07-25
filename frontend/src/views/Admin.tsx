@@ -3313,14 +3313,14 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
-                {/* OAuth & Social Connections */}
+                {/* Social Connections (No X OAuth — Username-Based) */}
                 <SectionCard accentColor="#E5A33888">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                     <div className="flex items-center gap-2">
                       <span className="text-base">🔗</span>
-                      <span className="text-sm font-black text-white">OAuth & Social Connections</span>
+                      <span className="text-sm font-black text-white">Social Connections</span>
                     </div>
-                    <p className="text-[9px] text-slate-500 mt-0.5">Configure Discord OAuth, X (Twitter) OAuth, and WhatsApp numbers for user accounts linkage</p>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Configure Discord OAuth, X (Twitter) username verification, and WhatsApp numbers for user accounts linkage. X uses username-based verification — no OAuth required.</p>
                   </div>
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                     <div className="flex items-center justify-between gap-4 py-3">
@@ -3346,26 +3346,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       />
                     </div>
                     <div className="flex items-center justify-between gap-4 py-3">
-                      <label className="text-xs text-slate-400">X (Twitter) OAuth Client ID</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. client_id_here"
-                        value={settings.xClientId || ''}
-                        onChange={e => setSettings(p => ({ ...p, xClientId: e.target.value }))}
-                        className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
-                        style={inputStyle}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1.5 py-3">
-                      <label className="text-xs text-slate-400">X (Twitter) Authorize URL</label>
-                      <input
-                        type="text"
-                        placeholder="https://x.com/oauth2/authorize?client_id="
-                        value={settings.xAuthUrl || ''}
-                        onChange={e => setSettings(p => ({ ...p, xAuthUrl: e.target.value }))}
-                        className="w-full h-8 rounded-xl px-3 text-xs text-white outline-none font-mono"
-                        style={inputStyle}
-                      />
+                      <div>
+                        <label className="text-xs text-slate-300 font-bold block">X (Twitter) — Username Verification</label>
+                        <span className="text-[9px] text-slate-500 block">No OAuth. Users enter @username. Verification uses Bearer Token (server-side only).</span>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-2.5 py-1">Active ✓</span>
                     </div>
                     <div className="flex items-center justify-between gap-4 py-3">
                       <label className="text-xs text-slate-400">WhatsApp Support / Verification Number</label>
