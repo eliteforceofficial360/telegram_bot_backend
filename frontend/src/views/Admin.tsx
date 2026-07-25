@@ -347,7 +347,14 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       }
     }
 
-    // ── BOTH: Try Bot API / Cloudinary (needed for videos, secondary for images) ─
+    // ── VIDEOS: Store small/medium videos as data URL directly ──────────────────
+    // Avoids waking up the sleeping Render.com free-tier backend unnecessarily.
+    if (isVid && base64Media.length <= 5 * 1024 * 1024) {
+      console.log(`[upload] Storing video as data URL (${Math.round(base64Media.length / 1024)}KB)`);
+      return base64Media;
+    }
+
+    // ── BOTH: Try Bot API / Cloudinary (for large videos or image fallback) ────
     const FALLBACK_BOT_API = 'https://elite-force-telegram-app.onrender.com';
     const baseUrl = (settings.botApiUrl || FALLBACK_BOT_API).replace(/\/$/, '');
 
@@ -381,7 +388,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
         if (res.ok) {
           const data = await res.json();
-          if (data.secureUrl && !data.secureUrl.startsWith('data:')) return data.secureUrl;
+          // ✅ FIX: Accept ALL secureUrl responses including data URLs from bot
+          if (data.secureUrl) return data.secureUrl;
         }
       } catch (err) {
         console.warn(`Bot API upload attempt ${attempt + 1} failed:`, err);
@@ -389,13 +397,14 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       }
     }
 
-    // ── LAST RESORT: store as data URL if small enough for Firestore ──────────
-    if (base64Media.startsWith('data:') && base64Media.length <= 700000) {
+    // ── LAST RESORT: store as data URL ──────────────────────────────────────
+    // ✅ FIX: Increased limit from 700KB → 5MB to handle more video/image sizes
+    if (base64Media.startsWith('data:') && base64Media.length <= 5 * 1024 * 1024) {
       return base64Media;
     }
 
     if (isVid) {
-      throw new Error('Video upload failed. The server may be starting up — please wait 30 seconds and try again.');
+      throw new Error('Video is too large (>3.7MB). Please paste a hosted video URL in the URL field, or use a smaller/compressed video.');
     }
     throw new Error('Image upload failed. Please try again or use a smaller image.');
   };
