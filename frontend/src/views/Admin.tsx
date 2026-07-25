@@ -6,7 +6,7 @@ import {
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff, Upload,
-  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info, Send, Lock,
+  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info, Send, Lock, Users,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -791,6 +791,52 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [bcastIsPremiumOnly] = useState(false);
   const [bcastButtonText, setBcastButtonText] = useState('Open Elite Force');
   const [bcastButtonTab, setBcastButtonTab] = useState('home');
+  const [bcastSearchQuery, setBcastSearchQuery] = useState('');
+
+  const targetIdArray = useMemo(() => {
+    return bcastTargetIds
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+  }, [bcastTargetIds]);
+
+  const handleToggleTargetId = (idStr: string) => {
+    const current = targetIdArray;
+    let updated: string[];
+    if (current.includes(idStr)) {
+      updated = current.filter(x => x !== idStr);
+    } else {
+      updated = [...current, idStr];
+    }
+    setBcastTargetIds(updated.join(', '));
+  };
+
+  const handleRemoveTargetId = (idStr: string) => {
+    const updated = targetIdArray.filter(x => x !== idStr);
+    setBcastTargetIds(updated.join(', '));
+  };
+
+  const handleTargetUserForBroadcast = (u: FirestoreUser) => {
+    const uIdStr = String(u.telegramId);
+    if (!targetIdArray.includes(uIdStr)) {
+      handleToggleTargetId(uIdStr);
+    }
+    setActiveTab('notifications');
+    setNotifSubTab('broadcast');
+    setBcastTargetType('specific');
+    showToast(`🎯 User ${u.firstName} (ID: ${uIdStr}) added to Broadcast Target!`, 'success');
+  };
+
+  const filteredBcastUsers = useMemo(() => {
+    if (!bcastSearchQuery.trim()) return usersList;
+    const q = bcastSearchQuery.toLowerCase();
+    return usersList.filter(u =>
+      (u.firstName && u.firstName.toLowerCase().includes(q)) ||
+      (u.lastName && u.lastName.toLowerCase().includes(q)) ||
+      (u.username && u.username.toLowerCase().includes(q)) ||
+      String(u.telegramId || '').includes(q)
+    );
+  }, [usersList, bcastSearchQuery]);
 
   const [selectedEventType, setSelectedEventType] = useState<string>('SOCIAL_CONNECTED');
   const [historyLogs, setHistoryLogs] = useState<any[]>([]);
@@ -1293,6 +1339,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                               {/* Edit */}
                               <button onClick={() => startEditUser(u)} title="Edit user" className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.25)', color: '#A78BFA' }}>
                                 <Edit3 size={12} />
+                              </button>
+                              {/* Target Broadcast */}
+                              <button onClick={() => handleTargetUserForBroadcast(u)} title="Add user ID to Broadcast target" className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={{ background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.3)', color: '#C084FC' }}>
+                                <Send size={12} />
                               </button>
                               {/* Pin */}
                               <button onClick={() => handlePinUser(u)} title="Pin to leaderboard" className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer text-[12px]"
@@ -2416,16 +2466,116 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                     {/* Filter specific fields based on target selection */}
                     {bcastTargetType === 'specific' && (
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Target Telegram User IDs (Comma-separated)</label>
+                      <div className="flex flex-col gap-3 p-3.5 rounded-2xl bg-white/[0.03] border border-white/8">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[10px] text-[#C084FC] font-extrabold uppercase tracking-wider flex items-center gap-1.5">
+                            <Users size={14} /> Target Telegram User IDs ({targetIdArray.length} Selected)
+                          </label>
+                          {targetIdArray.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setBcastTargetIds('')}
+                              className="text-[10px] font-bold text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+                            >
+                              🧹 Clear All Selected
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Text input fallback for raw ID pasting */}
                         <input
                           type="text"
-                          placeholder="e.g. 123456789, 987654321"
+                          placeholder="Type or paste Telegram User IDs (e.g. 123456789, 987654321)..."
                           value={bcastTargetIds}
                           onChange={(e) => setBcastTargetIds(e.target.value)}
                           className={inputCls}
                           style={inputStyle}
                         />
+
+                        {/* Selected User Chips */}
+                        {targetIdArray.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 py-1">
+                            {targetIdArray.map(idStr => {
+                              const found = usersList.find(u => String(u.telegramId) === idStr);
+                              return (
+                                <span
+                                  key={idStr}
+                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold bg-[#C084FC]/15 border border-[#C084FC]/40 text-white"
+                                >
+                                  <span className="w-4 h-4 rounded-full bg-[#C084FC]/30 flex items-center justify-center text-[9px] uppercase font-black text-[#C084FC]">
+                                    {found?.firstName?.[0] || 'U'}
+                                  </span>
+                                  <span>{found ? `${found.firstName} (${idStr})` : `ID: ${idStr}`}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTargetId(idStr)}
+                                    className="hover:text-red-400 text-slate-400 cursor-pointer transition-colors"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* Interactive User Selection Dropdown Picker */}
+                        <div className="space-y-2 pt-2 border-t border-white/5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Click User below to Add / Remove ID</span>
+                            <span className="text-[9px] text-slate-500">{usersList.length} Total Users Available</span>
+                          </div>
+                          <div className="relative">
+                            <input
+                              type="text"
+                              placeholder="Search registered user by name, @username, or ID..."
+                              value={bcastSearchQuery}
+                              onChange={(e) => setBcastSearchQuery(e.target.value)}
+                              className="w-full h-8 px-3 rounded-xl text-xs bg-white/5 border border-white/10 text-white placeholder-slate-500 focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="max-h-48 overflow-y-auto space-y-1 pr-1" style={{ scrollbarWidth: 'thin' }}>
+                            {filteredBcastUsers.slice(0, 20).map(u => {
+                              const uIdStr = String(u.telegramId);
+                              const isSelected = targetIdArray.includes(uIdStr);
+                              return (
+                                <button
+                                  key={u.telegramId}
+                                  type="button"
+                                  onClick={() => handleToggleTargetId(uIdStr)}
+                                  className={`w-full flex items-center justify-between p-2 rounded-xl text-left cursor-pointer transition-all ${
+                                    isSelected
+                                      ? 'bg-[#C084FC]/20 border border-[#C084FC]/40 text-white shadow-md'
+                                      : 'bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 text-slate-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-7 h-7 rounded-xl bg-white/10 flex items-center justify-center text-xs font-black text-amber-400 shrink-0 uppercase overflow-hidden">
+                                      {u.photoUrl ? (
+                                        <img src={u.photoUrl} alt="" className="w-full h-full object-cover" />
+                                      ) : (
+                                        u.firstName?.[0] || 'U'
+                                      )}
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-white truncate flex items-center gap-1">
+                                        {u.firstName} {u.lastName || ''}
+                                        {u.username && <span className="text-[10px] text-[#C084FC]">@{u.username}</span>}
+                                      </div>
+                                      <div className="text-[9px] font-mono text-slate-400">ID: {uIdStr}</div>
+                                    </div>
+                                  </div>
+                                  <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${
+                                    isSelected ? 'bg-[#C084FC] text-black' : 'bg-white/10 text-slate-400'
+                                  }`}>
+                                    {isSelected ? '✓ Selected' : '+ Add ID'}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
                       </div>
                     )}
 
