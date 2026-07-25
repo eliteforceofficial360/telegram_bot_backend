@@ -199,7 +199,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col" style={{ background: '#0A0D1A' }}>
+    <div className="fixed inset-0 z-50 flex flex-col h-full max-h-screen overflow-hidden" style={{ background: '#0A0D1A', touchAction: 'pan-y' }}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-5 pb-3 shrink-0 border-b border-white/[0.06]">
         <button onClick={onClose} className="w-8 h-8 rounded-2xl bg-white/6 flex items-center justify-center cursor-pointer">
@@ -224,12 +224,12 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       </div>
 
       {/* Info banner */}
-      <div className="mx-4 mt-3 p-3 rounded-2xl text-[10px] text-slate-400 leading-relaxed" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div className="mx-4 mt-3 p-3 rounded-2xl text-[10px] text-slate-400 leading-relaxed shrink-0" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
         Fund a task from your balance and real users complete it, verified like any sponsored task. A <span className="text-[#FF8A00] font-bold">25% fee</span> applies per completed action, plus verification costs where shown.
       </div>
 
       {/* Step content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-4 mt-3">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 mt-3" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
@@ -687,7 +687,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       </div>
 
       {/* Footer / Submit or Top Up */}
-      <div className="px-4 pb-6 pt-3 shrink-0 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="px-4 pb-6 pt-3 shrink-0 flex gap-3 z-10 bg-[#0A0D1A]" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {step > 1 && (
           <button
             onClick={goPrev}
