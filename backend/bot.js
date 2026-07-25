@@ -2,6 +2,12 @@ import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import http from 'http';
 import crypto from 'crypto';
+import {
+  uploadToCloudinary,
+  deleteFromCloudinary,
+  getUploadFolder,
+  getCloudinaryStatus,
+} from './uploadService.js';
 import { getFirestore } from 'firebase-admin/firestore';
 import {
   getXOAuthAuthUrl,
@@ -285,10 +291,25 @@ async function broadcast(ids, html, extra = {}, imageUrl = null, delayMs = 60) {
   return { sent, failed };
 }
 
-/** Reads and JSON-parses a request body. Throws on invalid JSON. */
-async function readJsonBody(req) {
+/**
+ * Reads and JSON-parses a request body.
+ * Enforces a 50MB body size limit to prevent memory exhaustion from large base64 payloads.
+ * Throws on invalid JSON or body too large.
+ */
+async function readJsonBody(req, maxBytes = 50 * 1024 * 1024) {
   let raw = '';
-  for await (const chunk of req) raw += chunk;
+  let totalBytes = 0;
+  for await (const chunk of req) {
+    totalBytes += Buffer.byteLength(chunk);
+    if (totalBytes > maxBytes) {
+      // Drain the rest of the request to prevent socket hang
+      req.resume();
+      const err = new Error('Request body too large (max 50MB)');
+      err.code = 'BODY_TOO_LARGE';
+      throw err;
+    }
+    raw += chunk;
+  }
   if (!raw) return {};
   return JSON.parse(raw);
 }
@@ -432,26 +453,42 @@ const server = http.createServer(async (req, res) => {
       let uploadData;
       try {
         uploadData = await readJsonBody(req);
-      } catch {
-        return sendJson(res, 400, { error: 'Invalid JSON' });
+      } catch (e) {
+        const code = e.code || 'INVALID_JSON';
+        const msg  = e.code === 'BODY_TOO_LARGE' ? e.message : 'Invalid JSON body';
+        return sendJson(res, 400, { success: false, code, message: msg });
       }
 
-      const { telegramId, photoUrl } = uploadData;
+      const { telegramId, photoUrl, oldPublicId } = uploadData;
       if (!isValidTelegramId(telegramId) || !photoUrl) {
-        return sendJson(res, 400, { error: 'valid telegramId and photoUrl required' });
+        return sendJson(res, 400, { success: false, code: 'MISSING_PARAMS', message: 'valid telegramId and photoUrl required' });
       }
 
       try {
-        const { v2: cloudinary } = await import('cloudinary');
-        const uploadResult = await cloudinary.uploader.upload(photoUrl, {
-          folder: 'telegram_profiles',
-          public_id: `user_${telegramId}`,
+        const result = await uploadToCloudinary(photoUrl, {
+          folder: getUploadFolder('profile'),
+          publicId: `user_${telegramId}`,
+          oldPublicId: oldPublicId || null,
+          oldResourceType: 'image',
           overwrite: true,
         });
-        return sendJson(res, 200, { secureUrl: uploadResult.secure_url });
+        return sendJson(res, 200, {
+          success: true,
+          secureUrl:    result.secureUrl,
+          publicId:     result.publicId,
+          resourceType: result.resourceType,
+          width:        result.width,
+          height:       result.height,
+          bytes:        result.bytes,
+          format:       result.format,
+        });
       } catch (err) {
-        console.error('[Cloudinary] Upload error:', err);
-        return sendJson(res, 500, { error: 'Cloudinary upload failed' });
+        console.error('[upload-profile-photo] Error:', err.message);
+        return sendJson(res, 500, {
+          success: false,
+          code:    err.code || 'UPLOAD_FAILED',
+          message: err.message || 'Cloudinary upload failed',
+        });
       }
     }
 
@@ -515,55 +552,98 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { error: 'Invalid JSON' });
     }
 
-    // ── POST /upload-branding ────────────────────────────────────────────────
+    // ── POST /upload-branding ─────────────────────────────────────────────────
+    // Production Cloudinary upload with streaming, retry, full metadata response.
     if (req.method === 'POST' && url === '/upload-branding') {
-      const { image, filename } = data;
-      if (!image) return sendJson(res, 400, { error: 'image data required' });
+      const { image, filename, folder, publicId, oldPublicId, oldResourceType } = data;
+      if (!image || typeof image !== 'string') {
+        return sendJson(res, 400, { success: false, code: 'MISSING_IMAGE', message: 'image (base64 data URL) is required.' });
+      }
 
-      const hasCloudinary =
-        process.env.CLOUDINARY_URL ||
-        (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+      const isVideo = image.startsWith('data:video/');
+      const isImage = image.startsWith('data:image/');
+      if (!isImage && !isVideo) {
+        return sendJson(res, 400, { success: false, code: 'INVALID_MIME', message: 'Only image/* and video/* data URLs are accepted.' });
+      }
 
-      if (hasCloudinary) {
+      const cloudStatus = getCloudinaryStatus();
+      console.log(`[upload-branding] ${isVideo ? 'VIDEO' : 'IMAGE'} | ${Math.round(image.length / 1024)}KB | cloudinary=${cloudStatus.configured}`);
+
+      // ── Try Cloudinary (primary) ─────────────────────────────────────────
+      if (cloudStatus.configured) {
         try {
-          const { v2: cloudinary } = await import('cloudinary');
-          if (!process.env.CLOUDINARY_URL && process.env.CLOUDINARY_CLOUD_NAME) {
-            cloudinary.config({
-              cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-              api_key: process.env.CLOUDINARY_API_KEY,
-              api_secret: process.env.CLOUDINARY_API_SECRET,
-            });
-          }
-          const uploadResult = await cloudinary.uploader.upload(image, {
-            folder: 'branding',
-            public_id: filename || `brand_${Date.now()}`,
+          const result = await uploadToCloudinary(image, {
+            folder: folder || getUploadFolder(isVideo ? 'video' : 'branding'),
+            publicId: publicId || (filename ? filename.replace(/\.[^.]+$/, '') : null) || `brand_${Date.now()}`,
+            oldPublicId: oldPublicId || null,
+            oldResourceType: oldResourceType || (isVideo ? 'video' : 'image'),
             overwrite: true,
-            resource_type: 'auto',
           });
-          if (uploadResult?.secure_url) {
-            return sendJson(res, 200, { secureUrl: uploadResult.secure_url });
-          }
+          return sendJson(res, 200, {
+            success: true,
+            secureUrl:    result.secureUrl,
+            publicId:     result.publicId,
+            resourceType: result.resourceType,
+            width:        result.width,
+            height:       result.height,
+            bytes:        result.bytes,
+            format:       result.format,
+            duration:     result.duration,
+            createdAt:    result.createdAt,
+          });
         } catch (err) {
-          console.warn('[Cloudinary] Upload failed, proceeding to fallback:', err.message);
+          console.error('[upload-branding] Cloudinary failed, trying fallback:', err.message);
+          // Fall through to ImgBB / data URL fallback
         }
       }
 
-      // ✅ FIX: For videos, ImgBB does NOT support video uploads — skip ImgBB for videos
-      const isVideoUpload = typeof image === 'string' && image.startsWith('data:video/');
-
-      if (!isVideoUpload) {
-        // Images only: try ImgBB
+      // ── ImgBB fallback (images only — ImgBB does not support video) ────────
+      if (isImage) {
         const imgbbUrl = await uploadBase64ToImgbb(image);
-        if (imgbbUrl) return sendJson(res, 200, { secureUrl: imgbbUrl });
+        if (imgbbUrl) {
+          return sendJson(res, 200, { success: true, secureUrl: imgbbUrl, resourceType: 'image' });
+        }
       }
 
-      // For both image and video data URLs — store as data URL (last resort)
-      if (typeof image === 'string' && (image.startsWith('data:image/') || image.startsWith('data:video/'))) {
-        console.log(`[upload-branding] Storing ${isVideoUpload ? 'video' : 'image'} as data URL (${Math.round(image.length / 1024)}KB)`);
-        return sendJson(res, 200, { secureUrl: image });
+      // ── Data URL fallback — last resort, stored in Firestore (≤ 5MB) ───────
+      const MAX_DATA_URL = 5 * 1024 * 1024;
+      if (image.length <= MAX_DATA_URL) {
+        console.log(`[upload-branding] Falling back to data URL storage (${Math.round(image.length / 1024)}KB)`);
+        return sendJson(res, 200, {
+          success: true,
+          secureUrl: image,
+          resourceType: isVideo ? 'video' : 'image',
+          isDataUrl: true,
+        });
       }
 
-      return sendJson(res, 400, { error: 'Image/video processing failed. Please configure Cloudinary for video support.' });
+      return sendJson(res, 500, {
+        success: false,
+        code: isVideo ? 'VIDEO_TOO_LARGE' : 'IMAGE_UPLOAD_FAILED',
+        message: isVideo
+          ? 'Video upload failed: Cloudinary is not configured and the file is too large to store as data URL. Configure CLOUDINARY_URL in environment variables.'
+          : 'Image upload failed via all available methods. Configure CLOUDINARY_URL or reduce file size.',
+      });
+    }
+
+    // ── POST /upload-delete ───────────────────────────────────────────────────
+    // Delete a Cloudinary asset by public_id (called when replacing existing media).
+    if (req.method === 'POST' && url === '/upload-delete') {
+      const { publicId: delPublicId, resourceType: delResourceType } = data;
+      if (!delPublicId) {
+        return sendJson(res, 400, { success: false, code: 'MISSING_PUBLIC_ID', message: 'publicId is required.' });
+      }
+      try {
+        const result = await deleteFromCloudinary(delPublicId, delResourceType || 'image');
+        return sendJson(res, 200, { success: true, result: result.result });
+      } catch (err) {
+        console.error('[upload-delete] Error:', err.message);
+        return sendJson(res, 500, {
+          success: false,
+          code: err.code || 'DELETE_FAILED',
+          message: err.message || 'Failed to delete Cloudinary asset.',
+        });
+      }
     }
 
     // ── POST /notify/message ─────────────────────────────────────────────────

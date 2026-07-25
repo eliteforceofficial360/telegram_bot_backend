@@ -31,6 +31,7 @@ import {
 import {
   sendMessageToUser, sendAnnouncement, sendWithdrawNotification,
 } from '../lib/notificationService';
+import { uploadFile } from '../lib/uploadService';
 
 interface AdminProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -197,6 +198,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
+  // Upload progress per asset key (0–100), used for progress bars on branding uploads
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
   // --- Country Analytics ---
   const [countrySearch, setCountrySearch] = useState('');
@@ -265,194 +268,49 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     } else setEditBanDuration(24);
   };
 
-  // Client-side Image Compressor (Resizes high-res uploads while preserving 100% PNG alpha channel transparency)
-  // Client-side Image Compressor (Resizes high-res uploads to max ~15KB WebP/JPEG to prevent Firestore 1MB document limit errors)
-  const compressImageFile = (file: File, maxWidth = 500, maxHeight = 300, quality = 0.65): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = (e) => {
-        const img = new Image();
-        img.src = e.target?.result as string;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
 
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(e.target?.result as string);
-            return;
-          }
-
-          ctx.clearRect(0, 0, width, height);
-          ctx.drawImage(img, 0, 0, width, height);
-
-          // WebP supports high compression (quality parameter) AND transparency!
-          // WebP produces ~12KB data URLs compared to 800KB raw PNGs.
-          let compressedDataUrl = canvas.toDataURL('image/webp', quality);
-
-          // Fallback to JPEG if WebP outputs invalid or oversized string
-          if (!compressedDataUrl || compressedDataUrl.length > 150000 || compressedDataUrl === 'data:,') {
-            compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
-          }
-
-          resolve(compressedDataUrl);
-        };
-        img.onerror = (err) => reject(err);
-      };
-      reader.onerror = (err) => reject(err);
+  // ── centralised upload helper (used by all upload handlers) ─────────────────
+  // Delegates to uploadService.ts which handles: MIME validation, ImgBB, Bot API,
+  // Cloudinary streaming, retry with exponential backoff, data URL fallback.
+  const _upload = async (
+    file: File,
+    assetKey: string,
+    folder = 'branding'
+  ): Promise<string> => {
+    const result = await uploadFile(file, {
+      assetKey,
+      folder,
+      botApiUrl: settings.botApiUrl,
+      botApiSecret: notifApiSecret,
+      onProgress: (pct) =>
+        setUploadProgress((prev) => ({ ...prev, [assetKey]: pct })),
     });
+    setUploadProgress((prev) => ({ ...prev, [assetKey]: 100 }));
+    setTimeout(() =>
+      setUploadProgress((prev) => { const n = { ...prev }; delete n[assetKey]; return n; }),
+    1500);
+    return result.secureUrl;
   };
 
-  const uploadImageToBot = async (base64Media: string, filename: string): Promise<string> => {
-    const isVid = base64Media.startsWith('data:video/') || !!filename.match(/\.(mp4|webm|mov|ogg)$/i);
 
-    // ── IMAGES: Try ImgBB first (fastest, no backend needed) ──────────────────
-    if (!isVid) {
-      try {
-        const cleanBase64 = base64Media.replace(/^data:image\/[\w+.-]+;base64,/, '');
-        const formData = new FormData();
-        formData.append('key', '6d70077319714757c9a96e622b78edc3');
-        formData.append('image', cleanBase64);
-
-        const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 20000);
-        const imgbbRes = await fetch('https://api.imgbb.com/1/upload', {
-          method: 'POST',
-          body: formData,
-          signal: ctrl.signal,
-        });
-        clearTimeout(t);
-
-        if (imgbbRes.ok) {
-          const d = await imgbbRes.json();
-          const url = d.data?.url || d.data?.display_url;
-          if (url) return url;
-        }
-      } catch (e) {
-        console.warn('ImgBB upload failed, trying Bot API:', e);
-      }
-    }
-
-    // ── VIDEOS: Store small/medium videos as data URL directly ──────────────────
-    // Avoids waking up the sleeping Render.com free-tier backend unnecessarily.
-    if (isVid && base64Media.length <= 5 * 1024 * 1024) {
-      console.log(`[upload] Storing video as data URL (${Math.round(base64Media.length / 1024)}KB)`);
-      return base64Media;
-    }
-
-    // ── BOTH: Try Bot API / Cloudinary (for large videos or image fallback) ────
-    const FALLBACK_BOT_API = 'https://elite-force-telegram-app.onrender.com';
-    const baseUrl = (settings.botApiUrl || FALLBACK_BOT_API).replace(/\/$/, '');
-
-    // Wake up Render.com server if sleeping (free tier sleeps after inactivity)
-    try {
-      const pingCtrl = new AbortController();
-      const pingTimeout = setTimeout(() => pingCtrl.abort(), 10000);
-      await fetch(`${baseUrl}/health`, { method: 'GET', signal: pingCtrl.signal });
-      clearTimeout(pingTimeout);
-    } catch {
-      // Ignore — server may be waking up, proceed with upload anyway
-    }
-
-    // Upload with retry
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timeoutMs = isVid ? 90000 : 30000;
-        const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-        const res = await fetch(`${baseUrl}/upload-branding`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${notifApiSecret || 'elite_force_secret_2024'}`
-          },
-          body: JSON.stringify({ image: base64Media, filename }),
-          signal: controller.signal
-        });
-        clearTimeout(timeout);
-
-        if (res.ok) {
-          const data = await res.json();
-          // ✅ FIX: Accept ALL secureUrl responses including data URLs from bot
-          if (data.secureUrl) return data.secureUrl;
-        }
-      } catch (err) {
-        console.warn(`Bot API upload attempt ${attempt + 1} failed:`, err);
-        if (attempt === 0) await new Promise(r => setTimeout(r, 3000));
-      }
-    }
-
-    // ── LAST RESORT: store as data URL ──────────────────────────────────────
-    // ✅ FIX: Increased limit from 700KB → 5MB to handle more video/image sizes
-    if (base64Media.startsWith('data:') && base64Media.length <= 5 * 1024 * 1024) {
-      return base64Media;
-    }
-
-    if (isVid) {
-      throw new Error('Video is too large (>3.7MB). Please paste a hosted video URL in the URL field, or use a smaller/compressed video.');
-    }
-    throw new Error('Image upload failed. Please try again or use a smaller image.');
-  };
-
+  // ── Avatar upload (User profile photo in admin roster) ────────────────────
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Validate file type
-    const isVideo = file.type.startsWith('video/');
-    const isImage = file.type.startsWith('image/');
-    if (!isImage && !isVideo) {
-      showToast('Please select an image or video file.', 'error');
-      return;
-    }
-
-    // Video size limit: 50MB
-    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
-    if (file.size > maxSize) {
-      showToast(`File too large. Max size: ${isVideo ? '50MB for videos' : '10MB for images'}.`, 'error');
-      return;
-    }
+    // Reset so same file can be re-selected
+    e.target.value = '';
 
     setUploadingAvatar(true);
-    showToast(isVideo ? '🎬 Uploading video...' : '🖼️ Uploading image...', 'info');
+    showToast(file.type.startsWith('video/') ? '🎬 Uploading video...' : '🖼️ Uploading image...', 'info');
 
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        try {
-          const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
-          const filename = `user_${userId}_${Date.now()}.${ext}`;
-          const secureUrl = await uploadImageToBot(reader.result as string, filename);
-          setEditPhotoUrl(secureUrl);
-          showToast(`✅ ${isVideo ? 'Video' : 'Image'} uploaded successfully!`, 'success');
-        } catch (err: any) {
-          showToast(err.message || 'Upload failed. Server may be starting up — try again in 30s.', 'error');
-        } finally {
-          setUploadingAvatar(false);
-        }
-      };
-      reader.onerror = () => {
-        showToast('Failed to read file.', 'error');
-        setUploadingAvatar(false);
-      };
-    } catch (err) {
-      showToast('File processing error.', 'error');
+      const url = await _upload(file, `avatar_${userId}`, 'profile');
+      setEditPhotoUrl(url);
+      showToast('✅ Photo uploaded successfully!', 'success');
+    } catch (err: any) {
+      // err.code and err.message come from uploadService structured errors
+      showToast(err.message || 'Upload failed. Please try again.', 'error');
+    } finally {
       setUploadingAvatar(false);
     }
   };
@@ -826,27 +684,15 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const handleNotificationImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
     setUploadingNotificationImage(true);
     try {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = async () => {
-        try {
-          const secureUrl = await uploadImageToBot(reader.result as string, `notif_${Date.now()}`);
-          setNotifImageUrl(secureUrl);
-          showToast('✅ Notification image uploaded successfully!', 'success');
-        } catch (err: any) {
-          showToast(err.message || 'Upload failed.', 'error');
-        } finally {
-          setUploadingNotificationImage(false);
-        }
-      };
-      reader.onerror = () => {
-        showToast('Failed to read file.', 'error');
-        setUploadingNotificationImage(false);
-      };
-    } catch (err) {
-      showToast('File processing error.', 'error');
+      const url = await _upload(file, 'notif_image', 'branding');
+      setNotifImageUrl(url);
+      showToast('✅ Notification image uploaded!', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Upload failed.', 'error');
+    } finally {
       setUploadingNotificationImage(false);
     }
   };
@@ -916,31 +762,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     showToast('Banner removed.', 'info');
   };
 
+  // ── Hero Multi-Banner Slider: upload image or video for carousel ──────────
   const handleAddBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
+    const isVideo = file.type.startsWith('video/');
+    showToast(isVideo ? '🎬 Uploading video banner...' : '🖼️ Uploading banner image...', 'info');
     try {
-      let finalUrl = '';
-      const isVideo = file.type.startsWith('video/') || !!file.name.match(/\.(mp4|webm|mov|ogg)$/i);
-
-      if (isVideo) {
-        showToast('Processing & uploading video banner...', 'info');
-        const rawDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        finalUrl = await uploadImageToBot(rawDataUrl, `hero_banner_${Date.now()}`);
-      } else {
-        showToast('Compressing & uploading banner image...', 'info');
-        const compressed = await compressImageFile(file, 800, 400, 0.8);
-        finalUrl = await uploadImageToBot(compressed, `hero_banner_${Date.now()}`);
-      }
+      const url = await _upload(file, `hero_banner_${Date.now()}`, 'banner');
 
       const newBanner: { id: string; imageUrl: string; title?: string; linkUrl?: string } = {
         id: String(Date.now()),
-        imageUrl: finalUrl,
+        imageUrl: url,
       };
       if (newBannerTitle.trim()) newBanner.title = newBannerTitle.trim();
       if (newBannerLink.trim()) newBanner.linkUrl = newBannerLink.trim();
@@ -958,35 +792,31 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     }
   };
 
+  // ── Branding / System Images upload ──────────────────────────────────────
   const handleBrandingUpload = async (e: React.ChangeEvent<HTMLInputElement>, targetField: keyof AdminSettings) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    e.target.value = '';
 
-    setUploadingImageField(String(targetField));
+    const key = String(targetField);
+    setUploadingImageField(key);
+    setUploadProgress((prev) => ({ ...prev, [key]: 0 }));
 
     try {
-      let finalUrl = '';
-      const isVideo = file.type.startsWith('video/') || !!file.name.match(/\.(mp4|webm|mov|ogg)$/i);
-
-      if (isVideo) {
-        showToast('Processing video upload...', 'info');
-        const rawDataUrl = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-        finalUrl = await uploadImageToBot(rawDataUrl, `${String(targetField)}_${Date.now()}`);
-      } else {
-        const compressedDataUrl = await compressImageFile(file, 600, 400, 0.75);
-        finalUrl = await uploadImageToBot(compressedDataUrl, `${String(targetField)}_${Date.now()}`);
-      }
-
-      const updated = { ...settingsRef.current, [targetField]: finalUrl };
+      const url = await _upload(file, key, file.type.startsWith('video/') ? 'video' : 'icon');
+      const updated = { ...settingsRef.current, [targetField]: url };
       setSettings(updated);
-      await saveAdminSettings(updated);
-
-      showToast(`✅ ${String(targetField)} uploaded & live synced!`, 'success');
+      // Guard: never write base64 data URLs > 700KB directly into adminSettings
+      // (Firestore 1MB doc limit — large data URLs cause silent write failures)
+      if (url.startsWith('data:') && url.length > 700000) {
+        showToast(
+          '⚠️ File stored locally. Configure Cloudinary for persistent CDN storage.',
+          'warning'
+        );
+      } else {
+        await saveAdminSettings(updated);
+        showToast(`✅ ${key} uploaded & live synced!`, 'success');
+      }
     } catch (err: any) {
       showToast(err.message || 'Upload failed.', 'error');
     } finally {
@@ -2851,48 +2681,62 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                     displayUrl.toLowerCase().includes('.mov') ||
                                     displayUrl.toLowerCase().startsWith('data:video/');
                       return (
-                        <div key={item.key} className="flex items-center justify-between gap-4 py-3">
-                          <div className="min-w-0 flex-1">
-                            <label className="text-xs text-slate-300 block font-bold">{item.label}</label>
-                            <span className="text-[9px] text-slate-500 block truncate">{item.desc}</span>
-                          </div>
-                          <div className="flex items-center gap-2.5 shrink-0">
-                            <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
-                              {isVid ? (
-                                <video src={displayUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-                              ) : (
-                                <ImageWithFallback src={displayUrl} fallbackLetter="🖼️" className="w-full h-full object-contain" />
-                              )}
+                        <div key={item.key} className="flex flex-col gap-1 py-3">
+                          <div className="flex items-center justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <label className="text-xs text-slate-300 block font-bold">{item.label}</label>
+                              <span className="text-[9px] text-slate-500 block truncate">{item.desc}</span>
                             </div>
-                            <input
-                              type="text"
-                              placeholder={item.defaultVal}
-                              value={(settings as any)[item.key] || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setSettings(prev => ({ ...prev, [item.key]: val }));
-                              }}
-                              onBlur={e => {
-                                const val = e.target.value;
-                                const updated = { ...settingsRef.current, [item.key]: val };
-                                saveAdminSettings(updated).catch(() => {});
-                                showToast(`⚡ ${item.label} saved & synced live!`, 'success');
-                              }}
-                              className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono transition-all focus:border-[#FF8A00]"
-                              style={inputStyle}
-                            />
-                            <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all shrink-0 select-none">
-                              {isUploading ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />}
-                              {isUploading ? 'Uploading...' : 'Upload'}
+                            <div className="flex items-center gap-2.5 shrink-0">
+                              <div className="w-9 h-9 rounded-xl border border-white/10 overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
+                                {isVid ? (
+                                  <video src={displayUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                                ) : (
+                                  <ImageWithFallback src={displayUrl} fallbackLetter="🖼️" className="w-full h-full object-contain" />
+                                )}
+                              </div>
                               <input
-                                type="file"
-                                accept="image/*,video/*"
-                                onChange={e => handleBrandingUpload(e, item.key as any)}
-                                className="hidden"
-                                disabled={isUploading}
+                                type="text"
+                                placeholder={item.defaultVal}
+                                value={(settings as any)[item.key] || ''}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setSettings(prev => ({ ...prev, [item.key]: val }));
+                                }}
+                                onBlur={e => {
+                                  const val = e.target.value;
+                                  const updated = { ...settingsRef.current, [item.key]: val };
+                                  saveAdminSettings(updated).catch(() => {});
+                                  showToast(`⚡ ${item.label} saved & synced live!`, 'success');
+                                }}
+                                className="w-36 md:w-52 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono transition-all focus:border-[#FF8A00]"
+                                style={inputStyle}
                               />
-                            </label>
+                              <label className="h-8 px-3 rounded-xl bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all shrink-0 select-none">
+                                {isUploading ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />}
+                                {isUploading ? 'Uploading...' : 'Upload'}
+                                <input
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  onChange={e => handleBrandingUpload(e, item.key as any)}
+                                  className="hidden"
+                                  disabled={isUploading}
+                                />
+                              </label>
+                            </div>
                           </div>
+                          {/* Upload progress bar */}
+                          {isUploading && uploadProgress[item.key] !== undefined && (
+                            <div className="w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                              <div
+                                className="h-full rounded-full transition-all duration-300"
+                                style={{
+                                  width: `${uploadProgress[item.key] ?? 0}%`,
+                                  background: 'linear-gradient(90deg, #FF8A00, #FFB347)',
+                                }}
+                              />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
