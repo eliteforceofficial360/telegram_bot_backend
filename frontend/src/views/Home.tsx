@@ -494,7 +494,6 @@ export const Home: React.FC<HomeProps> = ({
             <MiningCoin
               isMiningActive={isMiningActive}
               isMiningCompleted={isMiningCompleted}
-              coinIconUrl={settings.coinIconUrl}
             />
           </div>
 
