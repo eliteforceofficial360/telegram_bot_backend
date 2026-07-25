@@ -372,7 +372,7 @@ export const Tasks = ({
         );
 
         if (result.success) {
-          showToast(`🎉 Ad completed! +${adminSettings.adTokenReward || 1} EForce Token added!`, 'success');
+          showToast(`🎉 Ad completed! +${adminSettings.adTokenReward || 1} EFC Points added!`, 'success');
           confetti({ particleCount: 20, spread: 40, origin: { y: 0.65 }, ticks: 80, disableForReducedMotion: true, colors: ['#00E5FF', '#B388FF'] });
         } else {
           showToast(result.reason || 'Verification failed.', 'error');
@@ -518,7 +518,7 @@ export const Tasks = ({
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-white">Missions & Tasks</h1>
-        <p className="text-xs text-slate-400 mt-1">Complete tasks to earn EForce rewards</p>
+        <p className="text-xs text-slate-400 mt-1">Complete tasks to earn EFC Points rewards</p>
       </div>
 
       {/* Header Banner (if set by Admin) */}
@@ -543,7 +543,7 @@ export const Tasks = ({
         </div>
         <div className="glass-panel p-3.5 rounded-[18px] border-white/5 flex flex-col gap-1">
           <span className="text-[9px] text-slate-500 uppercase tracking-widest font-bold">Earned Rewards</span>
-          <span className="text-lg font-black text-[#FF8A00]">{totalEarnedRewards.toLocaleString()} EForce</span>
+          <span className="text-lg font-black text-[#FF8A00]">{totalEarnedRewards.toLocaleString()} EFC Points</span>
         </div>
       </div>
 
@@ -568,7 +568,7 @@ export const Tasks = ({
                 Watch Sponsored Video Ad {isPremium && <span className="text-[7px] font-black text-[#00E5FF] bg-[#00E5FF]/10 px-1 py-0.5 rounded border border-[#00E5FF]/20 uppercase ml-1">Premium Boost</span>}
               </div>
               <div className="text-[9px] text-slate-400">
-                Earn <span className="text-purple-400 font-black">+{adminSettings.adTokenReward || 1} EForce Token</span> per ad · {adCount}/{limit} today
+                Earn <span className="text-purple-400 font-black">+{adminSettings.adTokenReward || 1} EFC Points</span> per ad · {adCount}/{limit} today
               </div>
             </div>
             <button
@@ -626,7 +626,7 @@ export const Tasks = ({
                   <div className="flex items-center gap-2.5">
                     {cat.totalReward > 0 && (
                       <span className="text-xs font-black text-[#FF8A00] tracking-tight">
-                        {cat.totalReward.toLocaleString()} EFORCE
+                        {cat.totalReward.toLocaleString()} EFC Points
                       </span>
                     )}
                     <div className="text-slate-400">
@@ -661,7 +661,7 @@ export const Tasks = ({
                                 <div className="text-xs font-bold text-slate-200 text-left mb-0.5">{sub.name}</div>
                                 <div className="text-[10px] text-slate-500 text-left">
                                   {hasUncompleted
-                                    ? `${sub.uncompletedCount} task${sub.uncompletedCount > 1 ? 's' : ''} · ${sub.totalReward.toLocaleString()} EFORCE total`
+                                    ? `${sub.uncompletedCount} task${sub.uncompletedCount > 1 ? 's' : ''} · ${sub.totalReward.toLocaleString()} EFC Points total`
                                     : 'None left for you right now'}
                                 </div>
                               </div>
@@ -729,12 +729,12 @@ export const Tasks = ({
                                             <p className="text-[10px] text-slate-400 line-clamp-2">{task.description}</p>
                                           )}
 
-                                          {/* Dual Reward Boxes (EFORCE REWARD & TOKEN) */}
+                                          {/* Dual Reward Boxes (EFC Points REWARD & TOKEN) */}
                                           <div className="grid grid-cols-2 gap-2.5 my-0.5">
-                                            {/* EFORCE REWARD Box */}
+                                            {/* EFC Points REWARD Box */}
                                             <div className="p-3 rounded-xl bg-[#242424] border border-[#333333] flex flex-col gap-0.5">
                                               <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-                                                Eforce Reward
+                                                EFC Points Reward
                                               </span>
                                               <span className="text-base font-black text-[#FF8A00]">
                                                 {task.reward.toLocaleString()}
