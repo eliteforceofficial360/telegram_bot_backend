@@ -143,8 +143,15 @@ function App() {
   // Dynamic live stats for Admin Panel (real from Firestore)
   const [liveUserCount, setLiveUserCount] = useState(0);
 
-  // Global admin settings — single subscription for entire app
+  // Global admin settings — single real-time subscription for entire app
   const [adminSettings, setAdminSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
+  useEffect(() => {
+    const unsubscribe = subscribeToAdminSettings((newSettings) => {
+      setAdminSettings(newSettings);
+    });
+    return unsubscribe;
+  }, []);
+
   const maxEnergy = adminSettings.energyMax || 1000;
 
   // Real-time favicon updater
