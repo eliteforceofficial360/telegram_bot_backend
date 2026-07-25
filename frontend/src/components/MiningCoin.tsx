@@ -71,16 +71,24 @@ export const MiningCoin: React.FC<MiningCoinProps> = ({
         // Stand upright facing camera (ImageToStl models lie flat on XZ plane by default)
         model.rotation.x = Math.PI / 2;
 
-        // Auto-center and fit model size
-        const box = new THREE.Box3().setFromObject(model);
+        const pivot = new THREE.Group();
+        pivot.add(model);
+
+        // Compute exact bounding box of rotated model
+        const box = new THREE.Box3().setFromObject(pivot);
         const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
 
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetScale = 2.4 / (maxDim || 1);
+        const targetScale = 1.85 / (maxDim || 1); // Perfect scaling to fit neatly inside reactor circle
 
-        model.position.sub(center); // Center geometry
-        model.scale.setScalar(targetScale);
+        // Center model geometry perfectly inside pivot origin
+        model.position.x -= center.x;
+        model.position.y -= center.y;
+        model.position.z -= center.z;
+
+        pivot.scale.setScalar(targetScale);
+        pivot.position.set(0, 0.12, 0); // Position dead-center in reactor ring above rate badge
 
         // Enhance material lighting response
         model.traverse((child) => {
@@ -89,14 +97,14 @@ export const MiningCoin: React.FC<MiningCoinProps> = ({
             if (mesh.material) {
               const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
               mats.forEach((mat) => {
-                if ('metalness' in mat) (mat as THREE.MeshStandardMaterial).metalness = Math.max((mat as THREE.MeshStandardMaterial).metalness || 0.7, 0.6);
-                if ('roughness' in mat) (mat as THREE.MeshStandardMaterial).roughness = Math.min((mat as THREE.MeshStandardMaterial).roughness || 0.3, 0.35);
+                if ('metalness' in mat) (mat as THREE.MeshStandardMaterial).metalness = Math.max((mat as THREE.MeshStandardMaterial).metalness || 0.7, 0.65);
+                if ('roughness' in mat) (mat as THREE.MeshStandardMaterial).roughness = Math.min((mat as THREE.MeshStandardMaterial).roughness || 0.3, 0.3);
               });
             }
           }
         });
 
-        modelGroup.add(model);
+        modelGroup.add(pivot);
       },
       undefined,
       (err) => {
