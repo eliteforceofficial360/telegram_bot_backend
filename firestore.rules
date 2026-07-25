@@ -16,7 +16,7 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // 3. Tasks configuration
+    // 3. Official Missions & Tasks configuration
     match /tasks/{document=**} {
       allow read, write: if true;
     }
@@ -36,13 +36,39 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // 7. Audit logs
+    // 7. Audit logs & security logs
     match /auditLogs/{document=**} {
       allow read, write: if true;
     }
-
-    // 8. Security events
     match /securityEvents/{document=**} {
+      allow read, write: if true;
+    }
+    match /fraudLogs/{document=**} {
+      allow read, write: if true;
+    }
+    match /authenticationLogs/{document=**} {
+      allow read, write: if true;
+    }
+    match /notificationLogs/{document=**} {
+      allow read, write: if true;
+    }
+
+    // 8. X (Twitter) Verification System
+    match /xUsers/{document=**} {
+      allow read, write: if true;
+    }
+
+    // 9. P2P Task Market Engine
+    match /marketTasks/{document=**} {
+      allow read, write: if true;
+    }
+    match /taskSubmissions/{document=**} {
+      allow read, write: if true;
+    }
+    match /taskEscrow/{document=**} {
+      allow read, write: if true;
+    }
+    match /taskAnalytics/{document=**} {
       allow read, write: if true;
     }
   }
