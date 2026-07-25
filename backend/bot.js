@@ -10,10 +10,10 @@ import {
 } from './uploadService.js';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
-  saveXUsername,
   verifyXTask,
   runXPeriodicMonitoring,
 } from './xVerificationEngine.js';
+import { sendMarketNotification } from './marketNotifications.js';
 
 dotenv.config();
 
@@ -316,6 +316,168 @@ async function broadcast(ids, html, extra = {}, imageUrl = null, delayMs = 60) {
     if (ids.length > 20) await new Promise((r) => setTimeout(r, delayMs));
   }
   return { sent, failed };
+}
+
+// ── DEFAULT TELEGRAM NOTIFICATION TEMPLATES ──────────────────────────────────
+const DEFAULT_NOTIFICATION_TEMPLATES = {
+  SOCIAL_CONNECTED: {
+    enabled: true,
+    template: `🎉 <b>{platformName} Connected Successfully</b>\n\nYour {platformName} account has been linked to your Elite Force account.\n\n<b>Username:</b>\n{handle}\n\nYou can now complete {platformName} Campaign Tasks and earn EFC rewards.`,
+    buttonText: 'Open Elite Force',
+    buttonTab: 'tasks',
+  },
+  SOCIAL_DISCONNECTED: {
+    enabled: true,
+    template: `⚠️ <b>{platformName} Disconnected</b>\n\nYour {platformName} account has been removed.\n\nPlatform-specific tasks are now locked until you reconnect.`,
+    buttonText: 'Reconnect',
+    buttonTab: 'profile',
+  },
+  TASK_COMPLETED: {
+    enabled: true,
+    template: `🎉 <b>Task Completed</b>\n\n<b>Task:</b>\n{taskTitle}\n\n<b>Reward:</b>\n+{reward} EFC{tokenRewardText}\n\n<b>New Balance:</b>\n{newBalance} EFC`,
+    buttonText: 'Open Elite Force',
+    buttonTab: 'tasks',
+  },
+  TASK_REJECTED: {
+    enabled: true,
+    template: `❌ <b>Task Verification Failed</b>\n\n<b>Task:</b>\n{taskTitle}\n\n<b>Reason:</b>\n• {reason}\n\nPlease complete the task again.`,
+    buttonText: 'Retry',
+    buttonTab: 'tasks',
+  },
+  CAMPAIGN_COMPLETED: {
+    enabled: true,
+    template: `🏆 <b>Campaign Completed</b>\n\n<b>Campaign:</b>\n{campaignTitle}\n\n<b>Completed Tasks:</b>\n{completedCount}/{totalCount}\n\n<b>Total Reward:</b>\n+{totalReward} EFC\n\nCongratulations!`,
+    buttonText: 'Claim Reward',
+    buttonTab: 'tasks',
+  },
+  MINING_COMPLETED: {
+    enabled: true,
+    template: `⛏ <b>Mining Completed</b>\n\n<b>Reward:</b>\n+{reward} EFC\n\nYour mining session has finished.\nClaim your reward now.`,
+    buttonText: 'Claim Reward',
+    buttonTab: 'home',
+  },
+  DAILY_REWARD: {
+    enabled: true,
+    template: `🎁 <b>Daily Reward Available</b>\n\nYour daily reward of +{reward} EFC is ready.\nClaim it before it expires.`,
+    buttonText: 'Claim',
+    buttonTab: 'home',
+  },
+  REFERRAL_BONUS: {
+    enabled: true,
+    template: `🎉 <b>Referral Reward</b>\n\nYour friend has joined.\n\n<b>Referral:</b>\n{refUsername}\n\n<b>Reward:</b>\n+{reward} EFC`,
+    buttonText: 'Open App',
+    buttonTab: 'friends',
+  },
+  WITHDRAW_APPROVED: {
+    enabled: true,
+    template: `✅ <b>Withdrawal Approved</b>\n\n<b>Amount:</b>\n{amount} EFC\n\n<b>Status:</b>\nCompleted`,
+    buttonText: 'Open Wallet',
+    buttonTab: 'wallet',
+  },
+  WITHDRAW_REJECTED: {
+    enabled: true,
+    template: `❌ <b>Withdrawal Rejected</b>\n\n<b>Amount:</b>\n{amount} EFC\n\n<b>Reason:</b>\n{reason}`,
+    buttonText: 'Contact Support',
+    buttonTab: 'support',
+  },
+  SECURITY_ALERT: {
+    enabled: true,
+    template: `🔒 <b>Security Alert</b>\n\nA new login was detected.\n\n<b>Device:</b>\n{device}\n\n<b>Location:</b>\n{location}\n\n<b>Time:</b>\n{time}\n\nIf this wasn't you, contact support immediately.`,
+    buttonText: 'Contact Support',
+    buttonTab: 'support',
+  },
+};
+
+/**
+ * Central Telegram Event Notification Dispatcher.
+ * Validates, renders template, attaches Mini App inline button, deduplicates via eventId,
+ * sends via bot.telegram, and logs history in Firestore.
+ */
+async function sendEventNotification({ telegramId, eventType, eventId, params = {} }) {
+  if (!telegramId || !isValidTelegramId(telegramId)) return false;
+
+  try {
+    const numId = Number(telegramId);
+    const dbInstance = getFirestore();
+
+    // 1. Fetch Notification Settings
+    const settingsDoc = await dbInstance.collection('adminSettings').doc('global').get();
+    const notificationConfig = settingsDoc.exists ? (settingsDoc.data()?.notificationSettings || {}) : {};
+
+    if (notificationConfig.enabled === false) {
+      return false;
+    }
+
+    const eventSetting = notificationConfig.events?.[eventType] || DEFAULT_NOTIFICATION_TEMPLATES[eventType];
+    if (!eventSetting || eventSetting.enabled === false) {
+      return false;
+    }
+
+    // 2. Idempotency Check
+    if (eventId) {
+      const historyRef = dbInstance.collection('notificationHistory').doc(String(eventId));
+      const historySnap = await historyRef.get();
+      if (historySnap.exists) {
+        console.log(`[Notification Engine] Idempotent hit: duplicate eventId ${eventId} suppressed.`);
+        return false;
+      }
+    }
+
+    // 3. Template Substitution
+    let text = eventSetting.template || '';
+    Object.keys(params).forEach((key) => {
+      const regex = new RegExp(`\\{${key}\\}`, 'gi');
+      text = text.replace(regex, String(params[key] || ''));
+    });
+
+    // 4. Inline Button
+    const btnText = params.buttonText || eventSetting.buttonText || 'Open Elite Force';
+    const btnTab = params.buttonTab || eventSetting.buttonTab || 'home';
+    const appUrl = `${getEffectiveAppUrl()}?startapp=${btnTab}`;
+
+    const extra = Markup.inlineKeyboard([
+      [Markup.button.webApp(btnText, appUrl)],
+    ]);
+
+    // 5. Dispatch via Telegram Bot
+    let deliveryStatus = 'failed';
+    let messageId = null;
+
+    try {
+      const result = await bot.telegram.sendMessage(numId, text, {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+        ...extra,
+      });
+      deliveryStatus = 'sent';
+      messageId = result.message_id;
+    } catch (sendErr) {
+      if (sendErr.message && sendErr.message.includes('bot was blocked by the user')) {
+        deliveryStatus = 'blocked';
+      } else {
+        console.error(`[Notification Engine] Telegram send error for ${numId}:`, sendErr.message);
+        deliveryStatus = 'failed';
+      }
+    }
+
+    // 6. Record Notification History
+    const logDocId = eventId || `notif_${numId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    await dbInstance.collection('notificationHistory').doc(logDocId).set({
+      userId: numId,
+      eventType: eventType,
+      eventId: eventId || logDocId,
+      timestamp: new Date().toISOString(),
+      deliveryStatus: deliveryStatus,
+      messageId: messageId,
+      content: text,
+      params: params,
+    });
+
+    return deliveryStatus === 'sent';
+  } catch (err) {
+    console.error(`[Notification Engine Fatal Error] eventType=${eventType}:`, err.message);
+    return false;
+  }
 }
 
 /**
@@ -647,8 +809,6 @@ const server = http.createServer(async (req, res) => {
 
 
     // ── PUBLIC: POST /api/x/save-username ───────────────────────────────────
-    // Stores (or updates) a user's X username for subsequent task verification.
-    // No OAuth — username is entered manually and verified server-side on task claim.
     if (req.method === 'POST' && url === '/api/x/save-username') {
       let bodyData;
       try {
@@ -661,11 +821,170 @@ const server = http.createServer(async (req, res) => {
         return sendJson(res, 400, { ok: false, error: 'telegramId and username are required' });
       }
       try {
-        const result = await saveXUsername(telegramId, username);
-        return sendJson(res, result.ok ? 200 : 400, result);
+        const numId = Number(telegramId);
+        // Normalize: strip @ and lowercase
+        const normalized = String(username).trim().replace(/^@/, '').toLowerCase();
+        const USERNAME_REGEX = /^[A-Za-z0-9_]{1,15}$/;
+        if (!USERNAME_REGEX.test(normalized)) {
+          return sendJson(res, 400, { ok: false, error: 'Invalid X username. Use 1–15 letters, numbers, or underscores.' });
+        }
+
+        // Check if this user already has a locked username
+        const existingDoc = await db.collection('xUsers').doc(String(numId)).get();
+        if (existingDoc.exists) {
+          const existing = existingDoc.data();
+          if (existing.locked && existing.twitterUsername !== normalized) {
+            return sendJson(res, 400, { ok: false, error: `Your X account (@${existing.twitterUsername}) is locked. Contact admin to change.`, locked: true, twitterUsername: existing.twitterUsername });
+          }
+        }
+
+        // Check for duplicate username across accounts
+        const duplicateSnap = await db.collection('xUsers').where('twitterUsername', '==', normalized).get();
+        for (const docSnap of duplicateSnap.docs) {
+          if (docSnap.data().telegramId !== numId) {
+            await db.collection('fraudLogs').add({ telegramId: numId, attemptedUsername: normalized, existingTelegramId: docSnap.data().telegramId, reason: 'DUPLICATE_USERNAME_ACROSS_ACCOUNTS', timestamp: FieldValue.serverTimestamp() });
+            return sendJson(res, 400, { ok: false, error: `@${normalized} is already linked to another account.` });
+          }
+        }
+
+        const isLocked = existingDoc.exists ? (existingDoc.data().locked || false) : false;
+        const isVerified = existingDoc.exists ? (existingDoc.data().verified || false) : false;
+
+        // Write to xUsers collection
+        await db.collection('xUsers').doc(String(numId)).set({
+          telegramId: numId,
+          twitterUsername: normalized,
+          verified: isVerified,
+          verifiedAt: existingDoc.exists ? (existingDoc.data().verifiedAt || null) : null,
+          locked: isLocked,
+          linkedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+
+        // Write to users collection (socialConnections.x)
+        await db.collection('users').doc(String(numId)).set({
+          socialConnections: {
+            x: {
+              handle: `@${normalized}`,
+              connected: true,
+              linkedAt: new Date().toISOString(),
+              verified: isVerified,
+            },
+          },
+        }, { merge: true });
+
+        // Auth log
+        await db.collection('authenticationLogs').add({ telegramId: numId, twitterUsername: normalized, event: 'USERNAME_SAVED', timestamp: FieldValue.serverTimestamp() }).catch(() => {});
+
+        console.log(`✅ [API] X username @${normalized} saved for telegramId=${numId}`);
+
+        const cleanHandle = `@${normalized}`;
+        sendEventNotification({
+          telegramId: numId,
+          eventType: 'SOCIAL_CONNECTED',
+          eventId: `social_connect_${numId}_x_${Date.now()}`,
+          params: { platformName: 'X', handle: cleanHandle },
+        }).catch(() => {});
+
+        return sendJson(res, 200, { ok: true, twitterUsername: normalized, locked: isLocked });
       } catch (err) {
-        console.error('[API] POST /api/x/save-username error:', err.message);
-        return sendJson(res, 500, { ok: false, error: 'Server error while saving X username.' });
+        console.error('[API] POST /api/x/save-username error:', err.message, err.stack);
+        return sendJson(res, 500, { ok: false, error: `Server error: ${err.message}` });
+      }
+    }
+
+    // ── PUBLIC: POST /api/social/connect ─────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/social/connect') {
+      let bodyData;
+      try {
+        bodyData = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON' });
+      }
+      const { telegramId, platform, handle } = bodyData;
+      if (!isValidTelegramId(telegramId) || !platform || !handle) {
+        return sendJson(res, 400, { ok: false, error: 'telegramId, platform, and handle are required' });
+      }
+
+      try {
+        const numId = Number(telegramId);
+        const platformKey = String(platform).toLowerCase();
+        const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
+        const dbInstance = getFirestore();
+
+        await dbInstance.collection('users').doc(String(numId)).set({
+          socialConnections: {
+            [platformKey]: {
+              handle: cleanHandle,
+              connected: true,
+              linkedAt: new Date().toISOString(),
+            },
+          },
+        }, { merge: true });
+
+        const platformLabels = { x: 'X', discord: 'Discord', tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube', reddit: 'Reddit' };
+        const pName = platformLabels[platformKey] || platformKey.toUpperCase();
+
+        sendEventNotification({
+          telegramId: numId,
+          eventType: 'SOCIAL_CONNECTED',
+          eventId: `social_connect_${numId}_${platformKey}_${Date.now()}`,
+          params: {
+            platformName: pName,
+            handle: cleanHandle,
+          },
+        }).catch(() => {});
+
+        return sendJson(res, 200, { ok: true, message: `${pName} connected successfully.` });
+      } catch (err) {
+        console.error('[API] POST /api/social/connect error:', err.message);
+        return sendJson(res, 500, { ok: false, error: 'Server error while saving connection.' });
+      }
+    }
+
+    // ── PUBLIC: POST /api/social/disconnect ──────────────────────────────────
+    if (req.method === 'POST' && url === '/api/social/disconnect') {
+      let bodyData;
+      try {
+        bodyData = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON' });
+      }
+      const { telegramId, platform } = bodyData;
+      if (!isValidTelegramId(telegramId) || !platform) {
+        return sendJson(res, 400, { ok: false, error: 'telegramId and platform are required' });
+      }
+
+      try {
+        const numId = Number(telegramId);
+        const platformKey = String(platform).toLowerCase();
+        const dbInstance = getFirestore();
+
+        await dbInstance.collection('users').doc(String(numId)).set({
+          socialConnections: {
+            [platformKey]: {
+              handle: '',
+              connected: false,
+              unlinkedAt: new Date().toISOString(),
+            },
+          },
+        }, { merge: true });
+
+        const platformLabels = { x: 'X', discord: 'Discord', tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube', reddit: 'Reddit' };
+        const pName = platformLabels[platformKey] || platformKey.toUpperCase();
+
+        sendEventNotification({
+          telegramId: numId,
+          eventType: 'SOCIAL_DISCONNECTED',
+          eventId: `social_disconnect_${numId}_${platformKey}_${Date.now()}`,
+          params: {
+            platformName: pName,
+          },
+        }).catch(() => {});
+
+        return sendJson(res, 200, { ok: true, message: `${pName} disconnected successfully.` });
+      } catch (err) {
+        console.error('[API] POST /api/social/disconnect error:', err.message);
+        return sendJson(res, 500, { ok: false, error: 'Server error while removing connection.' });
       }
     }
 
@@ -725,21 +1044,54 @@ const server = http.createServer(async (req, res) => {
           const provided = String(userAnswer || '').trim();
           const isMatch = taskData.answerCaseSensitive ? expected === provided : expected.toLowerCase() === provided.toLowerCase();
           if (!isMatch) {
+            sendEventNotification({
+              telegramId: numId,
+              eventType: 'TASK_REJECTED',
+              eventId: `task_reject_${numId}_${taskId}_${Date.now()}`,
+              params: {
+                taskTitle: taskData.title || 'Mission Task',
+                reason: 'Incorrect answer provided.',
+              },
+            }).catch(() => {});
             return sendJson(res, 200, { success: false, error: '❌ Incorrect Answer. Please check your answer and try again.' });
           }
         }
 
-        // 4. Verify Social OAuth Connection on Server
-        const requiredPlatform = requireSocialConnection || taskData.requireSocialConnection;
-        if (requiredPlatform && requiredPlatform !== 'none') {
+        // 4. Verify Social Connection Gate on Server (Strict HTTP 403 Forbidden if not connected)
+        const inferPlatformFromTask = (tData) => {
+          if (tData.requireSocialConnection && tData.requireSocialConnection !== 'none') return tData.requireSocialConnection.toLowerCase();
+          const ty = (tData.type || '').toLowerCase();
+          const pl = ((tData.platform) || '').toLowerCase();
+          const ti = (tData.title || '').toLowerCase();
+          const ur = (tData.url || '').toLowerCase();
+          if (ty.includes('x') || ty.includes('twitter') || pl.includes('x') || pl.includes('twitter') || ur.includes('x.com') || ur.includes('twitter.com') || ti.includes('follow x') || ti.includes('retweet') || ti.includes('like x')) return 'x';
+          if (ty.includes('discord') || pl.includes('discord') || ur.includes('discord.') || ti.includes('discord')) return 'discord';
+          if (ty.includes('youtube') || pl.includes('youtube') || ur.includes('youtube.com') || ur.includes('youtu.be') || ti.includes('youtube')) return 'youtube';
+          if (ty.includes('instagram') || pl.includes('instagram') || ur.includes('instagram.com') || ti.includes('instagram')) return 'instagram';
+          if (ty.includes('tiktok') || pl.includes('tiktok') || ur.includes('tiktok.com') || ti.includes('tiktok')) return 'tiktok';
+          if (ty.includes('reddit') || pl.includes('reddit') || ur.includes('reddit.com') || ti.includes('reddit')) return 'reddit';
+          return 'none';
+        };
+
+        const requiredPlatform = (requireSocialConnection || taskData.requireSocialConnection || inferPlatformFromTask(taskData)).toLowerCase();
+        if (requiredPlatform && requiredPlatform !== 'none' && requiredPlatform !== 'telegram') {
           const userRef = dbInstance.collection('users').doc(String(numId));
           const userSnap = await userRef.get();
           const userData = userSnap.exists ? userSnap.data() : {};
           const conn = userData.socialConnections?.[requiredPlatform];
-          if (!conn || !conn.connected) {
-            return sendJson(res, 200, {
+          if (!conn || !conn.connected || !conn.handle) {
+            sendEventNotification({
+              telegramId: numId,
+              eventType: 'TASK_REJECTED',
+              eventId: `task_reject_noconn_${numId}_${taskId}_${Date.now()}`,
+              params: {
+                taskTitle: taskData.title || 'Mission Task',
+                reason: `${requiredPlatform.toUpperCase()} account not connected in Profile.`,
+              },
+            }).catch(() => {});
+            return sendJson(res, 403, {
               success: false,
-              error: `Verification Failed: Please connect your ${requiredPlatform.toUpperCase()} account in Profile first!`,
+              error: `HTTP 403 Forbidden: Social Account Not Connected. Please connect your ${requiredPlatform.toUpperCase()} account in Profile → Connections first!`,
               requirePlatform: requiredPlatform,
             });
           }
@@ -779,6 +1131,22 @@ const server = http.createServer(async (req, res) => {
 
         await batch.commit();
 
+        // 7. Dispatch Telegram Task Completion Notification
+        const userDocAfter = await userRef.get();
+        const newBal = userDocAfter.exists ? (userDocAfter.data()?.points || 0) : rewardPoints;
+
+        sendEventNotification({
+          telegramId: numId,
+          eventType: 'TASK_COMPLETED',
+          eventId: `task_complete_${numId}_${taskId}`,
+          params: {
+            taskTitle: taskData.title || 'Mission Task',
+            reward: rewardPoints.toLocaleString(),
+            tokenRewardText: tokenReward > 0 ? ` & +${tokenReward} EST` : '',
+            newBalance: newBal.toLocaleString(),
+          },
+        }).catch(() => {});
+
         return sendJson(res, 200, {
           success: true,
           reward: rewardPoints,
@@ -788,6 +1156,329 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         console.error('[Bot] Task Verification Error:', err.message);
         return sendJson(res, 500, { success: false, error: 'Server error during task verification.' });
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // ── MARKET API ENDPOINTS (P2P Task Marketplace) ─────────────────────────
+    // ──────────────────────────────────────────────────────────────────────────
+
+    // ── POST /api/market/tasks/create ─────────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/market/tasks/create') {
+      let body;
+      try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { ok: false, error: 'Invalid JSON' }); }
+
+      const { telegramId, platform, action, targetUrl, title, description, instructions, checklist, inputFields, reward, workerLimit, dailyLimit, cooldownHours, expiryDays, audience, verificationType } = body;
+
+      if (!isValidTelegramId(telegramId) || !platform || !action || !targetUrl || !title || !reward || !workerLimit) {
+        return sendJson(res, 400, { ok: false, error: 'Required fields missing' });
+      }
+
+      try {
+        const numId = Number(telegramId);
+        const rewardNum = Number(reward);
+        const limitNum = Number(workerLimit);
+        const expDays = Number(expiryDays || 7);
+
+        // Escrow Calculation
+        const rewardPool = rewardNum * limitNum;
+        const platformFee = rewardPool * 0.25;
+        const verificationFee = (verificationType === 'manual' ? 1.5 : 0.5) * limitNum;
+        const totalEscrow = rewardPool + platformFee + verificationFee;
+
+        // Check user balance
+        const userRef = db.collection('users').doc(String(numId));
+        const userSnap = await userRef.get();
+        if (!userSnap.exists) {
+          return sendJson(res, 404, { ok: false, error: 'User account not found' });
+        }
+
+        const userData = userSnap.data();
+        const currentBalance = userData.points || 0;
+
+        if (currentBalance < totalEscrow) {
+          return sendJson(res, 400, {
+            ok: false,
+            insufficientBalance: true,
+            error: `Insufficient balance. Required: ${totalEscrow} EFC, Available: ${currentBalance} EFC`,
+          });
+        }
+
+        // Deduct balance
+        await userRef.update({
+          points: FieldValue.increment(-totalEscrow),
+        });
+
+        // Create Task Document in Firestore
+        const now = new Date();
+        const expiresAt = new Date(now.getTime() + expDays * 24 * 60 * 60 * 1000).toISOString();
+
+        const taskRef = await db.collection('marketTasks').add({
+          creatorTelegramId: numId,
+          creatorName: userData.firstName || `@${userData.username || 'user'}`,
+          platform,
+          action,
+          targetUrl,
+          title,
+          description: description || '',
+          instructions: instructions || '',
+          checklist: checklist || [],
+          inputFields: inputFields || ['screenshot'],
+          reward: rewardNum,
+          workerLimit: limitNum,
+          dailyLimit: Number(dailyLimit || 0),
+          cooldownHours: Number(cooldownHours || 0),
+          expiryDays: expDays,
+          budget: totalEscrow,
+          totalEscrow,
+          platformFee,
+          verificationFee,
+          verificationType: verificationType || 'automatic',
+          audience: audience || { type: 'everyone' },
+          status: 'pending_review',
+          completedCount: 0,
+          remainingSlots: limitNum,
+          featured: false,
+          trending: false,
+          views: 0,
+          completionRate: 100,
+          difficulty: rewardNum <= 5 ? 'easy' : rewardNum <= 15 ? 'medium' : 'hard',
+          createdAt: now.toISOString(),
+          expiresAt,
+        });
+
+        // Escrow ledger record
+        await db.collection('taskEscrow').doc(taskRef.id).set({
+          taskId: taskRef.id,
+          creatorTelegramId: numId,
+          totalEscrow,
+          remainingEscrow: totalEscrow,
+          rewardPool,
+          platformFee,
+          verificationFee,
+          status: 'held',
+          createdAt: now.toISOString(),
+        });
+
+        // Send Telegram Notification to Creator
+        sendMarketNotification({
+          telegramId: numId,
+          botToken: token,
+          type: 'TASK_CREATED',
+          title,
+          reward: rewardNum,
+          workers: limitNum,
+          budget: totalEscrow,
+        }).catch(() => {});
+
+        console.log(`✅ [Market] Task created id=${taskRef.id} by telegramId=${numId}, escrow=${totalEscrow} EFC`);
+
+        return sendJson(res, 200, { ok: true, taskId: taskRef.id, totalEscrow });
+      } catch (err) {
+        console.error('[Market] Task Create Error:', err.message);
+        return sendJson(res, 500, { ok: false, error: err.message });
+      }
+    }
+
+    // ── GET /api/market/tasks/discover ────────────────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/market/tasks/discover')) {
+      try {
+        const urlObj = new URL(url, `http://${req.headers.host || 'localhost'}`);
+        const platform = urlObj.searchParams.get('platform');
+        const search = urlObj.searchParams.get('search');
+        const minReward = Number(urlObj.searchParams.get('minReward') || 0);
+
+        let query = db.collection('marketTasks').where('status', 'in', ['active', 'pending_review']);
+
+        const snap = await query.get();
+        let tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        if (platform) {
+          tasks = tasks.filter(t => t.platform.toLowerCase() === platform.toLowerCase());
+        }
+        if (minReward > 0) {
+          tasks = tasks.filter(t => t.reward >= minReward);
+        }
+        if (search) {
+          const s = search.toLowerCase();
+          tasks = tasks.filter(t => t.title?.toLowerCase().includes(s) || t.description?.toLowerCase().includes(s));
+        }
+
+        tasks.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+
+        return sendJson(res, 200, { tasks, total: tasks.length, hasMore: false });
+      } catch (err) {
+        console.error('[Market] Discover error:', err.message);
+        return sendJson(res, 200, { tasks: [], total: 0, hasMore: false });
+      }
+    }
+
+    // ── GET /api/market/tasks/my ───────────────────────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/market/tasks/my')) {
+      try {
+        const urlObj = new URL(url, `http://${req.headers.host || 'localhost'}`);
+        const telegramId = urlObj.searchParams.get('telegramId');
+        if (!telegramId) return sendJson(res, 400, { ok: false, error: 'telegramId required' });
+
+        const snap = await db.collection('taskSubmissions')
+          .where('workerTelegramId', '==', Number(telegramId))
+          .get();
+
+        const submissions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        submissions.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+
+        return sendJson(res, 200, { submissions });
+      } catch (err) {
+        return sendJson(res, 200, { submissions: [] });
+      }
+    }
+
+    // ── GET /api/market/tasks/created ──────────────────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/market/tasks/created')) {
+      try {
+        const urlObj = new URL(url, `http://${req.headers.host || 'localhost'}`);
+        const telegramId = urlObj.searchParams.get('telegramId');
+        if (!telegramId) return sendJson(res, 400, { ok: false, error: 'telegramId required' });
+
+        const snap = await db.collection('marketTasks')
+          .where('creatorTelegramId', '==', Number(telegramId))
+          .get();
+
+        const tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        tasks.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+
+        return sendJson(res, 200, { tasks });
+      } catch (err) {
+        return sendJson(res, 200, { tasks: [] });
+      }
+    }
+
+    // ── POST /api/market/tasks/:id/start ──────────────────────────────────────
+    if (req.method === 'POST' && url.match(/^\/api\/market\/tasks\/[^/]+\/start$/)) {
+      const taskId = url.split('/')[4];
+      let body;
+      try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { ok: false, error: 'Invalid JSON' }); }
+      const { telegramId } = body;
+      if (!isValidTelegramId(telegramId)) return sendJson(res, 400, { ok: false, error: 'Invalid telegramId' });
+
+      try {
+        const numId = Number(telegramId);
+        const taskDoc = await db.collection('marketTasks').doc(taskId).get();
+        if (!taskDoc.exists) return sendJson(res, 404, { ok: false, error: 'Task not found' });
+        const task = taskDoc.data();
+
+        // Check if already completed/submitted
+        const existing = await db.collection('taskSubmissions')
+          .where('taskId', '==', taskId)
+          .where('workerTelegramId', '==', numId)
+          .get();
+
+        if (!existing.empty) {
+          const sub = existing.docs[0].data();
+          return sendJson(res, 200, { ok: true, submissionId: existing.docs[0].id, alreadyStarted: true, status: sub.status });
+        }
+
+        if (task.remainingSlots <= 0) {
+          return sendJson(res, 400, { ok: false, error: 'Task has no remaining worker slots.' });
+        }
+
+        const now = new Date().toISOString();
+        const subRef = await db.collection('taskSubmissions').add({
+          taskId,
+          taskTitle: task.title,
+          platform: task.platform,
+          workerTelegramId: numId,
+          status: 'started',
+          reward: task.reward,
+          createdAt: now,
+        });
+
+        return sendJson(res, 200, { ok: true, submissionId: subRef.id });
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message });
+      }
+    }
+
+    // ── POST /api/market/tasks/:id/submit ─────────────────────────────────────
+    if (req.method === 'POST' && url.match(/^\/api\/market\/tasks\/[^/]+\/submit$/)) {
+      const taskId = url.split('/')[4];
+      let body;
+      try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { ok: false, error: 'Invalid JSON' }); }
+      const { telegramId, proofUrl, proofText, inputValues } = body;
+      if (!isValidTelegramId(telegramId)) return sendJson(res, 400, { ok: false, error: 'Invalid telegramId' });
+
+      try {
+        const numId = Number(telegramId);
+        const taskRef = db.collection('marketTasks').doc(taskId);
+        const taskDoc = await taskRef.get();
+        if (!taskDoc.exists) return sendJson(res, 404, { ok: false, error: 'Task not found' });
+        const task = taskDoc.data();
+
+        const subSnap = await db.collection('taskSubmissions')
+          .where('taskId', '==', taskId)
+          .where('workerTelegramId', '==', numId)
+          .get();
+
+        const now = new Date().toISOString();
+        const autoApprove = task.verificationType === 'automatic';
+        const finalStatus = autoApprove ? 'approved' : 'pending_review';
+
+        if (subSnap.empty) {
+          await db.collection('taskSubmissions').add({
+            taskId,
+            taskTitle: task.title,
+            platform: task.platform,
+            workerTelegramId: numId,
+            status: finalStatus,
+            reward: task.reward,
+            proofUrl: proofUrl || '',
+            proofText: proofText || '',
+            inputValues: inputValues || {},
+            submittedAt: now,
+            createdAt: now,
+          });
+        } else {
+          await subSnap.docs[0].ref.update({
+            status: finalStatus,
+            proofUrl: proofUrl || '',
+            proofText: proofText || '',
+            inputValues: inputValues || {},
+            submittedAt: now,
+          });
+        }
+
+        if (autoApprove) {
+          // Pay worker immediately
+          await db.collection('users').doc(String(numId)).update({
+            points: FieldValue.increment(task.reward),
+          });
+
+          // Decrement task remaining slots
+          await taskRef.update({
+            completedCount: FieldValue.increment(1),
+            remainingSlots: FieldValue.increment(-1),
+          });
+
+          // Send approval notification
+          sendMarketNotification({
+            telegramId: numId,
+            botToken: token,
+            type: 'WORKER_APPROVED',
+            title: task.title,
+            reward: task.reward,
+          }).catch(() => {});
+        } else {
+          sendMarketNotification({
+            telegramId: numId,
+            botToken: token,
+            type: 'WORKER_SUBMITTED',
+            title: task.title,
+          }).catch(() => {});
+        }
+
+        return sendJson(res, 200, { ok: true, status: finalStatus, reward: task.reward });
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message });
       }
     }
 
@@ -935,39 +1626,135 @@ const server = http.createServer(async (req, res) => {
 
     // ── POST /notify/withdraw ────────────────────────────────────────────────
     if (req.method === 'POST' && url === '/notify/withdraw') {
-      const { telegramId, status, amount, asset, adminNote } = data;
+      const { telegramId, status, amount, asset, adminNote, reason } = data;
       if (!isValidTelegramId(telegramId) || !status) {
         return sendJson(res, 400, { error: 'valid telegramId and status required' });
       }
       const assetLabel = asset === 'token' ? 'EForce Token' : 'USDT';
-      let html = '';
+      const numId = Number(telegramId);
+
       if (status === 'Approved') {
-        html = `✅ <b>Withdrawal Approved!</b>\n\n💰 Amount: <b>${escapeHTML(String(amount))} ${assetLabel}</b>\n\n🎉 Your withdrawal has been approved and is being processed.${adminNote ? `\n\n📝 Note/TxID: <code>${escapeHTML(adminNote)}</code>` : ''}\n\nFunds will arrive in your BEP-20 wallet shortly.\n\n<i>Thank you for being part of Elite Force!</i>`;
+        sendEventNotification({
+          telegramId: numId,
+          eventType: 'WITHDRAW_APPROVED',
+          eventId: `withdraw_app_${numId}_${Date.now()}`,
+          params: {
+            amount: `${amount} ${assetLabel}`,
+          },
+        }).catch(() => {});
       } else if (status === 'Rejected') {
-        html = `❌ <b>Withdrawal Rejected</b>\n\n💰 Amount: <b>${escapeHTML(String(amount))} ${assetLabel}</b>\n\n${adminNote ? `📝 Reason: <i>${escapeHTML(adminNote)}</i>\n\n` : ''}Please check your wallet address and balance, then try again.\n\n<a href="${webAppUrl}">Open App</a>`;
-      } else if (status === 'Banned') {
-        html = `🚫 <b>Account Suspended</b>\n\nYour withdrawal request has been flagged.${adminNote ? `\n\n📝 Reason: <i>${escapeHTML(adminNote)}</i>\n\n` : '\n\n'}Your account has been suspended pending review. Contact support if you believe this is an error.`;
+        sendEventNotification({
+          telegramId: numId,
+          eventType: 'WITHDRAW_REJECTED',
+          eventId: `withdraw_rej_${numId}_${Date.now()}`,
+          params: {
+            amount: `${amount} ${assetLabel}`,
+            reason: reason || adminNote || 'Insufficient verification.',
+          },
+        }).catch(() => {});
       }
-      if (html) {
-        const ok = await sendToUser(telegramId, html);
-        return sendJson(res, 200, { ok });
-      }
-      return sendJson(res, 400, { error: 'Unknown status' });
+
+      return sendJson(res, 200, { ok: true });
     }
 
     // ── POST /notify/referral ────────────────────────────────────────────────
     if (req.method === 'POST' && url === '/notify/referral') {
-      const { referrerId, refereeName, refereeUsername } = data;
+      const { referrerId, refereeName, refereeUsername, rewardAmount } = data;
       if (!isValidTelegramId(referrerId)) {
         return sendJson(res, 400, { error: 'valid referrerId required' });
       }
-      const display = refereeUsername ? `@${escapeHTML(refereeUsername)}` : escapeHTML(refereeName || 'A new user');
-      const ok = await sendToUser(
-        referrerId,
-        `🎉 <b>Referral Reward Unlocked!</b>\n\n👤 <b>${display}</b> just started mining using your referral link!\n\n💵 Your referral commission has been added to your account.\n\n🔥 Keep sharing your link to earn more rewards!`,
-        { reply_markup: Markup.inlineKeyboard([[Markup.button.webApp('💼 Open Wallet', webAppUrl)]]).reply_markup }
-      );
-      return sendJson(res, 200, { ok });
+      const display = refereeUsername ? `@${refereeUsername}` : (refereeName || 'A friend');
+      sendEventNotification({
+        telegramId: Number(referrerId),
+        eventType: 'REFERRAL_BONUS',
+        eventId: `ref_bonus_${referrerId}_${Date.now()}`,
+        params: {
+          refUsername: display,
+          reward: (rewardAmount || 200).toLocaleString(),
+        },
+      }).catch(() => {});
+      return sendJson(res, 200, { ok: true });
+    }
+
+    // ── POST /api/admin/broadcast ─────────────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/admin/broadcast') {
+      const { targetType, targetIds, campaignId, country, language, isPremiumOnly, templateText, buttonText, buttonTab, imageUrl } = data;
+      if (!templateText) {
+        return sendJson(res, 400, { success: false, error: 'templateText is required' });
+      }
+
+      try {
+        const dbInstance = getFirestore();
+        let targetTelegramIds = [];
+
+        if (targetType === 'specific' && Array.isArray(targetIds) && targetIds.length > 0) {
+          targetTelegramIds = targetIds.map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
+        } else {
+          const snapshot = await dbInstance.collection('users').get();
+          snapshot.forEach(docSnap => {
+            const u = docSnap.data();
+            const uid = Number(docSnap.id);
+            if (!uid || isNaN(uid)) return;
+
+            let matches = true;
+            if (isPremiumOnly && !u.isPremium) matches = false;
+            if (country && u.country && String(u.country).toLowerCase() !== String(country).toLowerCase()) matches = false;
+            if (language && u.language && String(u.language).toLowerCase() !== String(language).toLowerCase()) matches = false;
+            if (campaignId && Array.isArray(u.completedCampaigns) && !u.completedCampaigns.includes(campaignId)) matches = false;
+
+            if (matches) {
+              targetTelegramIds.push(uid);
+            }
+          });
+        }
+
+        if (targetTelegramIds.length === 0) {
+          return sendJson(res, 400, { success: false, error: 'No matching users found for this broadcast target.' });
+        }
+
+        const appUrl = `${getEffectiveAppUrl()}?startapp=${buttonTab || 'home'}`;
+        const extra = Markup.inlineKeyboard([
+          [Markup.button.webApp(buttonText || 'Open Elite Force', appUrl)]
+        ]);
+
+        const broadcastRes = await broadcast(targetTelegramIds, templateText, extra, imageUrl);
+
+        await dbInstance.collection('notificationHistory').add({
+          userId: 0,
+          eventType: 'ADMIN_BROADCAST',
+          eventId: `broadcast_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          deliveryStatus: `sent:${broadcastRes.sent},failed:${broadcastRes.failed}`,
+          content: templateText,
+          params: { targetType, count: targetTelegramIds.length, sent: broadcastRes.sent, failed: broadcastRes.failed },
+        });
+
+        return sendJson(res, 200, {
+          success: true,
+          totalTargets: targetTelegramIds.length,
+          sent: broadcastRes.sent,
+          failed: broadcastRes.failed,
+        });
+      } catch (err) {
+        console.error('[API] POST /api/admin/broadcast error:', err.message);
+        return sendJson(res, 500, { success: false, error: err.message || 'Failed to process broadcast.' });
+      }
+    }
+
+    // ── GET /api/admin/notifications/history ──────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/admin/notifications/history')) {
+      try {
+        const dbInstance = getFirestore();
+        const snap = await dbInstance.collection('notificationHistory').orderBy('timestamp', 'desc').limit(100).get();
+        const logs = [];
+        snap.forEach(docSnap => {
+          logs.push({ id: docSnap.id, ...docSnap.data() });
+        });
+        return sendJson(res, 200, { success: true, logs });
+      } catch (err) {
+        console.error('[API] GET /api/admin/notifications/history error:', err.message);
+        return sendJson(res, 500, { success: false, error: 'Failed to fetch notification history.' });
+      }
     }
 
 

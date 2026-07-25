@@ -6,7 +6,7 @@ import {
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff, Upload,
-  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info,
+  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info, Send,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -32,7 +32,7 @@ import {
   subscribeToReferralTiers, createReferralTier, updateReferralTier, deleteReferralTier, reorderReferralTiers, type ReferralClaimTier,
 } from '../lib/referralTierService';
 import {
-  sendMessageToUser, sendAnnouncement, sendWithdrawNotification,
+  sendWithdrawNotification,
 } from '../lib/notificationService';
 import { uploadFile } from '../lib/uploadService';
 
@@ -566,7 +566,30 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [taskForm, setTaskForm] = useState(blankTask);
   useEffect(() => { const unsub = subscribeToTasks(setTasks); return unsub; }, []);
   const handleSaveTask = async () => {
-    const d = { ...taskForm, expiryDate: taskForm.expiryDate || null };
+    let inferredPlatform = 'general';
+    if (taskForm.requireSocialConnection && taskForm.requireSocialConnection !== 'none') {
+      inferredPlatform = taskForm.requireSocialConnection;
+    } else if (taskForm.type === 'x') {
+      inferredPlatform = 'x';
+    } else if (taskForm.type === 'discord') {
+      inferredPlatform = 'discord';
+    } else if (taskForm.type === 'tiktok') {
+      inferredPlatform = 'tiktok';
+    } else if (taskForm.type === 'instagram') {
+      inferredPlatform = 'instagram';
+    } else if (taskForm.type === 'youtube') {
+      inferredPlatform = 'youtube';
+    } else if (taskForm.type === 'reddit') {
+      inferredPlatform = 'reddit';
+    } else if (taskForm.type === 'channel' || taskForm.type === 'group') {
+      inferredPlatform = 'telegram';
+    } else if (taskForm.type === 'video' || taskForm.type === 'ad') {
+      inferredPlatform = 'video';
+    } else if (taskForm.type === 'website') {
+      inferredPlatform = 'website';
+    }
+
+    const d = { ...taskForm, platform: inferredPlatform, expiryDate: taskForm.expiryDate || null };
     if (!d.title.trim()) { showToast('Task title is required.', 'warning'); return; }
     try {
       if (editingTask) {
@@ -715,66 +738,88 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
   // --- Notifications tab ---
   const [notifMessage, setNotifMessage] = useState('');
-  const [notifTarget, setNotifTarget] = useState<'all' | 'user'>('all');
-  const [notifUserId, setNotifUserId] = useState('');
-  const [notifUserSearch, setNotifUserSearch] = useState('');
-  const [notifUserDropdown, setNotifUserDropdown] = useState(false);
   const [notifSending, setNotifSending] = useState(false);
-  const [notifApiSecret, setNotifApiSecret] = useState(() => {
+  const [notifApiSecret] = useState(() => {
     const saved = localStorage.getItem('admin_api_secret');
     return (saved && saved.trim() !== '') ? saved : 'https://elite-force-telegram-app.onrender.com';
   });
   const [notifImageUrl, setNotifImageUrl] = useState('');
-  const [notifBtnText, setNotifBtnText] = useState('');
   const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
-  const [notifBtnUrl, setNotifBtnUrl] = useState('');
+  // ── Notification Center States ──────────────────────────────────────────
+  const [notifSubTab, setNotifSubTab] = useState<'broadcast' | 'templates' | 'history'>('broadcast');
+  const [bcastTargetType, setBcastTargetType] = useState<'everyone' | 'premium' | 'specific' | 'campaign' | 'country' | 'language'>('everyone');
+  const [bcastTargetIds, setBcastTargetIds] = useState('');
+  const [bcastCampaignId, setBcastCampaignId] = useState('');
+  const [bcastCountry, setBcastCountry] = useState('');
+  const [bcastLanguage, setBcastLanguage] = useState('');
+  const [bcastIsPremiumOnly] = useState(false);
+  const [bcastButtonText, setBcastButtonText] = useState('Open Elite Force');
+  const [bcastButtonTab, setBcastButtonTab] = useState('home');
 
+  const [selectedEventType, setSelectedEventType] = useState<string>('SOCIAL_CONNECTED');
+  const [historyLogs, setHistoryLogs] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [uploadingImageField, setUploadingImageField] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem('admin_api_secret', notifApiSecret);
   }, [notifApiSecret]);
 
-  const notifUserOptions = useMemo(() => {
-    if (!notifUserSearch.trim()) return usersList.slice(0, 50);
-    const q = notifUserSearch.toLowerCase();
-    return usersList.filter(u =>
-      u.firstName?.toLowerCase().includes(q) ||
-      u.username?.toLowerCase().includes(q) ||
-      String(u.telegramId).includes(q)
-    ).slice(0, 30);
-  }, [usersList, notifUserSearch]);
-
-  const handleSelectNotifUser = (u: FirestoreUser) => {
-    setNotifUserId(String(u.telegramId));
-    setNotifUserSearch(u.firstName + (u.username ? ` (@${u.username})` : ''));
-    setNotifUserDropdown(false);
+  const fetchNotificationHistory = async () => {
+    if (!settings.botApiUrl) return;
+    setLoadingHistory(true);
+    try {
+      const res = await fetch(`${settings.botApiUrl.replace(/\/$/, '')}/api/admin/notifications/history`, {
+        headers: { 'Authorization': `Bearer ${notifApiSecret}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        setHistoryLogs(data.logs || []);
+      }
+    } catch {
+      // quiet catch
+    } finally {
+      setLoadingHistory(false);
+    }
   };
 
   const handleSendNotification = async () => {
     if (!notifMessage.trim()) { showToast('Message cannot be empty.', 'warning'); return; }
     if (!settings.botApiUrl) { showToast('Bot API URL not set in Settings.', 'error'); return; }
     setNotifSending(true);
-    if (notifTarget === 'all') {
-      const ids = usersList.map(u => u.telegramId).filter(Boolean);
-      if (ids.length === 0) { showToast('No users loaded.', 'error'); setNotifSending(false); return; }
-      const res = await sendAnnouncement(settings.botApiUrl, notifMessage, ids, notifApiSecret, notifImageUrl, notifBtnText, notifBtnUrl);
-      res.ok
-        ? showToast(`📢 Announcement sent to ${res.sent ?? ids.length} users!`, 'success')
-        : showToast(res.error || 'Send failed.', 'error');
-    } else {
-      const id = parseInt(notifUserId);
-      if (!id) { showToast('Enter a valid Telegram ID.', 'error'); setNotifSending(false); return; }
-      const res = await sendMessageToUser(settings.botApiUrl, id, notifMessage, notifApiSecret, notifImageUrl, notifBtnText, notifBtnUrl);
-      res.ok
-        ? showToast('✅ Message sent!', 'success')
-        : showToast(res.error || 'Send failed.', 'error');
+    try {
+      const res = await fetch(`${settings.botApiUrl.replace(/\/$/, '')}/api/admin/broadcast`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${notifApiSecret}`,
+        },
+        body: JSON.stringify({
+          targetType: bcastTargetType,
+          targetIds: bcastTargetIds.split(',').map(s => s.trim()).filter(Boolean),
+          campaignId: bcastCampaignId,
+          country: bcastCountry,
+          language: bcastLanguage,
+          isPremiumOnly: bcastIsPremiumOnly || bcastTargetType === 'premium',
+          templateText: notifMessage,
+          buttonText: bcastButtonText,
+          buttonTab: bcastButtonTab,
+          imageUrl: notifImageUrl,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`📢 Broadcast sent to ${data.sent} users (${data.failed} failed/blocked)!`, 'success');
+        setNotifMessage('');
+        setNotifImageUrl('');
+      } else {
+        showToast(data.error || 'Broadcast failed.', 'error');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to process broadcast.', 'error');
+    } finally {
+      setNotifSending(false);
     }
-    setNotifSending(false);
-    setNotifMessage('');
-    setNotifImageUrl('');
-    setNotifBtnText('');
-    setNotifBtnUrl('');
   };
 
   const handleNotificationImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1584,6 +1629,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 <option value="discord">Discord Server</option>
                                 <option value="tiktok">TikTok Channel</option>
                                 <option value="instagram">Instagram Page</option>
+                                <option value="youtube">YouTube Channel / Video</option>
+                                <option value="reddit">Reddit Subreddit</option>
                                 <option value="quiz">Quiz / Secret Answer</option>
                                 <option value="website">Visit Website</option>
                                 <option value="video">Watch Video</option>
@@ -1612,11 +1659,13 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 className={inputCls + ' cursor-pointer'}
                                 style={{ ...inputStyle, background: '#0A0D1A' }}
                               >
-                                <option value="none">None (Open Access)</option>
-                                <option value="x">Require X (Twitter) OAuth</option>
-                                <option value="discord">Require Discord OAuth</option>
-                                <option value="tiktok">Require TikTok</option>
-                                <option value="instagram">Require Instagram</option>
+                                <option value="none">None (Auto / Open Access)</option>
+                                <option value="x">Require X (Twitter) Connected</option>
+                                <option value="discord">Require Discord Connected</option>
+                                <option value="instagram">Require Instagram Connected</option>
+                                <option value="tiktok">Require TikTok Connected</option>
+                                <option value="youtube">Require YouTube Connected</option>
+                                <option value="reddit">Require Reddit Connected</option>
                               </select>
                             </div>
 
@@ -2083,222 +2132,552 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
             </div>
           )}
 
-          {/* ════════════════════ NOTIFICATIONS ════════════════════ */}
+          {/* ════════════════════ TASK MARKET MODERATION ════════════════════ */}
+          {activeTab === 'market' && (
+            <div className="flex flex-col gap-5">
+              <SectionCard accentColor="#FFD70088">
+                <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">🏪</div>
+                    <div>
+                      <div className="text-sm font-black text-white">Task Market Moderation Hub</div>
+                      <div className="text-[9px] text-slate-400">Review user-submitted P2P campaigns, inspect escrow, and manage market security</div>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-mono font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full">
+                    Escrow Engine Active
+                  </span>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* Market Stats Grid */}
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8">
+                      <div className="text-[9px] text-slate-400 uppercase font-black">Active Campaigns</div>
+                      <div className="text-lg font-black text-white mt-1">P2P Live</div>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8">
+                      <div className="text-[9px] text-slate-400 uppercase font-black">Escrow Guarantee</div>
+                      <div className="text-lg font-black text-[#FFD700] mt-1">100% Locked</div>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8">
+                      <div className="text-[9px] text-slate-400 uppercase font-black">Platform Fee</div>
+                      <div className="text-lg font-black text-[#00FF88] mt-1">25% Retained</div>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8">
+                      <div className="text-[9px] text-slate-400 uppercase font-black">Moderation Queue</div>
+                      <div className="text-lg font-black text-cyan-400 mt-1">Auto & Manual</div>
+                    </div>
+                  </div>
+
+                  {/* Market Moderation Notice */}
+                  <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-start gap-3">
+                    <ShieldAlert size={18} className="text-amber-400 shrink-0 mt-0.5" />
+                    <div>
+                      <div className="text-xs font-bold text-white mb-1">P2P Campaign Safety Policies</div>
+                      <div className="text-[10px] text-slate-300 leading-relaxed">
+                        All market tasks deduct escrow from campaign creators upfront. Workers receive automated payouts upon task verification. Submissions with suspicious URLs or policy violations should be paused or rejected immediately.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
+          {/* ════════════════════ NOTIFICATION CENTER ════════════════════ */}
           {activeTab === 'notifications' && (
             <div className="flex flex-col gap-5">
-
-              {/* Stats strip */}
-              <div className="grid grid-cols-3 gap-4">
+              {/* Top Navigation Tabs for Notification Center */}
+              <div className="flex items-center gap-2 p-1.5 bg-[#0D1220] border border-white/10 rounded-2xl">
                 {[
-                  { label: 'Total Users', value: usersList.length, color: '#C084FC', bg: 'rgba(192,132,252,0.08)', border: 'rgba(192,132,252,0.22)' },
-                  { label: 'Pending Alerts', value: withdrawals.filter(w => w.status === 'Pending').length, color: '#FBBF24', bg: 'rgba(251,191,36,0.08)', border: 'rgba(251,191,36,0.22)' },
-                  { label: 'Bot Connected', value: settings.botApiUrl ? '✓' : '✗', color: settings.botApiUrl ? '#4ADE80' : '#F87171', bg: settings.botApiUrl ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.08)', border: settings.botApiUrl ? 'rgba(74,222,128,0.22)' : 'rgba(248,113,113,0.22)' },
-                ].map(s => (
-                  <div key={s.label} className="rounded-[22px] p-5" style={{ background: s.bg, border: `1px solid ${s.border}` }}>
-                    <div className="text-2xl font-black leading-none" style={{ color: s.color }}>{s.value}</div>
-                    <div className="text-[9px] uppercase tracking-[0.18em] text-slate-500 mt-1.5">{s.label}</div>
-                  </div>
+                  { id: 'broadcast', label: '📢 Broadcast Manager' },
+                  { id: 'templates', label: '⚙️ Event Templates & Toggles' },
+                  { id: 'history', label: '📜 Notification History' },
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    onClick={() => {
+                      setNotifSubTab(st.id as any);
+                      if (st.id === 'history') fetchNotificationHistory();
+                    }}
+                    className={`flex-1 h-10 rounded-xl text-xs font-extrabold transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                      notifSubTab === st.id
+                        ? 'bg-[#182035] text-white shadow-md border border-[#C084FC]/40'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
                 ))}
               </div>
 
-              {/* Message Composer */}
-              <SectionCard accentColor="#C084FC88">
-                <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg" style={{ background: 'rgba(192,132,252,0.12)', border: '1px solid rgba(192,132,252,0.25)' }}>📢</div>
-                    <div>
-                      <div className="text-sm font-black text-white">Send Notification</div>
-                      <div className="text-[9px] text-slate-500 mt-0.5">Send Telegram bot messages directly to users</div>
+              {/* ── SUB-TAB 1: BROADCAST MANAGER ── */}
+              {notifSubTab === 'broadcast' && (
+                <SectionCard accentColor="#C084FC88">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg bg-[#C084FC]/10 border border-[#C084FC]/30 text-[#C084FC]">📢</div>
+                      <div>
+                        <div className="text-sm font-black text-white">Targeted Broadcast Center</div>
+                        <div className="text-[9px] text-slate-400">Broadcast customized Telegram push alerts to filtered audience segments</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="p-5 flex flex-col gap-4">
 
-                  {/* Target selector */}
-                  <div className="flex gap-2">
-                    {(['all', 'user'] as const).map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setNotifTarget(t)}
-                        className="flex-1 h-10 rounded-xl text-xs font-bold border transition-all cursor-pointer"
-                        style={notifTarget === t
-                          ? { background: 'rgba(192,132,252,0.15)', border: '1px solid rgba(192,132,252,0.5)', color: '#C084FC' }
-                          : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#64748b' }
-                        }
-                      >
-                        {t === 'all' ? '📢 All Users (Broadcast)' : '👤 Specific User'}
-                      </button>
-                    ))}
-                  </div>
+                  <div className="p-5 flex flex-col gap-4">
+                    {/* Audience Target Selector */}
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Select Broadcast Audience Target</label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                        {[
+                          { id: 'everyone', label: '🌐 Everyone' },
+                          { id: 'premium', label: '⭐ Telegram Premium Users' },
+                          { id: 'specific', label: '👤 Specific User IDs' },
+                          { id: 'campaign', label: '🏆 By Campaign' },
+                          { id: 'country', label: '🌍 By Country' },
+                          { id: 'language', label: '🗣 By Language' },
+                        ].map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setBcastTargetType(t.id as any)}
+                            className={`h-10 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center text-center ${
+                              bcastTargetType === t.id
+                                ? 'bg-[#C084FC]/15 border-[#C084FC]/50 text-[#C084FC]'
+                                : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
-                  {/* User name picker (conditional) */}
-                  {notifTarget === 'user' && (
-                    <div className="flex flex-col gap-1 relative">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Search User by Name or Username</label>
-                      <div className="relative">
+                    {/* Filter specific fields based on target selection */}
+                    {bcastTargetType === 'specific' && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Target Telegram User IDs (Comma-separated)</label>
                         <input
                           type="text"
-                          placeholder="Type name or @username to search..."
-                          value={notifUserSearch}
-                          onChange={e => { setNotifUserSearch(e.target.value); setNotifUserDropdown(true); setNotifUserId(''); }}
-                          onFocus={() => setNotifUserDropdown(true)}
+                          placeholder="e.g. 123456789, 987654321"
+                          value={bcastTargetIds}
+                          onChange={(e) => setBcastTargetIds(e.target.value)}
                           className={inputCls}
                           style={inputStyle}
                         />
-                        {notifUserSearch && notifUserId && (
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold text-accent-success">
-                            ID: {notifUserId}
-                          </div>
-                        )}
                       </div>
-                      {notifUserDropdown && notifUserOptions.length > 0 && (
-                        <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-xl overflow-hidden shadow-xl max-h-48 overflow-y-auto"
-                          style={{ background: '#0D1220', border: '1px solid rgba(255,255,255,0.1)' }}>
-                          {notifUserOptions.map(u => (
-                            <button key={u.telegramId} onClick={() => handleSelectNotifUser(u)}
-                              className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-white/[0.06] transition-all cursor-pointer border-b last:border-0"
-                              style={{ borderColor: 'rgba(255,255,255,0.05)' }}>
-                              <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
-                                style={{ background: `hsl(${(u.telegramId % 360)}, 60%, 25%)`, border: '1px solid rgba(255,255,255,0.1)' }}>
-                                {(u.firstName?.[0] || '?').toUpperCase()}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-xs font-bold text-white truncate">{u.firstName} {u.username && <span className="text-slate-400 font-normal">@{u.username}</span>}</div>
-                                <div className="text-[9px] text-slate-600">ID: {u.telegramId}</div>
-                              </div>
+                    )}
+
+                    {bcastTargetType === 'campaign' && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Campaign ID</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. launch_campaign_2026"
+                          value={bcastCampaignId}
+                          onChange={(e) => setBcastCampaignId(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                    )}
+
+                    {bcastTargetType === 'country' && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Country Code</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Bangladesh or BD"
+                          value={bcastCountry}
+                          onChange={(e) => setBcastCountry(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                    )}
+
+                    {bcastTargetType === 'language' && (
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Language Code</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. en or bn"
+                          value={bcastLanguage}
+                          onChange={(e) => setBcastLanguage(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                    )}
+
+                    {/* Template text */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Message Content (Supports HTML & Emojis)</label>
+                      <textarea
+                        rows={5}
+                        placeholder="📢 <b>Elite Force Announcement</b>&#10;&#10;Type message here..."
+                        value={notifMessage}
+                        onChange={(e) => setNotifMessage(e.target.value)}
+                        className="w-full rounded-xl px-3 py-2.5 text-xs text-white outline-none font-mono"
+                        style={{ ...inputStyle, minHeight: 110 }}
+                      />
+                    </div>
+
+                    {/* Optional Image */}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Image / Banner URL (Optional)</label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. https://example.com/banner.jpg"
+                          value={notifImageUrl}
+                          onChange={(e) => setNotifImageUrl(e.target.value)}
+                          className={`${inputCls} flex-1`}
+                          style={inputStyle}
+                        />
+                        <label className="h-9 px-4 rounded-xl bg-[#C084FC] text-white text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer shrink-0">
+                          {uploadingNotificationImage ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />} Upload
+                          <input type="file" accept="image/*" onChange={handleNotificationImageUpload} className="hidden" disabled={uploadingNotificationImage} />
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Inline Keyboard Controls */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Inline Button Label</label>
+                        <input
+                          type="text"
+                          placeholder="Open Elite Force"
+                          value={bcastButtonText}
+                          onChange={(e) => setBcastButtonText(e.target.value)}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Target App Tab</label>
+                        <select
+                          value={bcastButtonTab}
+                          onChange={(e) => setBcastButtonTab(e.target.value)}
+                          className={`${inputCls} cursor-pointer`}
+                          style={{ ...inputStyle, background: '#0D1220' }}
+                        >
+                          <option value="home">Home / Mine</option>
+                          <option value="tasks">Missions & Tasks</option>
+                          <option value="profile">Profile & Connections</option>
+                          <option value="friends">Referrals / Friends</option>
+                          <option value="wallet">Wallet & Withdraw</option>
+                          <option value="support">Support</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      onClick={handleSendNotification}
+                      disabled={notifSending || !notifMessage.trim()}
+                      className={`${Btn.primary} w-full h-12 rounded-2xl text-sm font-black mt-2`}
+                      style={{ ...btnStyle.primary, background: 'linear-gradient(135deg, #C084FC, #818CF8)', boxShadow: '0 0 30px rgba(192,132,252,0.35)' }}
+                    >
+                      {notifSending ? <RefreshCw size={16} className="animate-spin" /> : <Send size={16} />}
+                      {notifSending ? 'Broadcasting...' : `Broadcast Message to ${bcastTargetType.toUpperCase()}`}
+                    </button>
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* ── SUB-TAB 2: EVENT TEMPLATES & TOGGLES ── */}
+              {notifSubTab === 'templates' && (
+                <SectionCard accentColor="#4ADE8088">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">⚙️</div>
+                      <div>
+                        <div className="text-sm font-black text-white">Event Message Templates & System Toggles</div>
+                        <div className="text-[9px] text-slate-400">Configure event notifications, edit templates, dynamic variables, and buttons</div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleSaveSettings}
+                      disabled={savingSettings}
+                      className="px-4 h-9 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer"
+                    >
+                      {savingSettings ? <RefreshCw size={12} className="animate-spin" /> : <Save size={12} />} Save All Templates
+                    </button>
+                  </div>
+
+                  <div className="p-5 flex flex-col gap-5">
+                    {/* Master System Toggle */}
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+                      <div>
+                        <div className="text-xs font-extrabold text-white">Telegram Automated Notifications Master Switch</div>
+                        <div className="text-[10px] text-slate-400">Turn ON/OFF all automated Telegram bot notifications platform-wide</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = settings.notificationSettings?.enabled ?? true;
+                          setSettings((s) => ({
+                            ...s,
+                            notificationSettings: {
+                              ...(s.notificationSettings || { events: {} }),
+                              enabled: !current,
+                            },
+                          }));
+                        }}
+                        className={`px-4 h-8 rounded-xl text-xs font-black border cursor-pointer transition-all ${
+                          (settings.notificationSettings?.enabled ?? true)
+                            ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                            : 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                        }`}
+                      >
+                        {(settings.notificationSettings?.enabled ?? true) ? '⚡ ENABLED (ONLINE)' : '🔒 DISABLED (OFFLINE)'}
+                      </button>
+                    </div>
+
+                    {/* Event Selector Grid */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                      {[
+                        { id: 'SOCIAL_CONNECTED', label: '✅ Social Connected' },
+                        { id: 'SOCIAL_DISCONNECTED', label: '⚠️ Social Disconnected' },
+                        { id: 'TASK_COMPLETED', label: '🎉 Task Completed' },
+                        { id: 'TASK_REJECTED', label: '❌ Task Rejected' },
+                        { id: 'CAMPAIGN_COMPLETED', label: '🏆 Campaign Done' },
+                        { id: 'MINING_COMPLETED', label: '⛏ Mining Done' },
+                        { id: 'DAILY_REWARD', label: '🎁 Daily Reward' },
+                        { id: 'REFERRAL_BONUS', label: '👥 Referral Bonus' },
+                        { id: 'WITHDRAW_APPROVED', label: '💸 Payout Approved' },
+                        { id: 'WITHDRAW_REJECTED', label: '🚫 Payout Rejected' },
+                        { id: 'SECURITY_ALERT', label: '🔒 Security Alert' },
+                      ].map((ev) => (
+                        <button
+                          key={ev.id}
+                          type="button"
+                          onClick={() => setSelectedEventType(ev.id)}
+                          className={`p-2.5 rounded-xl text-left border text-xs font-bold transition-all cursor-pointer ${
+                            selectedEventType === ev.id
+                              ? 'bg-[#FF8A00]/15 border-[#FF8A00]/50 text-[#FF8A00]'
+                              : 'bg-white/5 border-white/10 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {ev.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Active Event Template Editor */}
+                    {(() => {
+                      const evConfig = settings.notificationSettings?.events?.[selectedEventType] || {
+                        enabled: true,
+                        template: '',
+                        buttonText: 'Open Elite Force',
+                        buttonTab: 'home',
+                      };
+
+                      return (
+                        <div className="p-5 rounded-2xl bg-black/40 border border-white/10 flex flex-col gap-4">
+                          <div className="flex items-center justify-between border-b border-white/5 pb-3">
+                            <div className="text-xs font-black text-[#FF8A00] uppercase tracking-wider">
+                              Editing Event: {selectedEventType}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentEv = evConfig.enabled ?? true;
+                                setSettings((s) => ({
+                                  ...s,
+                                  notificationSettings: {
+                                    ...(s.notificationSettings || { enabled: true, events: {} }),
+                                    events: {
+                                      ...(s.notificationSettings?.events || {}),
+                                      [selectedEventType]: {
+                                        ...evConfig,
+                                        enabled: !currentEv,
+                                      },
+                                    },
+                                  },
+                                }));
+                              }}
+                              className={`px-3 h-7 rounded-lg text-[10px] font-black border cursor-pointer ${
+                                (evConfig.enabled ?? true)
+                                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                                  : 'bg-rose-500/20 border-rose-500/40 text-rose-400'
+                              }`}
+                            >
+                              {(evConfig.enabled ?? true) ? 'Event Notification ON' : 'Event Notification OFF'}
                             </button>
-                          ))}
+                          </div>
+
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">HTML Message Template</label>
+                            <textarea
+                              rows={6}
+                              value={evConfig.template}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setSettings((s) => ({
+                                  ...s,
+                                  notificationSettings: {
+                                    ...(s.notificationSettings || { enabled: true, events: {} }),
+                                    events: {
+                                      ...(s.notificationSettings?.events || {}),
+                                      [selectedEventType]: {
+                                        ...evConfig,
+                                        template: val,
+                                      },
+                                    },
+                                  },
+                                }));
+                              }}
+                              className="w-full rounded-xl px-3 py-2.5 text-xs text-white outline-none font-mono"
+                              style={{ ...inputStyle, minHeight: 120 }}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Button Text</label>
+                              <input
+                                type="text"
+                                value={evConfig.buttonText || 'Open Elite Force'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setSettings((s) => ({
+                                    ...s,
+                                    notificationSettings: {
+                                      ...(s.notificationSettings || { enabled: true, events: {} }),
+                                      events: {
+                                        ...(s.notificationSettings?.events || {}),
+                                        [selectedEventType]: {
+                                          ...evConfig,
+                                          buttonText: val,
+                                        },
+                                      },
+                                    },
+                                  }));
+                                }}
+                                className={inputCls}
+                                style={inputStyle}
+                              />
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Button App Tab Target</label>
+                              <select
+                                value={evConfig.buttonTab || 'home'}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setSettings((s) => ({
+                                    ...s,
+                                    notificationSettings: {
+                                      ...(s.notificationSettings || { enabled: true, events: {} }),
+                                      events: {
+                                        ...(s.notificationSettings?.events || {}),
+                                        [selectedEventType]: {
+                                          ...evConfig,
+                                          buttonTab: val,
+                                        },
+                                      },
+                                    },
+                                  }));
+                                }}
+                                className={`${inputCls} cursor-pointer`}
+                                style={{ ...inputStyle, background: '#0D1220' }}
+                              >
+                                <option value="home">Home / Mine</option>
+                                <option value="tasks">Missions & Tasks</option>
+                                <option value="profile">Profile & Connections</option>
+                                <option value="friends">Referrals / Friends</option>
+                                <option value="wallet">Wallet & Withdraw</option>
+                                <option value="support">Support</option>
+                              </select>
+                            </div>
+                          </div>
                         </div>
-                      )}
-                      <p className="text-[9px] text-slate-600">Select a user from the list — their Telegram ID will be used</p>
-                    </div>
-                  )}
-
-                  {/* Message textarea */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">
-                      Message {notifTarget === 'all' ? `(will reach ${usersList.length} users)` : ''}
-                    </label>
-                    <textarea
-                      rows={5}
-                      placeholder="Type your announcement or custom message here..."
-                      value={notifMessage}
-                      onChange={e => setNotifMessage(e.target.value)}
-                      className="w-full rounded-xl px-3 py-2.5 text-xs text-white outline-none resize-none focus:ring-1 focus:ring-[#C084FC]/40"
-                      style={{ ...inputStyle, minHeight: 110 }}
-                    />
-                    <div className="flex justify-between text-[9px] text-slate-600">
-                      <span>{notifMessage.length} chars</span>
-                      <span>Rendered as HTML in Telegram</span>
-                    </div>
+                      );
+                    })()}
                   </div>
+                </SectionCard>
+              )}
 
-                  {/* Image URL (Optional) */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Image URL (Optional)</label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="e.g. https://example.com/banner.png"
-                        value={notifImageUrl}
-                        onChange={e => setNotifImageUrl(e.target.value)}
-                        className={`${inputCls} flex-1`}
-                        style={inputStyle}
-                      />
-                      <label className="h-9 px-4 rounded-xl bg-[#C084FC] hover:bg-[#818CF8] text-white text-[10px] font-bold flex items-center justify-center gap-1 cursor-pointer transition-all shrink-0 select-none">
-                        {uploadingNotificationImage ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />} Upload Image
-                        <input type="file" accept="image/*" onChange={handleNotificationImageUpload} className="hidden" disabled={uploadingNotificationImage} />
-                      </label>
-                    </div>
-                    <p className="text-[9px] text-slate-600">If set, Telegram will send this as a Photo with the message as caption</p>
-                  </div>
-
-                  {/* Inline Button (Optional) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Button Text (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. 🎁 Claim Now"
-                        value={notifBtnText}
-                        onChange={e => setNotifBtnText(e.target.value)}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">Button Link (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. https://t.me/EliteForceBot/app"
-                        value={notifBtnUrl}
-                        onChange={e => setNotifBtnUrl(e.target.value)}
-                        className={inputCls}
-                        style={inputStyle}
-                      />
-                    </div>
-                  </div>
-
-                  {/* API Secret (collapsible) */}
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">API Secret (from backend .env)</label>
-                    <input
-                      type="password"
-                      value={notifApiSecret}
-                      onChange={e => setNotifApiSecret(e.target.value)}
-                      className={inputCls}
-                      style={inputStyle}
-                    />
-                  </div>
-
-                  {/* Send button */}
-                  <button
-                    onClick={handleSendNotification}
-                    disabled={notifSending || !notifMessage.trim()}
-                    className={`${Btn.primary} w-full h-12 rounded-2xl text-sm font-black`}
-                    style={{ ...btnStyle.primary, background: 'linear-gradient(135deg, #C084FC, #818CF8)', boxShadow: '0 0 30px rgba(192,132,252,0.35)' }}
-                  >
-                    {notifSending ? <RefreshCw size={16} className="animate-spin" /> : '🚀'}
-                    {notifSending
-                      ? (notifTarget === 'all' ? `Sending to ${usersList.length} users...` : 'Sending...')
-                      : (notifTarget === 'all' ? `Broadcast to All ${usersList.length} Users` : 'Send to User')}
-                  </button>
-
-                  {!settings.botApiUrl && (
-                    <div className="rounded-xl px-4 py-3 text-xs text-yellow-400 font-semibold"
-                      style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)' }}>
-                      ⚠️ Bot API URL not set. Go to <strong>Settings</strong> and add your bot server URL to enable notifications.
-                    </div>
-                  )}
-                </div>
-              </SectionCard>
-
-              {/* Quick actions: per-user message from Users list */}
-              <SectionCard accentColor="#C084FC44">
-                <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                  <div className="text-sm font-black text-white">📋 Notification Types Reference</div>
-                  <div className="text-[9px] text-slate-500 mt-0.5">These are sent automatically by the system</div>
-                </div>
-                <div className="p-4 flex flex-col gap-3">
-                  {[
-                    { icon: '✅', label: 'Withdrawal Approved', desc: 'Auto-sent when you approve a withdrawal in the Withdrawals tab', color: '#4ADE80' },
-                    { icon: '❌', label: 'Withdrawal Rejected', desc: 'Auto-sent when you reject a withdrawal request', color: '#F87171' },
-                    { icon: '🚫', label: 'Account Banned', desc: 'Auto-sent when you ban a user from a withdrawal', color: '#FB923C' },
-                    { icon: '🎉', label: 'Referral Notification', desc: 'Auto-sent by bot when a new user joins via referral link', color: '#C084FC' },
-                    { icon: '📢', label: 'Custom Announcement', desc: 'Manual broadcast using the form above', color: '#60A5FA' },
-                    { icon: '📩', label: 'Custom User Message', desc: 'Direct message to a specific user using the form above', color: '#34D399' },
-                  ].map(n => (
-                    <div key={n.label} className="flex items-start gap-3 py-2.5 border-b last:border-0" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
-                      <div className="text-lg w-7 shrink-0">{n.icon}</div>
-                      <div className="flex-1">
-                        <div className="text-xs font-bold" style={{ color: n.color }}>{n.label}</div>
-                        <div className="text-[9px] text-slate-500 mt-0.5">{n.desc}</div>
+              {/* ── SUB-TAB 3: NOTIFICATION HISTORY LOG ── */}
+              {notifSubTab === 'history' && (
+                <SectionCard accentColor="#38BDF888">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">📜</div>
+                      <div>
+                        <div className="text-sm font-black text-white">Notification History Audit Log</div>
+                        <div className="text-[9px] text-slate-400">Real-time log of dispatched notifications, idempotency keys, and delivery status</div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              </SectionCard>
+                    <button
+                      onClick={fetchNotificationHistory}
+                      disabled={loadingHistory}
+                      className="px-3 h-8 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-xs font-bold text-slate-300 transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw size={12} className={loadingHistory ? 'animate-spin' : ''} /> Refresh Logs
+                    </button>
+                  </div>
 
+                  <div className="p-4 flex flex-col gap-3">
+                    {historyLogs.length === 0 ? (
+                      <div className="text-center py-8 text-xs text-slate-500">
+                        {loadingHistory ? 'Loading notification history...' : 'No notification history records found yet.'}
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left text-xs border-collapse">
+                          <thead>
+                            <tr className="border-b border-white/10 text-[9px] font-black uppercase text-slate-400 tracking-wider">
+                              <th className="p-2.5">Time</th>
+                              <th className="p-2.5">User ID</th>
+                              <th className="p-2.5">Event Type</th>
+                              <th className="p-2.5">Status</th>
+                              <th className="p-2.5">Message ID</th>
+                              <th className="p-2.5">Preview</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5">
+                            {historyLogs.map((log) => (
+                              <tr key={log.id} className="hover:bg-white/[0.02] text-[11px]">
+                                <td className="p-2.5 text-slate-400 font-mono text-[10px] whitespace-nowrap">
+                                  {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
+                                </td>
+                                <td className="p-2.5 text-white font-mono font-bold">
+                                  {log.userId || 'Broadcast'}
+                                </td>
+                                <td className="p-2.5">
+                                  <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 text-[9px] font-mono font-bold">
+                                    {log.eventType}
+                                  </span>
+                                </td>
+                                <td className="p-2.5">
+                                  <span className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                    log.deliveryStatus === 'sent' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                    : log.deliveryStatus === 'blocked' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                    : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                                  }`}>
+                                    {log.deliveryStatus}
+                                  </span>
+                                </td>
+                                <td className="p-2.5 text-slate-400 font-mono text-[10px]">
+                                  {log.messageId || '-'}
+                                </td>
+                                <td className="p-2.5 text-slate-300 line-clamp-1 max-w-xs font-mono text-[10px]">
+                                  {log.content ? log.content.replace(/<[^>]*>/g, '') : '-'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </SectionCard>
+              )}
             </div>
           )}
 

@@ -9,6 +9,7 @@ import { Wallet } from './views/Wallet';
 import { Profile } from './views/Profile';
 import { Settings } from './views/Settings';
 import { Leaderboard } from './views/Leaderboard';
+import { Market } from './views/Market';
 import { Admin } from './views/Admin';
 import { AdminLogin } from './views/AdminLogin';
 import { getTelegramWebAppData, type TelegramUser } from './lib/telegramUser';
@@ -666,6 +667,17 @@ export default function App() {
             telegramUser={telegramUser}
             adminSettings={adminSettings}
             dbUser={dbUser}
+            setActiveTab={(tab: string) => setActiveTab(tab as ActiveTab)}
+          />
+        );
+      case 'market':
+        return (
+          <Market
+            efcBalance={efcBalance}
+            setEfcBalance={setEfcBalance}
+            telegramUser={telegramUser}
+            adminSettings={adminSettings}
+            showToast={showToast}
             setActiveTab={(tab: string) => setActiveTab(tab as ActiveTab)}
           />
         );

@@ -16,6 +16,7 @@ const tabMeta: Record<AdminTab, { title: string; sub: string; faIcon: string; ac
   users:         { title: 'User Directory',     sub: 'Manage user accounts, ranks & security',     faIcon: 'fa-solid fa-users-gear',            accentColor: '#60A5FA' },
   countries:     { title: 'Regional Analytics', sub: 'Geographic distribution & active country hubs',faIcon: 'fa-solid fa-earth-americas',     accentColor: '#22D3EE' },
   tasks:         { title: 'Mission Control',    sub: 'Manage active earning missions & tasks',     faIcon: 'fa-solid fa-list-check',            accentColor: '#34D399' },
+  market:        { title: 'Task Market Hub',    sub: 'P2P task moderation & escrow oversight',    faIcon: 'fa-solid fa-store',                 accentColor: '#FFD700' },
   withdrawals:   { title: 'Payout Queue',       sub: 'Review & authorize payout transactions',     faIcon: 'fa-solid fa-money-bill-transfer',   accentColor: '#4ADE80' },
   security:      { title: 'Security Center',    sub: 'Flagged threats, anti-cheat & bans',         faIcon: 'fa-solid fa-shield-halved',        accentColor: '#FB923C' },
   notifications: { title: 'Broadcast Manager', sub: 'Global push notifications & announcements',  faIcon: 'fa-solid fa-bullhorn',              accentColor: '#C084FC' },

@@ -16,6 +16,10 @@ import {
   Layers,
   Image as ImageIcon,
   ShieldCheck,
+  Instagram,
+  Youtube,
+  Share2,
+  Video,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import {
@@ -543,31 +547,76 @@ export const Tasks = ({
   const categoriesData = useMemo(() => {
     const activeTasks = enabledTasks;
 
-    // Categorization logic
-    const xTasks = activeTasks.filter((t) => t.type === 'x' || t.title.toLowerCase().includes('twitter') || t.title.toLowerCase().includes('x.com'));
-    const discordTasks = activeTasks.filter((t) => t.title.toLowerCase().includes('discord') || t.url?.includes('discord'));
-    const videoTasks = activeTasks.filter((t) => t.type === 'video' || t.type === 'ad' || t.title.toLowerCase().includes('video') || t.title.toLowerCase().includes('youtube'));
-    const telegramTasks = activeTasks.filter((t) => t.type === 'channel' || t.type === 'group' || t.url?.includes('t.me'));
+    const getPlatform = (t: EForceTask): string => {
+      if (t.requireSocialConnection && t.requireSocialConnection !== 'none') {
+        return t.requireSocialConnection.toLowerCase();
+      }
+      const platformStr = ((t as any).platform || '').toLowerCase();
+      if (platformStr && platformStr !== 'custom' && platformStr !== 'website' && platformStr !== 'general') {
+        return platformStr;
+      }
+
+      const typeStr = (t.type || '').toLowerCase();
+      const titleStr = (t.title || '').toLowerCase();
+      const urlStr = (t.url || '').toLowerCase();
+
+      if (typeStr === 'x' || typeStr.includes('twitter') || urlStr.includes('x.com') || urlStr.includes('twitter.com') || titleStr.includes('twitter') || titleStr.includes('x.com') || titleStr.includes('follow x') || titleStr.includes('retweet') || titleStr.includes('like x')) return 'x';
+      if (typeStr.includes('discord') || urlStr.includes('discord.') || urlStr.includes('discord.gg') || titleStr.includes('discord')) return 'discord';
+      if (typeStr.includes('youtube') || urlStr.includes('youtube.com') || urlStr.includes('youtu.be') || titleStr.includes('youtube') || titleStr.includes('yt ')) return 'youtube';
+      if (typeStr.includes('instagram') || urlStr.includes('instagram.com') || titleStr.includes('instagram') || titleStr.includes('ig ')) return 'instagram';
+      if (typeStr.includes('tiktok') || urlStr.includes('tiktok.com') || titleStr.includes('tiktok')) return 'tiktok';
+      if (typeStr.includes('reddit') || urlStr.includes('reddit.com') || titleStr.includes('reddit')) return 'reddit';
+      if (typeStr === 'channel' || typeStr === 'group' || urlStr.includes('t.me') || titleStr.includes('telegram')) return 'telegram';
+      if (typeStr === 'video' || typeStr === 'ad' || titleStr.includes('video') || titleStr.includes('watch ad')) return 'video';
+
+      return 'general';
+    };
+
+    const xTasks = activeTasks.filter((t) => getPlatform(t) === 'x');
+    const telegramTasks = activeTasks.filter((t) => getPlatform(t) === 'telegram');
+    const discordTasks = activeTasks.filter((t) => getPlatform(t) === 'discord');
+    const tiktokTasks = activeTasks.filter((t) => getPlatform(t) === 'tiktok');
+    const instagramTasks = activeTasks.filter((t) => getPlatform(t) === 'instagram');
+    const youtubeTasks = activeTasks.filter((t) => getPlatform(t) === 'youtube');
+    const redditTasks = activeTasks.filter((t) => getPlatform(t) === 'reddit');
+    const videoTasks = activeTasks.filter((t) => getPlatform(t) === 'video');
     const generalTasks = activeTasks.filter(
-      (t) => !xTasks.includes(t) && !discordTasks.includes(t) && !videoTasks.includes(t) && !telegramTasks.includes(t)
+      (t) =>
+        !xTasks.includes(t) &&
+        !telegramTasks.includes(t) &&
+        !discordTasks.includes(t) &&
+        !tiktokTasks.includes(t) &&
+        !instagramTasks.includes(t) &&
+        !youtubeTasks.includes(t) &&
+        !redditTasks.includes(t) &&
+        !videoTasks.includes(t)
     );
 
     const getSubCategoryStats = (taskList: EForceTask[], subType: string) => {
       let filtered = taskList;
+      const lower = (s: string) => s.toLowerCase();
+
       if (subType === 'Follow') {
-        filtered = taskList.filter((t) => !t.title.toLowerCase().includes('like') && !t.title.toLowerCase().includes('repost') && !t.title.toLowerCase().includes('retweet'));
+        filtered = taskList.filter((t) => !lower(t.title).includes('like') && !lower(t.title).includes('repost') && !lower(t.title).includes('retweet'));
       } else if (subType === 'Like') {
-        filtered = taskList.filter((t) => t.title.toLowerCase().includes('like'));
+        filtered = taskList.filter((t) => lower(t.title).includes('like'));
       } else if (subType === 'Repost') {
-        filtered = taskList.filter((t) => t.title.toLowerCase().includes('repost') || t.title.toLowerCase().includes('retweet'));
+        filtered = taskList.filter((t) => lower(t.title).includes('repost') || lower(t.title).includes('retweet') || lower(t.title).includes('quote'));
+      } else if (subType === 'Channel') {
+        filtered = taskList.filter((t) => t.type === 'channel' || lower(t.title).includes('channel'));
+        if (filtered.length === 0 && taskList.some((t) => t.type !== 'group')) {
+          filtered = taskList.filter((t) => t.type !== 'group');
+        }
+      } else if (subType === 'Group') {
+        filtered = taskList.filter((t) => t.type === 'group' || lower(t.title).includes('group'));
+      } else if (subType === 'Subscribe') {
+        filtered = taskList.filter((t) => !lower(t.title).includes('watch') && !lower(t.title).includes('like'));
+      } else if (subType === 'Watch & Like') {
+        filtered = taskList.filter((t) => lower(t.title).includes('watch') || lower(t.title).includes('like') || lower(t.title).includes('video'));
       } else if (subType === 'Join') {
         filtered = taskList;
       } else if (subType === 'Watch') {
         filtered = taskList;
-      } else if (subType === 'Channel') {
-        filtered = taskList.filter((t) => t.type === 'channel');
-      } else if (subType === 'Group') {
-        filtered = taskList.filter((t) => t.type === 'group');
       } else if (subType === 'Other') {
         filtered = taskList;
       }
@@ -616,6 +665,59 @@ export const Tasks = ({
         totalReward: getCategoryTotal(discordTasks),
         subCategories: [
           { name: 'Join', ...getSubCategoryStats(discordTasks, 'Join') },
+        ],
+      },
+      {
+        id: 'youtube',
+        title: 'YouTube',
+        icon: (
+          <div className="w-8 h-8 rounded-xl bg-red-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_12px_rgba(220,38,38,0.4)]">
+            <Youtube size={16} />
+          </div>
+        ),
+        totalReward: getCategoryTotal(youtubeTasks),
+        subCategories: [
+          { name: 'Subscribe', ...getSubCategoryStats(youtubeTasks, 'Subscribe') },
+          { name: 'Watch & Like', ...getSubCategoryStats(youtubeTasks, 'Watch & Like') },
+        ],
+      },
+      {
+        id: 'instagram',
+        title: 'Instagram',
+        icon: (
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 via-rose-500 to-purple-600 flex items-center justify-center text-white shrink-0 shadow-[0_0_12px_rgba(225,48,108,0.4)]">
+            <Instagram size={16} />
+          </div>
+        ),
+        totalReward: getCategoryTotal(instagramTasks),
+        subCategories: [
+          { name: 'Follow & Like', ...getSubCategoryStats(instagramTasks, 'Follow') },
+        ],
+      },
+      {
+        id: 'tiktok',
+        title: 'TikTok',
+        icon: (
+          <div className="w-8 h-8 rounded-xl bg-black border border-cyan-500/40 flex items-center justify-center text-cyan-400 shrink-0 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+            <Video size={16} />
+          </div>
+        ),
+        totalReward: getCategoryTotal(tiktokTasks),
+        subCategories: [
+          { name: 'Follow & Watch', ...getSubCategoryStats(tiktokTasks, 'Watch') },
+        ],
+      },
+      {
+        id: 'reddit',
+        title: 'Reddit',
+        icon: (
+          <div className="w-8 h-8 rounded-xl bg-[#FF4500] flex items-center justify-center text-white shrink-0 shadow-[0_0_12px_rgba(255,69,0,0.4)]">
+            <Share2 size={16} />
+          </div>
+        ),
+        totalReward: getCategoryTotal(redditTasks),
+        subCategories: [
+          { name: 'Join & Upvote', ...getSubCategoryStats(redditTasks, 'Join') },
         ],
       },
       {
@@ -881,6 +983,29 @@ export const Tasks = ({
                                     </div>
                                   ) : (
                                     sub.tasks.map((task) => {
+                                      // ── Social Connection Gate ──────────────────────────────
+                                      const inferTaskPlatform = (t: EForceTask): string => {
+                                        if (t.requireSocialConnection && t.requireSocialConnection !== 'none') return t.requireSocialConnection.toLowerCase();
+                                        const ty = (t.type || '').toLowerCase();
+                                        const pl = ((t as any).platform || '').toLowerCase();
+                                        const ti = (t.title || '').toLowerCase();
+                                        const ur = (t.url || '').toLowerCase();
+                                        if (ty.includes('x') || ty.includes('twitter') || pl.includes('x') || pl.includes('twitter') || ur.includes('x.com') || ur.includes('twitter.com') || ti.includes('follow x') || ti.includes('retweet') || ti.includes('like x')) return 'x';
+                                        if (ty.includes('discord') || pl.includes('discord') || ur.includes('discord.') || ti.includes('discord')) return 'discord';
+                                        if (ty.includes('youtube') || pl.includes('youtube') || ur.includes('youtube.com') || ur.includes('youtu.be') || ti.includes('youtube')) return 'youtube';
+                                        if (ty.includes('instagram') || pl.includes('instagram') || ur.includes('instagram.com') || ti.includes('instagram')) return 'instagram';
+                                        if (ty.includes('tiktok') || pl.includes('tiktok') || ur.includes('tiktok.com') || ti.includes('tiktok')) return 'tiktok';
+                                        if (ty.includes('reddit') || pl.includes('reddit') || ur.includes('reddit.com') || ti.includes('reddit')) return 'reddit';
+                                        return 'none';
+                                      };
+                                      const PLATFORM_LABELS: Record<string, string> = { x: 'X (Twitter)', discord: 'Discord', instagram: 'Instagram', tiktok: 'TikTok', youtube: 'YouTube', reddit: 'Reddit' };
+                                      const taskPlatform = inferTaskPlatform(task);
+                                      const requiresConnection = taskPlatform !== 'none' && taskPlatform !== 'telegram';
+                                      const platformConn = requiresConnection ? dbUser?.socialConnections?.[taskPlatform as keyof typeof dbUser.socialConnections] : null;
+                                      const isConnectionLocked = requiresConnection && (!platformConn?.connected || !platformConn?.handle);
+                                      const platformLabel = PLATFORM_LABELS[taskPlatform] || taskPlatform.toUpperCase();
+
+                                      // Normal task state
                                       const status = taskStatus[task.id] || 'idle';
                                       const done = isCompleted(task);
                                       const expired = isExpired(task);
@@ -892,216 +1017,253 @@ export const Tasks = ({
                                       return (
                                         <div
                                           key={task.id}
-                                          className={`p-4 rounded-[20px] bg-[#1a1a1a] border border-[#2a2a2a] flex flex-col gap-3 transition-all relative ${
-                                            done ? 'opacity-60' : expired || limitHit ? 'opacity-40' : ''
+                                          className={`p-4 rounded-[20px] border flex flex-col gap-3 transition-all relative ${
+                                            isConnectionLocked
+                                              ? 'bg-[#151515] border-[#252525] opacity-80'
+                                              : done ? 'bg-[#1a1a1a] border-[#2a2a2a] opacity-60' : expired || limitHit ? 'bg-[#1a1a1a] border-[#2a2a2a] opacity-40' : 'bg-[#1a1a1a] border-[#2a2a2a]'
                                           }`}
                                         >
-                                          {/* Card Header Row */}
-                                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                                            <div className="flex items-center gap-2 min-w-0 flex-1">
-                                              <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#34d399]" />
-                                              <span className="text-sm font-extrabold text-white truncate">
-                                                {task.title}
-                                              </span>
-                                              {task.url && !done && (
-                                                <ExternalLink size={11} className="text-slate-400 shrink-0" />
-                                              )}
-                                            </div>
-
-                                            <div className="flex items-center gap-1.5 shrink-0">
-                                              {task.isMandatory && (
-                                                <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
-                                                  🔒 REQUIRED
-                                                </span>
-                                              )}
-                                              <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                                                {task.type}
-                                              </span>
-                                            </div>
-                                          </div>
-
-                                          {task.description && (
-                                            <p className="text-[10px] text-slate-400 line-clamp-2">{task.description}</p>
-                                          )}
-
-                                          {/* Dual Reward Boxes (EFC Points REWARD & TOKEN) */}
-                                          <div className="grid grid-cols-2 gap-2.5 my-0.5">
-                                            {/* EFC Points REWARD Box */}
-                                            <div className="p-3 rounded-xl bg-[#242424] border border-[#333333] flex flex-col gap-0.5">
-                                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-                                                EFC Points Reward
-                                              </span>
-                                              <span className="text-base font-black text-[#FF8A00]">
-                                                {task.reward.toLocaleString()}
-                                              </span>
-                                            </div>
-
-                                            {/* TOKEN Box */}
-                                            <div className="p-3 rounded-xl bg-[#242424] border border-[#333333] flex flex-col gap-0.5">
-                                              <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
-                                                Token
-                                              </span>
-                                              <span className="text-base font-black text-indigo-400">
-                                                +{task.tokenReward || 100}
-                                              </span>
-                                            </div>
-                                          </div>
-
-                                          {/* Quiz Answer Input Box (if Quiz / Text Solution Task) */}
-                                          {task.answer && !done && (
-                                            <div className="flex flex-col gap-1.5 my-1">
-                                              <label className="text-[10px] text-slate-300 font-bold flex items-center justify-between">
-                                                <span>ENTER YOUR ANSWER:</span>
-                                                <span className="text-[9px] text-slate-500 font-normal">Server Validated</span>
-                                              </label>
-                                              <input
-                                                type="text"
-                                                placeholder="Type solution here..."
-                                                value={quizAnswers[task.id] || ''}
-                                                onChange={(e) => {
-                                                  const val = e.target.value;
-                                                  setQuizAnswers((prev) => ({ ...prev, [task.id]: val }));
-                                                  if (quizErrors[task.id]) setQuizErrors((prev) => ({ ...prev, [task.id]: '' }));
-                                                }}
-                                                className="w-full h-9 rounded-xl bg-black/40 border border-white/10 px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00] font-mono"
-                                              />
-                                              {quizErrors[task.id] && (
-                                                <span className="text-[10px] text-rose-400 font-bold">{quizErrors[task.id]}</span>
-                                              )}
-                                            </div>
-                                          )}
-
-                                          {/* Cooldown Timer Alert (Interrupted Ad) */}
-                                          {taskCooldowns[task.id] > 0 && !done && (
-                                            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-[10px] text-amber-300 font-bold">
-                                              <span>Verification Interrupted</span>
-                                              <span className="font-mono text-amber-400 font-black">00:{taskCooldowns[task.id] < 10 ? '0' : ''}{taskCooldowns[task.id]}</span>
-                                            </div>
-                                          )}
-
-                                          {/* Status & Action Bar */}
-                                          <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/5">
-                                            <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
-                                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                                              Active
-                                            </div>
-
-                                            {/* Action Button */}
-                                            {!isForceJoin &&
-                                              (done ? (
-                                                <button
-                                                  disabled
-                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
-                                                >
-                                                  <Check size={12} /> Done
-                                                </button>
-                                              ) : expired || limitHit ? (
-                                                <button
-                                                  disabled
-                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
-                                                >
-                                                  <Lock size={11} /> Closed
-                                                </button>
-                                              ) : taskCooldowns[task.id] > 0 ? (
-                                                <button
-                                                  disabled
-                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-amber-400 border border-amber-500/30 cursor-not-allowed font-mono"
-                                                >
-                                                  <Lock size={11} /> Verify ({taskCooldowns[task.id]}s)
-                                                </button>
-                                              ) : status === 'verifying' ? (
-                                                <button
-                                                  disabled
-                                                  className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-400 border border-white/10 cursor-wait"
-                                                >
-                                                  <Loader2 size={12} className="animate-spin" /> Verifying
-                                                </button>
-                                              ) : (
-                                                <button
-                                                  onClick={() => handleTaskClick(task)}
-                                                  className="shrink-0 h-8 px-5 rounded-xl text-[10px] font-extrabold transition-all flex items-center justify-center gap-1 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer hover:scale-105"
-                                                >
-                                                  Verify Task
-                                                </button>
-                                              ))}
-
-                                            {/* Force Join: Done Badge */}
-                                            {isForceJoin && done && (
-                                              <button
-                                                disabled
-                                                className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
+                                          {/* ── SOCIAL CONNECTION LOCK GATE ── */}
+                                          {isConnectionLocked ? (
+                                            <div className="flex flex-col gap-2.5">
+                                              <div className="flex items-center justify-between gap-2">
+                                                <span className="text-sm font-extrabold text-slate-400 truncate">{task.title}</span>
+                                                <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-white/5 text-slate-500 border border-white/10">{task.type}</span>
+                                              </div>
+                                              <div
+                                                className="flex items-center justify-between gap-3 p-3 rounded-xl border cursor-pointer hover:opacity-90 transition-all"
+                                                style={{ background: 'rgba(229,163,56,0.07)', borderColor: 'rgba(229,163,56,0.25)' }}
+                                                onClick={() => { if (setActiveTab) setActiveTab('profile'); }}
                                               >
-                                                <Check size={12} /> Done
-                                              </button>
-                                            )}
-                                          </div>
-
-                                          {/* Force Join Inline Step Panel */}
-                                          {isForceJoin && !done && !expired && !limitHit && (
-                                            <div
-                                              className="border-t border-white/5 pt-3 mt-1 flex flex-col gap-2.5"
-                                            >
-                                              <div className="flex items-center gap-2 flex-wrap">
-                                                {adminSettings.adEnabled && (
-                                                  <button
-                                                    onClick={() => handleWatchAdStep(task)}
-                                                    disabled={currentStep !== 1}
-                                                    className={`flex-1 h-8 rounded-xl text-[9px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
-                                                      currentStep === 1
-                                                        ? 'bg-purple-500/20 border-purple-500/40 text-purple-300 hover:bg-purple-500/30'
-                                                        : currentStep > 1
-                                                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 cursor-default'
-                                                        : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
-                                                    }`}
-                                                  >
-                                                    {currentStep > 1 ? <Check size={10} /> : <Play size={10} />}
-                                                    1. Watch Ad
-                                                  </button>
-                                                )}
-
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                  <Lock size={14} className="text-[#E5A338] shrink-0" />
+                                                  <span className="text-[11px] font-bold text-[#E5A338] truncate">
+                                                    Connect {platformLabel} to unlock these tasks
+                                                  </span>
+                                                </div>
                                                 <button
-                                                  onClick={() => handleJoinLinkStep(task)}
-                                                  disabled={currentStep !== 2}
-                                                  className={`flex-1 h-8 rounded-xl text-[9px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
-                                                    currentStep === 2
-                                                      ? 'bg-cyan-500/15 border-cyan-500/35 text-cyan-300 hover:bg-cyan-500/25'
-                                                      : currentStep > 2
-                                                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 cursor-default'
-                                                      : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
-                                                  }`}
+                                                  type="button"
+                                                  onClick={(e) => { e.stopPropagation(); if (setActiveTab) setActiveTab('profile'); }}
+                                                  className="shrink-0 h-7 px-3 rounded-lg bg-[#E5A338] text-black text-[10px] font-extrabold cursor-pointer hover:brightness-110 active:scale-95 transition-all"
                                                 >
-                                                  {currentStep > 2 ? <Check size={10} /> : <Send size={10} />}
-                                                  {adminSettings.adEnabled ? '2.' : '1.'} Join Link
-                                                </button>
-
-                                                <button
-                                                  onClick={() => handleVerifyStep(task)}
-                                                  disabled={currentStep !== 3 || status === 'verifying'}
-                                                  className={`flex-1 h-8 rounded-xl text-[9px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
-                                                    status === 'verifying'
-                                                      ? 'bg-[#FF8A00]/15 border-[#FF8A00]/30 text-[#FF8A00] cursor-wait'
-                                                      : currentStep === 3
-                                                      ? 'bg-[#FF8A00]/15 border-[#FF8A00]/30 text-[#FF8A00] hover:bg-[#FF8A00]/25'
-                                                      : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
-                                                  }`}
-                                                >
-                                                  {status === 'verifying' ? (
-                                                    <Loader2 size={10} className="animate-spin" />
-                                                  ) : (
-                                                    <Check size={10} />
-                                                  )}
-                                                  {adminSettings.adEnabled ? '3.' : '2.'} Verify
+                                                  Connect →
                                                 </button>
                                               </div>
+                                              <div className="flex items-center justify-between text-[10px] text-slate-600 font-mono border-t border-white/5 pt-2">
+                                                <span>{task.reward.toLocaleString()} EFC Points reward</span>
+                                                <span className="flex items-center gap-1"><Lock size={10} /> Locked</span>
+                                              </div>
                                             </div>
+                                          ) : (
+                                            <>
+                                           {/* Card Header Row */}
+                                           <div className="flex items-center justify-between gap-2 flex-wrap">
+                                             <div className="flex items-center gap-2 min-w-0 flex-1">
+                                               <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 shadow-[0_0_8px_#34d399]" />
+                                               <span className="text-sm font-extrabold text-white truncate">
+                                                 {task.title}
+                                               </span>
+                                               {task.url && !done && (
+                                                 <ExternalLink size={11} className="text-slate-400 shrink-0" />
+                                               )}
+                                             </div>
+
+                                             <div className="flex items-center gap-1.5 shrink-0">
+                                               {task.isMandatory && (
+                                                 <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                                                   🔒 REQUIRED
+                                                 </span>
+                                               )}
+                                               <span className="text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                                                 {task.type}
+                                               </span>
+                                             </div>
+                                           </div>
+
+                                           {task.description && (
+                                             <p className="text-[10px] text-slate-400 line-clamp-2">{task.description}</p>
+                                           )}
+
+                                           {/* Dual Reward Boxes (EFC Points REWARD & TOKEN) */}
+                                           <div className="grid grid-cols-2 gap-2.5 my-0.5">
+                                             {/* EFC Points REWARD Box */}
+                                             <div className="p-3 rounded-xl bg-[#242424] border border-[#333333] flex flex-col gap-0.5">
+                                               <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
+                                                 EFC Points Reward
+                                               </span>
+                                               <span className="text-base font-black text-[#FF8A00]">
+                                                 {task.reward.toLocaleString()}
+                                               </span>
+                                             </div>
+
+                                             {/* TOKEN Box */}
+                                             <div className="p-3 rounded-xl bg-[#242424] border border-[#333333] flex flex-col gap-0.5">
+                                               <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">
+                                                 Token
+                                               </span>
+                                               <span className="text-base font-black text-indigo-400">
+                                                 +{task.tokenReward || 100}
+                                               </span>
+                                             </div>
+                                           </div>
+
+                                           {/* Quiz Answer Input Box (if Quiz / Text Solution Task) */}
+                                           {task.answer && !done && (
+                                             <div className="flex flex-col gap-1.5 my-1">
+                                               <label className="text-[10px] text-slate-300 font-bold flex items-center justify-between">
+                                                 <span>ENTER YOUR ANSWER:</span>
+                                                 <span className="text-[9px] text-slate-500 font-normal">Server Validated</span>
+                                               </label>
+                                               <input
+                                                 type="text"
+                                                 placeholder="Type solution here..."
+                                                 value={quizAnswers[task.id] || ''}
+                                                 onChange={(e) => {
+                                                   const val = e.target.value;
+                                                   setQuizAnswers((prev) => ({ ...prev, [task.id]: val }));
+                                                   if (quizErrors[task.id]) setQuizErrors((prev) => ({ ...prev, [task.id]: '' }));
+                                                 }}
+                                                 className="w-full h-9 rounded-xl bg-black/40 border border-white/10 px-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00] font-mono"
+                                               />
+                                               {quizErrors[task.id] && (
+                                                 <span className="text-[10px] text-rose-400 font-bold">{quizErrors[task.id]}</span>
+                                               )}
+                                             </div>
+                                           )}
+
+                                           {/* Cooldown Timer Alert (Interrupted Ad) */}
+                                           {taskCooldowns[task.id] > 0 && !done && (
+                                             <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-[10px] text-amber-300 font-bold">
+                                               <span>Verification Interrupted</span>
+                                               <span className="font-mono text-amber-400 font-black">00:{taskCooldowns[task.id] < 10 ? '0' : ''}{taskCooldowns[task.id]}</span>
+                                             </div>
+                                           )}
+
+                                           {/* Status & Action Bar */}
+                                           <div className="flex items-center justify-between gap-3 pt-1 border-t border-white/5">
+                                             <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] font-bold">
+                                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                                               Active
+                                             </div>
+
+                                             {/* Action Button */}
+                                             {!isForceJoin &&
+                                               (done ? (
+                                                 <button
+                                                   disabled
+                                                   className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
+                                                 >
+                                                   <Check size={12} /> Done
+                                                 </button>
+                                               ) : expired || limitHit ? (
+                                                 <button
+                                                   disabled
+                                                   className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed"
+                                                 >
+                                                   <Lock size={11} /> Closed
+                                                 </button>
+                                               ) : taskCooldowns[task.id] > 0 ? (
+                                                 <button
+                                                   disabled
+                                                   className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-amber-400 border border-amber-500/30 cursor-not-allowed font-mono"
+                                                 >
+                                                   <Lock size={11} /> Verify ({taskCooldowns[task.id]}s)
+                                                 </button>
+                                               ) : status === 'verifying' ? (
+                                                 <button
+                                                   disabled
+                                                   className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-white/5 text-slate-400 border border-white/10 cursor-wait"
+                                                 >
+                                                   <Loader2 size={12} className="animate-spin" /> Verifying
+                                                 </button>
+                                               ) : (
+                                                 <button
+                                                   onClick={() => handleTaskClick(task)}
+                                                   className="shrink-0 h-8 px-5 rounded-xl text-[10px] font-extrabold transition-all flex items-center justify-center gap-1 bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_12px_rgba(255,138,0,0.25)] cursor-pointer hover:scale-105"
+                                                 >
+                                                   Verify Task
+                                                 </button>
+                                               ))}
+
+                                             {/* Force Join: Done Badge */}
+                                             {isForceJoin && done && (
+                                               <button
+                                                 disabled
+                                                 className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"
+                                               >
+                                                 <Check size={12} /> Done
+                                               </button>
+                                             )}
+                                           </div>
+
+                                           {/* Force Join Inline Step Panel */}
+                                           {isForceJoin && !done && !expired && !limitHit && (
+                                             <div
+                                               className="border-t border-white/5 pt-3 mt-1 flex flex-col gap-2.5"
+                                             >
+                                               <div className="flex items-center gap-2 flex-wrap">
+                                                 {adminSettings.adEnabled && (
+                                                   <button
+                                                     onClick={() => handleWatchAdStep(task)}
+                                                     disabled={currentStep !== 1}
+                                                     className={`flex-1 h-8 rounded-xl text-[9px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                                       currentStep === 1
+                                                         ? 'bg-purple-500/20 border-purple-500/40 text-purple-300 hover:bg-purple-500/30'
+                                                         : currentStep > 1
+                                                         ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 cursor-default'
+                                                         : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                                                     }`}
+                                                   >
+                                                     {currentStep > 1 ? <Check size={10} /> : <Play size={10} />}
+                                                     1. Watch Ad
+                                                   </button>
+                                                 )}
+
+                                                 <button
+                                                   onClick={() => handleJoinLinkStep(task)}
+                                                   disabled={currentStep !== 2}
+                                                   className={`flex-1 h-8 rounded-xl text-[9px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                                     currentStep === 2
+                                                       ? 'bg-cyan-500/15 border-cyan-500/35 text-cyan-300 hover:bg-cyan-500/25'
+                                                       : currentStep > 2
+                                                       ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400 cursor-default'
+                                                       : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                                                   }`}
+                                                 >
+                                                   {currentStep > 2 ? <Check size={10} /> : <Send size={10} />}
+                                                   {adminSettings.adEnabled ? '2.' : '1.'} Join Link
+                                                 </button>
+
+                                                 <button
+                                                   onClick={() => handleVerifyStep(task)}
+                                                   disabled={currentStep !== 3 || status === 'verifying'}
+                                                   className={`flex-1 h-8 rounded-xl text-[9px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border ${
+                                                     status === 'verifying'
+                                                       ? 'bg-[#FF8A00]/15 border-[#FF8A00]/30 text-[#FF8A00] cursor-wait'
+                                                       : currentStep === 3
+                                                       ? 'bg-[#FF8A00]/15 border-[#FF8A00]/30 text-[#FF8A00] hover:bg-[#FF8A00]/25'
+                                                       : 'bg-white/5 border-white/10 text-slate-500 cursor-not-allowed'
+                                                   }`}
+                                                 >
+                                                   {status === 'verifying' ? (
+                                                     <Loader2 size={10} className="animate-spin" />
+                                                   ) : (
+                                                     <Check size={10} />
+                                                   )}
+                                                   {adminSettings.adEnabled ? '3.' : '2.'} Verify
+                                                 </button>
+                                               </div>
+                                             </div>
+                                           )}
+                                            </>
                                           )}
                                         </div>
                                       );
                                     })
                                   )}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
+                                 </motion.div>
+                               )}
+                             </AnimatePresence>
                           </div>
                         );
                       })}

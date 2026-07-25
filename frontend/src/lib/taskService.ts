@@ -26,6 +26,8 @@ export type TaskType =
   | 'discord'
   | 'tiktok'
   | 'instagram'
+  | 'youtube'
+  | 'reddit'
   | 'quiz'
   | 'video'
   | 'daily'
@@ -47,7 +49,7 @@ export interface EForceTask {
   expiryDate: string | null; // ISO date string or null
   answer?: string;       // Correct answer for quiz / text input verification (server validated)
   answerCaseSensitive?: boolean;
-  requireSocialConnection?: 'x' | 'discord' | 'tiktok' | 'instagram' | 'none';
+  requireSocialConnection?: 'x' | 'discord' | 'tiktok' | 'instagram' | 'youtube' | 'reddit' | 'none';
   requireRewardedAd?: boolean;
   cooldownSeconds?: number;
   completedCount: number;

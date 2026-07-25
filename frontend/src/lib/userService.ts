@@ -1405,10 +1405,24 @@ export const adminResetLeaderboard = async (): Promise<number> => {
 export const saveSocialConnection = async (
   telegramId: number,
   platform: keyof SocialConnections,
-  handle: string
+  handle: string,
+  botApiUrl: string = 'http://localhost:4000'
 ): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
   try {
+    // Call server endpoint (handles Firestore update + Telegram notification)
+    try {
+      const res = await fetch(`${botApiUrl.replace(/\/$/, '')}/api/social/connect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramId, platform, handle }),
+      });
+      const resData = await res.json();
+      if (resData.ok) return true;
+    } catch {
+      // Fallback direct Firestore write if server unavailable
+    }
+
     const userRef = doc(db, USERS_COLLECTION, String(telegramId));
     await setDoc(
       userRef,
@@ -1435,10 +1449,23 @@ export const saveSocialConnection = async (
  */
 export const removeSocialConnection = async (
   telegramId: number,
-  platform: keyof SocialConnections
+  platform: keyof SocialConnections,
+  botApiUrl: string = 'http://localhost:4000'
 ): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
   try {
+    try {
+      const res = await fetch(`${botApiUrl.replace(/\/$/, '')}/api/social/disconnect`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramId, platform }),
+      });
+      const resData = await res.json();
+      if (resData.ok) return true;
+    } catch {
+      // Fallback direct Firestore write if server unavailable
+    }
+
     const userRef = doc(db, USERS_COLLECTION, String(telegramId));
     await setDoc(
       userRef,

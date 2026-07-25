@@ -210,9 +210,9 @@ export const Connections = ({
       return;
     }
 
-    // ── Other platforms: save via Firestore directly ──────────────────────────
+    // ── Other platforms: save via server API ──────────────────────────
     setSaving(true);
-    const success = await saveSocialConnection(telegramUser.id, activeModal, rawValue);
+    const success = await saveSocialConnection(telegramUser.id, activeModal, rawValue, adminSettings.botApiUrl);
     setSaving(false);
 
     if (success) {
@@ -227,7 +227,7 @@ export const Connections = ({
   const confirmDisconnect = async () => {
     if (!telegramUser || !disconnectTarget) return;
     setSaving(true);
-    const success = await removeSocialConnection(telegramUser.id, disconnectTarget);
+    const success = await removeSocialConnection(telegramUser.id, disconnectTarget, adminSettings.botApiUrl);
     setSaving(false);
     setDisconnectTarget(null);
 

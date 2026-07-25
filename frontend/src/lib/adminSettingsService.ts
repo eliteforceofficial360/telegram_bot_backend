@@ -60,6 +60,17 @@ export interface AdminSettings {
   botStartMessage: string;       // Custom welcome text sent when user runs /start in Telegram
   botStartButtonText: string;    // Custom text for launch app inline button (e.g. 🔥 Launch Elite Force App 🔥)
 
+  // Notification Center Settings
+  notificationSettings?: {
+    enabled: boolean;
+    events: Record<string, {
+      enabled: boolean;
+      template: string;
+      buttonText: string;
+      buttonTab: string;
+    }>;
+  };
+
   // Force Join & Community Verification Gate
   forceJoinEnabled: boolean;
   telegramChannelUrl: string;

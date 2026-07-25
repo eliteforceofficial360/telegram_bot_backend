@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export type AdminTab = 'dashboard' | 'users' | 'countries' | 'tasks' | 'withdrawals' | 'security' | 'notifications' | 'settings' | 'topminers';
+export type AdminTab = 'dashboard' | 'users' | 'countries' | 'tasks' | 'market' | 'withdrawals' | 'security' | 'notifications' | 'settings' | 'topminers';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -16,6 +16,7 @@ const navItems: { id: AdminTab; label: string; iconClass: string; desc: string; 
   { id: 'users',         label: 'Users Roster',   iconClass: 'fa-solid fa-users-gear',            desc: 'Member Directory',    accentColor: '#60A5FA' },
   { id: 'countries',     label: 'Geographics',    iconClass: 'fa-solid fa-earth-americas',        desc: 'Regional Demographics',accentColor: '#22D3EE' },
   { id: 'tasks',         label: 'Missions',       iconClass: 'fa-solid fa-list-check',            desc: 'Earning Campaigns',    accentColor: '#34D399' },
+  { id: 'market',        label: 'Task Market',    iconClass: 'fa-solid fa-store',                 desc: 'P2P Task Moderation',  accentColor: '#FFD700' },
   { id: 'withdrawals',   label: 'Payouts',        iconClass: 'fa-solid fa-money-bill-transfer',   desc: 'Withdrawal Requests',  accentColor: '#4ADE80' },
   { id: 'security',      label: 'Security Shield',iconClass: 'fa-solid fa-shield-halved',        desc: 'Threats & Moderation', accentColor: '#FB923C' },
   { id: 'notifications', label: 'Broadcasts',     iconClass: 'fa-solid fa-bullhorn',              desc: 'Global Push Alerts',   accentColor: '#C084FC' },
