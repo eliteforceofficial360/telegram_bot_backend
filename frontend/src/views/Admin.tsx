@@ -403,17 +403,37 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>, userId: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Validate file type
+    const isVideo = file.type.startsWith('video/');
+    const isImage = file.type.startsWith('image/');
+    if (!isImage && !isVideo) {
+      showToast('Please select an image or video file.', 'error');
+      return;
+    }
+
+    // Video size limit: 50MB
+    const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      showToast(`File too large. Max size: ${isVideo ? '50MB for videos' : '10MB for images'}.`, 'error');
+      return;
+    }
+
     setUploadingAvatar(true);
+    showToast(isVideo ? '🎬 Uploading video...' : '🖼️ Uploading image...', 'info');
+
     try {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = async () => {
         try {
-          const secureUrl = await uploadImageToBot(reader.result as string, `user_${userId}_${Date.now()}`);
+          const ext = file.name.split('.').pop() || (isVideo ? 'mp4' : 'jpg');
+          const filename = `user_${userId}_${Date.now()}.${ext}`;
+          const secureUrl = await uploadImageToBot(reader.result as string, filename);
           setEditPhotoUrl(secureUrl);
-          showToast('✅ Avatar uploaded successfully!', 'success');
+          showToast(`✅ ${isVideo ? 'Video' : 'Image'} uploaded successfully!`, 'success');
         } catch (err: any) {
-          showToast(err.message || 'Upload failed.', 'error');
+          showToast(err.message || 'Upload failed. Server may be starting up — try again in 30s.', 'error');
         } finally {
           setUploadingAvatar(false);
         }
@@ -437,6 +457,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       riskLevel: editRiskLevel, banStatus: editBanStatus, banUntil,
       leaderboardPinned: editLeaderboardPinned, leaderboardHidden: editLeaderboardHidden,
       isVerified: editIsVerified,
+      // ✅ FIX: Save the updated photo URL to Firestore
+      photoUrl: editPhotoUrl,
     });
     if (ok) {
       const sessionStr = localStorage.getItem('admin_session');
@@ -452,6 +474,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       if ((editingUser.leaderboardPinned ?? false) !== editLeaderboardPinned) changes.push(`Pinned: ${editingUser.leaderboardPinned ?? false} -> ${editLeaderboardPinned}`);
       if ((editingUser.leaderboardHidden ?? false) !== editLeaderboardHidden) changes.push(`Hidden: ${editingUser.leaderboardHidden ?? false} -> ${editLeaderboardHidden}`);
       if ((editingUser.isVerified ?? false) !== editIsVerified) changes.push(`Verified: ${editingUser.isVerified ?? false} -> ${editIsVerified}`);
+      if (editingUser.photoUrl !== editPhotoUrl) changes.push(`Photo updated`);
       if (changes.length > 0) await logAdminAction(typeof adminId === 'number' ? adminId : 0, adminUsername, 'Edit User Profile & Leaderboard', editingUser.telegramId, changes.join(', ')).catch(() => { });
       showToast(`✅ ${editingUser.firstName} updated.`, 'success'); fetchUsers(); setEditingUser(null);
     } else { showToast('Error updating user.', 'error'); }
@@ -1322,10 +1345,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                         />
                                         <label className="h-8 px-3 rounded-lg flex items-center justify-center gap-1 text-[10px] font-bold cursor-pointer transition-all shrink-0 select-none"
                                           style={{ background: 'rgba(255,138,0,0.12)', border: '1px solid rgba(255,138,0,0.22)', color: '#FF8A00' }}>
-                                          {uploadingAvatar ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />} Upload Image
+                                          {uploadingAvatar ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />} {uploadingAvatar ? 'Uploading...' : 'Upload'}
                                           <input
                                             type="file"
-                                            accept="image/*"
+                                            accept="image/*,video/*"
                                             onChange={e => handleAvatarUpload(e, u.telegramId)}
                                             className="hidden"
                                             disabled={uploadingAvatar}

@@ -186,9 +186,10 @@ export const Profile = ({
               : 'bg-gradient-to-tr from-[#FF8A00]/60 to-[#00E5FF]/60'
           }`}>
             <div className="w-full h-full rounded-full bg-[#080d21] flex items-center justify-center text-white font-bold text-xl relative overflow-hidden">
-              {telegramUser?.photoUrl ? (
+              {/* ✅ FIX: Prefer dbUser.photoUrl (updated by admin upload) over telegramUser.photoUrl */}
+              {(dbUser?.photoUrl || telegramUser?.photoUrl) ? (
                 <img
-                  src={telegramUser.photoUrl}
+                  src={dbUser?.photoUrl || telegramUser?.photoUrl || ''}
                   alt={getDisplayName(telegramUser)}
                   className="w-full h-full object-cover rounded-full"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}

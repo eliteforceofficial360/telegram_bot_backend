@@ -548,14 +548,22 @@ const server = http.createServer(async (req, res) => {
         }
       }
 
-      const imgbbUrl = await uploadBase64ToImgbb(image);
-      if (imgbbUrl) return sendJson(res, 200, { secureUrl: imgbbUrl });
+      // ✅ FIX: For videos, ImgBB does NOT support video uploads — skip ImgBB for videos
+      const isVideoUpload = typeof image === 'string' && image.startsWith('data:video/');
 
+      if (!isVideoUpload) {
+        // Images only: try ImgBB
+        const imgbbUrl = await uploadBase64ToImgbb(image);
+        if (imgbbUrl) return sendJson(res, 200, { secureUrl: imgbbUrl });
+      }
+
+      // For both image and video data URLs — store as data URL (last resort)
       if (typeof image === 'string' && (image.startsWith('data:image/') || image.startsWith('data:video/'))) {
+        console.log(`[upload-branding] Storing ${isVideoUpload ? 'video' : 'image'} as data URL (${Math.round(image.length / 1024)}KB)`);
         return sendJson(res, 200, { secureUrl: image });
       }
 
-      return sendJson(res, 400, { error: 'Image processing failed' });
+      return sendJson(res, 400, { error: 'Image/video processing failed. Please configure Cloudinary for video support.' });
     }
 
     // ── POST /notify/message ─────────────────────────────────────────────────
