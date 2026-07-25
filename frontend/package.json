@@ -10,6 +10,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-three/drei": "^10.7.7",
+    "@react-three/fiber": "^9.6.1",
+    "3dsvg": "^0.2.1",
     "canvas-confetti": "^1.9.3",
     "firebase": "^12.16.0",
     "framer-motion": "^11.11.17",
@@ -18,7 +21,8 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-is": "^19.2.7",
-    "recharts": "^3.9.2"
+    "recharts": "^3.9.2",
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",
