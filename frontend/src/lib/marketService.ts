@@ -259,31 +259,53 @@ export function calculateTaskCost(reward: number, workers: number, verificationT
   };
 }
 
+export const PLATFORMS = [
+  { id: 'X', icon: '𝕏', color: '#FFFFFF' },
+  { id: 'Instagram', icon: '📸', color: '#E1306C' },
+  { id: 'Telegram', icon: '✈️', color: '#2AABEE' },
+  { id: 'WhatsApp', icon: '💬', color: '#25D366' },
+  { id: 'Discord', icon: '🎮', color: '#5865F2' },
+  { id: 'TikTok', icon: '🎵', color: '#FF0050' },
+  { id: 'YouTube', icon: '▶️', color: '#FF0000' },
+  { id: 'Reddit', icon: '🔴', color: '#FF4500' },
+  { id: 'Google', icon: '📍', color: '#4285F4' },
+  { id: 'Apps', icon: '📲', color: '#F59E0B' },
+  { id: 'Custom', icon: '✏️', color: '#64748B' },
+];
+
 export const PLATFORM_ACTIONS: Record<string, { label: string; icon: string; baseReward: number }[]> = {
+  X: [
+    { label: 'Like', icon: '❤️', baseReward: 3 },
+    { label: 'Repost', icon: '🔁', baseReward: 5 },
+    { label: 'Bookmark', icon: '🔖', baseReward: 3 },
+    { label: 'Reply', icon: '💬', baseReward: 7 },
+    { label: 'Views (20/1k)', icon: '👁️', baseReward: 20 },
+    { label: 'Follow', icon: '➕', baseReward: 5 },
+    { label: 'Quote', icon: '✏️', baseReward: 7 },
+  ],
+  Instagram: [
+    { label: 'Like', icon: '❤️', baseReward: 3 },
+    { label: 'Follow', icon: '➕', baseReward: 5 },
+    { label: 'Comment', icon: '💬', baseReward: 6 },
+    { label: 'Share Story', icon: '📸', baseReward: 7 },
+    { label: 'Reel View', icon: '▶️', baseReward: 4 },
+  ],
   Telegram: [
-    { label: 'Join Channel', icon: '📢', baseReward: 3 },
+    { label: 'Join Channel', icon: '✈️', baseReward: 3 },
     { label: 'Join Group', icon: '👥', baseReward: 3 },
     { label: 'Join Bot', icon: '🤖', baseReward: 2 },
-    { label: 'React to Post', icon: '❤️', baseReward: 2 },
-    { label: 'Share Story', icon: '📖', baseReward: 4 },
+    { label: 'React to Post', icon: '⭐', baseReward: 2 },
+    { label: 'Share Story', icon: '📷', baseReward: 4 },
   ],
-  X: [
-    { label: 'Follow', icon: '➕', baseReward: 5 },
-    { label: 'Like Post', icon: '❤️', baseReward: 3 },
-    { label: 'Repost', icon: '🔁', baseReward: 5 },
-    { label: 'Comment', icon: '💬', baseReward: 7 },
-    { label: 'Quote Tweet', icon: '✏️', baseReward: 7 },
+  WhatsApp: [
+    { label: 'Join Channel', icon: '💬', baseReward: 3 },
+    { label: 'Join Group', icon: '👥', baseReward: 3 },
+    { label: 'Message Bot', icon: '🤖', baseReward: 3 },
   ],
   Discord: [
     { label: 'Join Server', icon: '🎮', baseReward: 4 },
     { label: 'React to Message', icon: '😀', baseReward: 2 },
     { label: 'Send Message', icon: '💬', baseReward: 5 },
-  ],
-  Instagram: [
-    { label: 'Follow', icon: '➕', baseReward: 5 },
-    { label: 'Like Post', icon: '❤️', baseReward: 3 },
-    { label: 'Comment', icon: '💬', baseReward: 6 },
-    { label: 'Share Story', icon: '📖', baseReward: 7 },
   ],
   TikTok: [
     { label: 'Follow', icon: '➕', baseReward: 5 },
@@ -297,39 +319,22 @@ export const PLATFORM_ACTIONS: Record<string, { label: string; icon: string; bas
     { label: 'Comment', icon: '💬', baseReward: 7 },
     { label: 'Watch Video', icon: '▶️', baseReward: 5 },
   ],
-  Facebook: [
-    { label: 'Like Page', icon: '👍', baseReward: 4 },
-    { label: 'Follow', icon: '➕', baseReward: 4 },
-    { label: 'Share Post', icon: '🔗', baseReward: 6 },
-    { label: 'Join Group', icon: '👥', baseReward: 5 },
+  Reddit: [
+    { label: 'Upvote Post', icon: '⬆️', baseReward: 3 },
+    { label: 'Join Subreddit', icon: '👥', baseReward: 4 },
+    { label: 'Comment', icon: '💬', baseReward: 5 },
   ],
-  Website: [
-    { label: 'Visit', icon: '🌐', baseReward: 3 },
-    { label: 'Sign Up', icon: '📝', baseReward: 10 },
-    { label: 'Fill Form', icon: '📋', baseReward: 8 },
-  ],
-  Quiz: [
-    { label: 'Complete Quiz', icon: '🎯', baseReward: 10 },
+  Google: [
+    { label: 'Review Business', icon: '⭐', baseReward: 10 },
+    { label: 'Search & Click', icon: '🔍', baseReward: 5 },
   ],
   Apps: [
     { label: 'Download & Install', icon: '📲', baseReward: 15 },
-    { label: 'Register', icon: '📝', baseReward: 12 },
+    { label: 'Register Account', icon: '📝', baseReward: 12 },
+    { label: 'Rate App (5 Stars)', icon: '⭐', baseReward: 10 },
   ],
   Custom: [
-    { label: 'Do Task', icon: '✏️', baseReward: 10 },
+    { label: 'Do task', icon: '✏️', baseReward: 10 },
   ],
 };
 
-export const PLATFORMS = [
-  { id: 'Telegram', icon: '✈️', color: '#2AABEE' },
-  { id: 'X', icon: '𝕏', color: '#FFFFFF' },
-  { id: 'Discord', icon: '🎮', color: '#5865F2' },
-  { id: 'Instagram', icon: '📸', color: '#E1306C' },
-  { id: 'TikTok', icon: '🎵', color: '#FF0050' },
-  { id: 'YouTube', icon: '▶️', color: '#FF0000' },
-  { id: 'Facebook', icon: '👤', color: '#1877F2' },
-  { id: 'Website', icon: '🌐', color: '#10B981' },
-  { id: 'Quiz', icon: '❓', color: '#8B5CF6' },
-  { id: 'Apps', icon: '📲', color: '#F59E0B' },
-  { id: 'Custom', icon: '✏️', color: '#64748B' },
-];

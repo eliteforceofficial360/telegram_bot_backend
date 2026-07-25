@@ -151,45 +151,67 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
             className="p-5 rounded-[24px] bg-[#FF8A00]/10 border border-[#FF8A00]/30 space-y-4"
           >
             <h3 className="text-sm font-black text-white flex items-center gap-2">
-              <Sparkles size={16} className="text-[#FF8A00]" /> Submit Your Proof
+              <Sparkles size={16} className="text-[#FF8A00]" /> Submit Your Proof Details
             </h3>
 
-            {task.inputFields.includes('screenshot') && (
+            {/* If task requires input fields or screenshot */}
+            {(!task.inputFields || task.inputFields.length === 0) ? (
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Screenshot Image URL</label>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                  Proof Screenshot / Image URL
+                </label>
                 <input
                   type="text"
                   value={proofUrl}
                   onChange={e => setProofUrl(e.target.value)}
-                  placeholder="https://imgur.com/..."
+                  placeholder="https://imgur.com/... or paste screenshot link"
                   className="w-full px-4 py-3 rounded-[16px] text-xs text-white placeholder-slate-600 focus:outline-none"
                   style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
                 />
               </div>
+            ) : (
+              (task.inputFields || ['screenshot']).map(fieldKey => {
+                const label = fieldKey.replace(/_/g, ' ').toUpperCase();
+                const isScreenshot = fieldKey.toLowerCase().includes('screenshot');
+                return (
+                  <div key={fieldKey} className="space-y-1.5">
+                    <label className="text-[10px] font-black text-[#FFD700] uppercase tracking-widest block">
+                      {label} <span className="text-rose-400">*</span>
+                    </label>
+                    {isScreenshot ? (
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={proofUrl}
+                          onChange={e => setProofUrl(e.target.value)}
+                          placeholder="Paste screenshot URL (https://...)"
+                          className="w-full px-4 py-3 rounded-[16px] text-xs text-white placeholder-slate-600 focus:outline-none"
+                          style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={inputValues[fieldKey] !== undefined ? inputValues[fieldKey] : (fieldKey === 'telegram_username' ? (telegramUser?.username ? `@${telegramUser.username}` : '') : fieldKey === 'uid' ? String(telegramUser?.id || '') : '')}
+                        onChange={e => setInputValues(p => ({ ...p, [fieldKey]: e.target.value }))}
+                        placeholder={`Enter your ${fieldKey.replace(/_/g, ' ')}...`}
+                        className="w-full px-4 py-3 rounded-[16px] text-xs text-white placeholder-slate-600 focus:outline-none"
+                        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
+                      />
+                    )}
+                  </div>
+                );
+              })
             )}
 
-            {task.inputFields.filter(f => f !== 'screenshot').map(fieldKey => (
-              <div key={fieldKey}>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
-                  {fieldKey.replace('_', ' ').toUpperCase()}
-                </label>
-                <input
-                  type="text"
-                  value={inputValues[fieldKey] || ''}
-                  onChange={e => setInputValues(p => ({ ...p, [fieldKey]: e.target.value }))}
-                  placeholder={`Enter your ${fieldKey.replace('_', ' ')}...`}
-                  className="w-full px-4 py-3 rounded-[16px] text-xs text-white placeholder-slate-600 focus:outline-none"
-                  style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-                />
-              </div>
-            ))}
-
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Comments / Additional Details</label>
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">
+                Additional Comments / Proof Notes (Optional)
+              </label>
               <textarea
                 value={proofText}
                 onChange={e => setProofText(e.target.value)}
-                placeholder="Any additional info..."
+                placeholder="Type any extra information for reviewer..."
                 rows={3}
                 className="w-full px-4 py-3 rounded-[16px] text-xs text-white placeholder-slate-600 focus:outline-none resize-none"
                 style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
