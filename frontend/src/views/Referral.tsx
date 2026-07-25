@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Share2, Users, Check, Award } from 'lucide-react';
+import { Copy, Share2, Users, Check, Award, Lock, Sparkles } from 'lucide-react';
 import { getReferralLink, getUserReferrals, type ReferralRecord } from '../lib/referralService';
-import { getReferralTierLimit, type AdminSettings } from '../lib/adminSettingsService';
+import { type AdminSettings } from '../lib/adminSettingsService';
+import {
+  subscribeToReferralTiers,
+  calculateUserReferralTier,
+  type ReferralClaimTier,
+} from '../lib/referralTierService';
 import type { TelegramUser } from '../lib/telegramUser';
 
 interface ReferralProps {
@@ -27,8 +32,22 @@ export const Referral: React.FC<ReferralProps> = ({
   const [referralRecords, setReferralRecords] = useState<ReferralRecord[]>([]);
   const [_loadingReferrals, setLoadingReferrals] = useState(false);
   void _loadingReferrals;
+
+  // Real-time Referral Claim Tiers from Firestore backend (never hardcoded)
+  const [liveTiers, setLiveTiers] = useState<ReferralClaimTier[]>([]);
+
+  useEffect(() => {
+    const unsub = subscribeToReferralTiers(setLiveTiers);
+    return unsub;
+  }, []);
+
   const settings = adminSettings;
   const botUser = settings.botUsername || 'EliteForceBot';
+
+  // Calculate live unlocked tier metrics from real-time database state
+  const tierStatus = calculateUserReferralTier(referralsCount, liveTiers);
+  const unlockedTier = tierStatus.unlockedTier;
+  const nextTier = tierStatus.nextTier;
 
   // Get real referral link
   const referralLink = telegramUser
@@ -76,7 +95,6 @@ export const Referral: React.FC<ReferralProps> = ({
     const shareText = `🚀 Join Elite Force Web3 & start earning EForce Tokens & USDT today! 💥`;
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
 
-    // 1. If running inside Telegram WebApp, use openTelegramLink for native share dialog
     if ((window as any).Telegram?.WebApp?.openTelegramLink) {
       try {
         (window as any).Telegram.WebApp.openTelegramLink(shareUrl);
@@ -87,7 +105,6 @@ export const Referral: React.FC<ReferralProps> = ({
       }
     }
 
-    // 2. Fallback to Web Share API if available
     if (navigator.share) {
       navigator
         .share({
@@ -101,21 +118,12 @@ export const Referral: React.FC<ReferralProps> = ({
       return;
     }
 
-    // 3. Direct Telegram web share link fallback
     window.open(shareUrl, '_blank');
     handleCopy();
   };
 
   const validReferrals = referralRecords.filter(r => r.isValid).length;
   const suspiciousReferrals = referralRecords.filter(r => !r.isValid).length;
-  const withdrawMinReferrals = settings.withdrawMinReferrals;
-  const referralProgress = Math.min((referralsCount / withdrawMinReferrals) * 100, 100);
-  const isWithdrawalUnlocked = referralsCount >= withdrawMinReferrals;
-  void referralProgress;
-  void isWithdrawalUnlocked;
-
-  // Level milestones (0 to 50 referrals)
-  void withdrawMinReferrals;
 
   return (
     <div className="flex flex-col gap-5 pb-28">
@@ -138,6 +146,43 @@ export const Referral: React.FC<ReferralProps> = ({
           )}
         </div>
       )}
+
+      {/* Live Unlocked Tier Status Card */}
+      <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3 relative overflow-hidden bg-gradient-to-br from-[#12182C] via-[#0E1325] to-[#0A0D1B]">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{unlockedTier?.badge?.split(' ')?.[0] || '🏆'}</span>
+            <div>
+              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Active Unlocked Tier</span>
+              <h3 className="text-sm font-black text-white">{unlockedTier?.badge || `Tier (${unlockedTier?.requiredReferrals} Referrals)`}</h3>
+            </div>
+          </div>
+          <div className="text-right">
+            <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Claim Limit</span>
+            <span className="text-sm font-black text-[#FF8A00]">{tierStatus.maxPoints.toLocaleString()} EFC</span>
+          </div>
+        </div>
+
+        {/* Progress to Next Tier */}
+        {nextTier ? (
+          <div className="flex flex-col gap-1.5 mt-1">
+            <div className="flex justify-between items-center text-[10px]">
+              <span className="text-slate-400">Progress to {nextTier.badge || `${nextTier.requiredReferrals} Refs`}</span>
+              <span className="font-bold text-cyan-400">{tierStatus.remainingReferrals} more ref{tierStatus.remainingReferrals !== 1 ? 's' : ''} needed</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-white/5 border border-white/8 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-[#FF8A00] via-[#00E5FF] to-cyan-300 transition-all duration-500"
+                style={{ width: `${tierStatus.progressPct}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="p-2 rounded-xl bg-amber-400/10 border border-amber-400/20 text-center text-[10px] font-black text-amber-300 flex items-center justify-center gap-1 mt-1">
+            <Sparkles size={12} /> HIGHEST MASTER TIER UNLOCKED! (+${tierStatus.currentBonus.toFixed(2)} USDT Bonus)
+          </div>
+        )}
+      </div>
 
       {/* Stats Row */}
       <div className="grid grid-cols-3 gap-2">
@@ -183,47 +228,65 @@ export const Referral: React.FC<ReferralProps> = ({
         </div>
       </div>
 
-      {/* Reward Structure & Claim Limit Tiers (0 to 50 Referrals) */}
+      {/* DYNAMIC REAL-TIME REFERRAL CLAIM LIMIT TIERS (Managed by Admin) */}
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
-            <Award size={13} className="text-[#FF8A00]" /> EFC Claim Limit Tiers (Up to 50 Referrals)
+            <Award size={13} className="text-[#FF8A00]" /> Dynamic Referral Claim Limit Tiers
           </span>
           <span className="text-xs font-black text-[#FF8A00]">
-            {getReferralTierLimit(referralsCount, settings.referralBaseLimit || 5000, settings.referralStepLimit || 5000).maxPoints.toLocaleString()} EFC Max
+            {tierStatus.maxPoints.toLocaleString()} EFC Current Limit
           </span>
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50].map((stepRefs) => {
-            const stepMaxPoints = (settings.referralBaseLimit || 5000) + (stepRefs / 5) * (settings.referralStepLimit || 5000);
-            const isReached = referralsCount >= stepRefs;
+        <div className="flex flex-col gap-2">
+          {liveTiers.filter(t => t.isActive).map((tier) => {
+            const isReached = referralsCount >= tier.requiredReferrals;
+            const isCurrentTier = unlockedTier?.id === tier.id;
+
             return (
               <div
-                key={stepRefs}
-                className={`flex items-center justify-between p-2.5 rounded-[14px] border transition-all ${
-                  isReached
-                    ? 'border-[#FF8A00]/30 bg-[#FF8A00]/10'
-                    : 'border-white/5 bg-white/[0.02]'
+                key={tier.id}
+                className={`flex items-center justify-between p-3 rounded-[16px] border transition-all ${
+                  isCurrentTier
+                    ? 'border-[#FF8A00] bg-[#FF8A00]/15 shadow-[0_0_20px_rgba(255,138,0,0.2)]'
+                    : isReached
+                    ? 'border-emerald-500/30 bg-emerald-500/5'
+                    : 'border-white/5 bg-white/[0.02] opacity-75'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-black ${
-                    isReached ? 'bg-[#FF8A00] text-black' : 'bg-white/5 text-slate-500'
+                <div className="flex items-center gap-3">
+                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                    isCurrentTier
+                      ? 'bg-[#FF8A00] text-black shadow-md'
+                      : isReached
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-white/5 text-slate-500 border border-white/8'
                   }`}>
-                    {isReached ? '✓' : stepRefs}
+                    {isReached ? '✓' : <Lock size={11} />}
                   </div>
-                  <span className="text-[10px] text-slate-300 font-semibold">
-                    {stepRefs === 0 ? 'Regular (0 Referrals)' : `${stepRefs} Referrals`}
-                  </span>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-black text-white">{tier.badge || `${tier.requiredReferrals} Referrals`}</span>
+                      {isCurrentTier && (
+                        <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FF8A00] text-black">
+                          ACTIVE
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[9.5px] text-slate-400 font-mono">
+                      {tier.requiredReferrals === 0 ? 'Base Starter' : `${tier.requiredReferrals} Referrals Required`}
+                    </span>
+                  </div>
                 </div>
+
                 <div className="text-right flex flex-col gap-0.5">
-                  <span className="text-[10px] font-black text-[#FF8A00]">
-                    {stepMaxPoints.toLocaleString()} EFC Limit
+                  <span className="text-xs font-black text-[#FF8A00]">
+                    {tier.claimLimit.toLocaleString()} EFC
                   </span>
-                  {stepRefs > 0 && (
-                    <span className="text-[8px] font-bold text-emerald-400">
-                      +${(settings.referralRewardUsdt * stepRefs).toFixed(2)} USDT Bonus
+                  {tier.bonusUSDT > 0 && (
+                    <span className="text-[9px] font-bold text-emerald-400">
+                      +${tier.bonusUSDT.toFixed(2)} USDT Bonus
                     </span>
                   )}
                 </div>
@@ -231,8 +294,9 @@ export const Referral: React.FC<ReferralProps> = ({
             );
           })}
         </div>
-        <p className="text-[9px] text-slate-500 text-center">
-          Base limit: {(settings.referralBaseLimit || 5000).toLocaleString()} EFC (0 refs). Every 5 referrals unlocks +{(settings.referralStepLimit || 5000).toLocaleString()} EFC claim capacity up to 50 refs!
+
+        <p className="text-[9px] text-slate-500 text-center mt-1">
+          ⚡ Tiers & limits update instantly in real-time when configured by Admin.
         </p>
       </div>
 

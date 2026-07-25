@@ -67,13 +67,14 @@ body {
   z-index: 999;
 }
 
-/* Premium Gradient Background Layers */
+/* Premium Gradient Background Layers — Optimized for zero scroll lag */
 .bg-experience {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
   background: #050816;
+  contain: strict;
 }
 
 .bg-layer-gradient {
@@ -82,22 +83,20 @@ body {
   background: radial-gradient(circle at 50% 0%, #0E1225 0%, #050816 75%);
 }
 
+/* Soft radial gradient auroras — NO filter:blur to avoid GPU repaint bottleneck during scroll */
 .bg-layer-aurora {
   position: absolute;
   top: -10%;
   left: 50%;
-  width: 150%;
-  height: 80%;
+  width: 140%;
+  height: 70%;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(0, 229, 255, 0.05) 0%, rgba(179, 136, 255, 0.04) 40%, rgba(5, 8, 22, 0) 70%);
-  filter: blur(80px);
-  will-change: transform;
+  background: radial-gradient(ellipse at center, rgba(0, 229, 255, 0.07) 0%, rgba(179, 136, 255, 0.04) 40%, transparent 70%);
   transform: translate(-50%, 0);
   animation: aurora-spin 45s linear infinite;
   transform-origin: center center;
-  /* strict এর বদলে layout + style — paint বাদ দেওয়া হলো,
-     কারণ paint containment blur-কে বক্সের কিনারায় কেটে দিচ্ছিল */
-  contain: layout style;
+  will-change: transform;
+  pointer-events: none;
 }
 
 .bg-layer-aurora-secondary {
@@ -107,12 +106,11 @@ body {
   width: 100%;
   height: 60%;
   border-radius: 999px;
-  background: radial-gradient(circle, rgba(77, 140, 255, 0.04) 0%, rgba(179, 136, 255, 0.03) 50%, rgba(5, 8, 22, 0) 80%);
-  filter: blur(90px);
-  will-change: transform;
+  background: radial-gradient(ellipse at center, rgba(77, 140, 255, 0.05) 0%, rgba(179, 136, 255, 0.03) 50%, transparent 75%);
   animation: aurora-spin 60s linear infinite reverse;
   transform-origin: center center;
-  contain: layout style;
+  will-change: transform;
+  pointer-events: none;
 }
 
 @keyframes aurora-spin {
@@ -121,7 +119,7 @@ body {
   }
 
   50% {
-    transform: translate(-50%, -50%) rotate(180deg) scale(1.1);
+    transform: translate(-50%, -50%) rotate(180deg) scale(1.08);
   }
 
   100% {
@@ -129,19 +127,16 @@ body {
   }
 }
 
-/* কম শক্তিশালী ডিভাইসে aurora পুরোপুরি বন্ধ করে দাও (নতুন) */
+/* Reduced motion fallback */
 @media (max-width: 480px),
 (prefers-reduced-motion: reduce) {
-
   .bg-layer-aurora,
   .bg-layer-aurora-secondary {
     animation: none !important;
-    filter: blur(60px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-
   .particle,
   .animate-spin-slow {
     animation: none !important;
@@ -152,67 +147,51 @@ body {
   }
 }
 
-/* Glassmorphism শেয়ার্ড বেস — ডুপ্লিকেট কোড কমানোর জন্য (নতুন) */
+/* Glassmorphism — High performance setup with solid translucent fallback to prevent scroll lag */
 .glass-base {
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 18, 35, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   transform: translateZ(0);
 }
 
-/* backdrop-filter সাপোর্ট না থাকলে (পুরনো Android WebView) ফলব্যাক */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-
-  .glass-base,
-  .glass-panel,
-  .glass-card-interactive,
-  .glass-btn {
-    background: rgba(18, 24, 45, 0.92) !important;
-  }
-}
-
 .glass-panel {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 18, 35, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   transform: translateZ(0);
   contain: layout style;
 }
 
 .glass-card-interactive {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 18, 35, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  transform: translateZ(0);
 }
 
 .glass-card-interactive:hover,
 .glass-card-interactive:active {
-  transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.05);
+  transform: translateY(-2px) translateZ(0);
+  background: rgba(22, 28, 52, 0.90);
   border-color: rgba(0, 229, 255, 0.25);
-  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.4), 0 0 30px rgba(0, 229, 255, 0.05);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 229, 255, 0.05);
 }
 
 .glass-btn {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
+  transform: translateZ(0);
 }
 
 .glass-btn:hover,
 .glass-btn:active {
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.10);
   border-color: rgba(0, 229, 255, 0.35);
-  transform: translateY(-1px) scale(1.02);
-  box-shadow: 0 0 25px rgba(0, 229, 255, 0.15);
+  transform: translateY(-1px) scale(1.02) translateZ(0);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.15);
 }
 
 /* Glow Effects */
@@ -269,6 +248,112 @@ body {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* ─── Mining Reactor Animations ──────────────────────────────── */
+
+/* Rotating dashed orbit border */
+@keyframes mining-ring-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.mining-ring-spin {
+  animation: mining-ring-spin 14s linear infinite;
+  will-change: transform;
+  transform-origin: center;
+}
+.mining-ring-spin-reverse {
+  animation: mining-ring-spin 20s linear infinite reverse;
+  will-change: transform;
+  transform-origin: center;
+}
+
+/* Pulse glow ring — fires every ~4 s */
+@keyframes mining-pulse-ring {
+  0%   { transform: scale(1);    opacity: 0.6; }
+  60%  { transform: scale(1.06); opacity: 0.25; }
+  100% { transform: scale(1);    opacity: 0; }
+}
+.mining-pulse-ring {
+  animation: mining-pulse-ring 4s cubic-bezier(0.25, 0.46, 0.45, 0.94) infinite;
+  will-change: transform, opacity;
+}
+
+/* Gentle bob animation for the coin wrapper */
+@keyframes mining-bob {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+.mining-bob {
+  animation: mining-bob 3.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Golden particle float — bottom to top */
+@keyframes gold-particle-float {
+  0%   { transform: translate3d(0, 0, 0) scale(1);    opacity: 0; }
+  15%  { opacity: 0.75; }
+  85%  { opacity: 0.5; }
+  100% { transform: translate3d(var(--tx, 20px), -160px, 0) scale(0.4); opacity: 0; }
+}
+.gold-particle {
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+  will-change: transform, opacity;
+  animation: gold-particle-float var(--dur, 4s) var(--delay, 0s) linear infinite;
+  contain: layout;
+}
+
+/* Mining card entrance slide-up */
+@keyframes mining-card-enter {
+  from { transform: translateY(18px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.mining-card-enter {
+  animation: mining-card-enter 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Progress bar shimmer — uses translateX so it is GPU composited, no paint */
+@keyframes progress-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.progress-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.22) 50%,
+    transparent 100%
+  );
+  animation: progress-shimmer 2s linear infinite;
+  will-change: transform;
+}
+
+/* Completed state: pulse using opacity only — GPU composited, zero paint cost */
+@keyframes completed-aura {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50%       { opacity: 1;    transform: scale(1.04); }
+}
+.completed-aura {
+  animation: completed-aura 2.5s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Suppress all mining animations for reduced-motion users */
+@media (prefers-reduced-motion: reduce) {
+  .mining-ring-spin,
+  .mining-ring-spin-reverse,
+  .mining-pulse-ring,
+  .mining-bob,
+  .gold-particle,
+  .progress-shimmer,
+  .completed-aura {
+    animation: none !important;
+  }
+  .gold-particle { display: none; }
 }
 
 /* Floating particles */

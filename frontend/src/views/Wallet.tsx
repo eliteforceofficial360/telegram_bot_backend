@@ -207,12 +207,10 @@ export const Wallet: React.FC<WalletProps> = ({
           if (withdrawAsset === 'usdt') {
             const newWalletBalance = Math.max(0, usdtBalance - amountNum);
             setUsdtBalance(newWalletBalance);
-            updateUserDatabaseValues(telegramUser.id, { wallet: newWalletBalance }).catch(() => {});
             showToast(`Withdrawal request of $${amountNum} USDT submitted!`, 'success');
           } else {
             const newTokenBalance = Math.max(0, eforceTokens - amountNum);
             setEforceTokens(newTokenBalance);
-            updateUserDatabaseValues(telegramUser.id, { tokens: newTokenBalance }).catch(() => {});
             showToast(`Withdrawal request of ${amountNum.toFixed(3)} EForce Token submitted!`, 'success');
           }
           confetti({ particleCount: 20, spread: 45, origin: { y: 0.6 }, ticks: 80, disableForReducedMotion: true, colors: ['#00FF88', '#00E5FF', '#ffffff'] });

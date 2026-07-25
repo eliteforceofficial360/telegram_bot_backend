@@ -8,7 +8,7 @@ import {
   getUploadFolder,
   getCloudinaryStatus,
 } from './uploadService.js';
-import { getFirestore } from 'firebase-admin/firestore';
+import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
   getXOAuthAuthUrl,
   handleXOAuthCallback,
@@ -19,19 +19,23 @@ import {
 
 dotenv.config();
 
-// ── Required env vars — validate BOT_TOKEN (with default fallback) ──────
-const token = process.env.BOT_TOKEN || '8826126541:AAFidDH7x2gqEhjI4ahxPe8htD0jZmuOorA';
-if (!process.env.BOT_TOKEN) {
-  console.warn('⚠️ BOT_TOKEN not set in Render environment variables. Using default fallback token.');
+// ── Required env vars — validate BOT_TOKEN ──────────────────────────────────
+const token = process.env.BOT_TOKEN;
+if (!token) {
+  console.error('❌ FATAL: BOT_TOKEN env var is not set. The bot cannot start without it.');
+  process.exit(1);
 }
 
 const BASE_APP_URL = 'https://mini-telegram-app-c0fb4.web.app';
 let webAppUrlRaw = (process.env.MINI_APP_URL || BASE_APP_URL).trim();
 const webAppUrl = webAppUrlRaw.includes('firebaseapp.com') || webAppUrlRaw.includes('web.app') || webAppUrlRaw.includes('localhost') ? (webAppUrlRaw.endsWith('/') ? webAppUrlRaw.slice(0, -1) : webAppUrlRaw) : BASE_APP_URL;
 const API_PORT = process.env.API_PORT || 4000;
-const API_SECRET = process.env.API_SECRET || 'https://elite-force-telegram-app.onrender.com';
-const IMGBB_API_KEY = process.env.IMGBB_API_KEY || '6d70077319714757c9a96e622b78edc3';
-const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyA3flAWMnQiYeVAOCv_je0SLExI5Vxol4Y';
+const API_SECRET = process.env.API_SECRET || '';
+if (!process.env.API_SECRET) {
+  console.warn('⚠️ API_SECRET env var not set. Protected endpoints will reject all requests.');
+}
+const IMGBB_API_KEY = process.env.IMGBB_API_KEY || '';
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || '';
 const RECAPTCHA_PROJECT_ID = process.env.RECAPTCHA_PROJECT_ID; // e.g. 'balmy-access-465013-m7'
 const RECAPTCHA_SITE_KEY = process.env.RECAPTCHA_SITE_KEY;
 
@@ -49,6 +53,31 @@ function getEffectiveAppUrl() {
   let raw = (dynamicSettings.miniAppUrl || process.env.MINI_APP_URL || BASE_APP_URL).trim();
   if (raw.endsWith('/')) raw = raw.slice(0, -1);
   return raw;
+}
+
+/**
+ * Cryptographically validates Telegram WebApp initData string using HMAC-SHA256.
+ */
+function validateTelegramInitData(initData) {
+  if (!initData) return false;
+  try {
+    const urlParams = new URLSearchParams(initData);
+    const hash = urlParams.get('hash');
+    if (!hash) return false;
+    urlParams.delete('hash');
+
+    const dataCheckString = Array.from(urlParams.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, val]) => `${key}=${val}`)
+      .join('\n');
+
+    const secretKey = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
+    const calculatedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
+
+    return calculatedHash === hash;
+  } catch {
+    return false;
+  }
 }
 
 function getWelcomeMessage(firstName = 'Force Agent') {
@@ -388,7 +417,15 @@ bot.command('status', async (ctx) => {
 
 const server = http.createServer(async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Restrict CORS to the known app origin and localhost for dev
+  const allowedOrigins = [
+    'https://mini-telegram-app-c0fb4.web.app',
+    'https://mini-telegram-app-c0fb4.firebaseapp.com',
+    BASE_APP_URL,
+  ].filter(Boolean);
+  const origin = req.headers['origin'] || '';
+  const corsOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
@@ -536,6 +573,257 @@ const server = http.createServer(async (req, res) => {
       }
 
       return sendJson(res, 200, { isMember: allJoined, results });
+    }
+
+    // ── PUBLIC: GET /api/referral/tiers ──────────────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/referral/tiers')) {
+      try {
+        const snap = await db.collection('referral_claim_tiers').get();
+        let tiers = [];
+        if (!snap.empty) {
+          tiers = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+          tiers = tiers.filter(t => t.isActive !== false);
+          tiers.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || (a.requiredReferrals || 0) - (b.requiredReferrals || 0));
+        }
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        return sendJson(res, 200, { ok: true, tiers });
+      } catch (err) {
+        console.error('[API] GET /api/referral/tiers error:', err);
+        return sendJson(res, 500, { ok: false, error: 'Failed to fetch referral claim tiers' });
+      }
+    }
+
+    // ── PUBLIC: GET /api/referral/me ─────────────────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/referral/me')) {
+      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+      const telegramId = urlParams.get('telegramId');
+      if (!isValidTelegramId(telegramId)) {
+        return sendJson(res, 400, { ok: false, error: 'valid telegramId is required' });
+      }
+
+      try {
+        const userDoc = await db.collection('users').doc(String(telegramId)).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+        const referralCount = Number(userData.referrals || 0);
+
+        const snap = await db.collection('referral_claim_tiers').get();
+        let tiers = [];
+        if (!snap.empty) {
+          tiers = snap.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+          tiers = tiers.filter(t => t.isActive !== false);
+          tiers.sort((a, b) => (a.requiredReferrals || 0) - (b.requiredReferrals || 0));
+        }
+
+        if (tiers.length === 0) {
+          tiers = [
+            { id: 'tier_0', requiredReferrals: 0, claimLimit: 5000, bonusUSDT: 0, badge: 'Starter', isActive: true, sortOrder: 1 }
+          ];
+        }
+
+        let unlockedIndex = 0;
+        for (let i = 0; i < tiers.length; i++) {
+          if (referralCount >= tiers[i].requiredReferrals) unlockedIndex = i;
+          else break;
+        }
+
+        const unlockedTier = tiers[unlockedIndex];
+        const nextTier = unlockedIndex < tiers.length - 1 ? tiers[unlockedIndex + 1] : null;
+        const remainingReferrals = nextTier ? Math.max(0, nextTier.requiredReferrals - referralCount) : 0;
+
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        return sendJson(res, 200, {
+          ok: true,
+          referralCount,
+          unlockedTier,
+          currentClaimLimit: unlockedTier.claimLimit,
+          currentBonus: unlockedTier.bonusUSDT,
+          nextTier,
+          remainingReferrals,
+          isMaxTier: !nextTier,
+        });
+      } catch (err) {
+        console.error('[API] GET /api/referral/me error:', err);
+        return sendJson(res, 500, { ok: false, error: 'Failed to fetch user referral status' });
+      }
+    }
+
+    // ── PUBLIC: GET /api/x/auth-url ─────────────────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/x/auth-url')) {
+      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+      const telegramId = urlParams.get('telegramId');
+      if (!isValidTelegramId(telegramId)) {
+        return sendJson(res, 400, { error: 'telegramId is required' });
+      }
+      try {
+        const authData = getXOAuthAuthUrl(telegramId);
+        return sendJson(res, 200, { ok: true, ...authData });
+      } catch (err) {
+        console.error('[API] GET /api/x/auth-url error:', err.message);
+        return sendJson(res, 500, { ok: false, error: err.message });
+      }
+    }
+
+    // ── PUBLIC: POST /api/x/callback ────────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/x/callback') {
+      let bodyData;
+      try {
+        bodyData = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { error: 'Invalid JSON' });
+      }
+      const { code, state, codeVerifier } = bodyData;
+      if (!code) return sendJson(res, 400, { error: 'OAuth code is required' });
+      try {
+        const result = await handleXOAuthCallback(code, state, codeVerifier);
+        return sendJson(res, 200, { ok: true, ...result });
+      } catch (err) {
+        console.error('[OAuth Callback] handleXOAuthCallback error:', err.message);
+        return sendJson(res, 400, { ok: false, error: err.message });
+      }
+    }
+
+    // ── PUBLIC: GET /api/x/verify-oauth-session ─────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/x/verify-oauth-session')) {
+      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
+      const sessionToken = urlParams.get('sessionToken');
+
+      if (!sessionToken) {
+        return sendJson(res, 400, { ok: false, error: 'sessionToken is required' });
+      }
+
+      const session = verifyOAuthSession(sessionToken);
+      if (!session) {
+        return sendJson(res, 401, { ok: false, error: 'Invalid or expired OAuth session token' });
+      }
+
+      console.log(`✅ [verify-oauth-session] Verified: telegramId=${session.telegramId} xUsername=@${session.xUsername}`);
+      return sendJson(res, 200, {
+        ok: true,
+        telegramId: session.telegramId,
+        xUsername: session.xUsername,
+        xUserId: session.xUserId,
+      });
+    }
+
+    // ── PUBLIC: POST /api/x/verify-task ─────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/x/verify-task') {
+      let bodyData;
+      try {
+        bodyData = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { error: 'Invalid JSON' });
+      }
+      const { telegramId, taskId, taskType, targetId, rewardAmount } = bodyData;
+      if (!isValidTelegramId(telegramId) || !taskId) {
+        return sendJson(res, 400, { error: 'valid telegramId and taskId required' });
+      }
+      const result = await verifyXTask(telegramId, taskId, taskType, targetId, rewardAmount || 100);
+      return sendJson(res, 200, result);
+    }
+
+    // ── PUBLIC: POST /api/tasks/verify ───────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/tasks/verify') {
+      let bodyData;
+      try {
+        bodyData = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { success: false, error: 'Invalid JSON' });
+      }
+      const { telegramId, taskId, taskType, userAnswer, adCompleted, requireSocialConnection } = bodyData;
+      if (!isValidTelegramId(telegramId) || !taskId) {
+        return sendJson(res, 400, { success: false, error: 'valid telegramId and taskId required' });
+      }
+
+      const numId = Number(telegramId);
+      const dbInstance = getFirestore();
+
+      try {
+        // 1. Check Duplicate Task Completion
+        const userTaskRef = dbInstance.collection('userTasks').doc(`${numId}_${taskId}`);
+        const userTaskSnap = await userTaskRef.get();
+        if (userTaskSnap.exists) {
+          return sendJson(res, 200, { success: false, error: 'Task Already Completed', isCompleted: true });
+        }
+
+        // 2. Check Task Definition in Firestore
+        const taskRef = dbInstance.collection('tasks').doc(String(taskId));
+        const taskSnap = await taskRef.get();
+        if (!taskSnap.exists) {
+          return sendJson(res, 404, { success: false, error: 'Task not found' });
+        }
+
+        const taskData = taskSnap.data();
+
+        // 3. Verify Answer / Quiz Solution on Server
+        if (taskData.answer && String(taskData.answer).trim()) {
+          const expected = String(taskData.answer).trim();
+          const provided = String(userAnswer || '').trim();
+          const isMatch = taskData.answerCaseSensitive ? expected === provided : expected.toLowerCase() === provided.toLowerCase();
+          if (!isMatch) {
+            return sendJson(res, 200, { success: false, error: '❌ Incorrect Answer. Please check your answer and try again.' });
+          }
+        }
+
+        // 4. Verify Social OAuth Connection on Server
+        const requiredPlatform = requireSocialConnection || taskData.requireSocialConnection;
+        if (requiredPlatform && requiredPlatform !== 'none') {
+          const userRef = dbInstance.collection('users').doc(String(numId));
+          const userSnap = await userRef.get();
+          const userData = userSnap.exists ? userSnap.data() : {};
+          const conn = userData.socialConnections?.[requiredPlatform];
+          if (!conn || !conn.connected) {
+            return sendJson(res, 200, {
+              success: false,
+              error: `Verification Failed: Please connect your ${requiredPlatform.toUpperCase()} account in Profile first!`,
+              requirePlatform: requiredPlatform,
+            });
+          }
+        }
+
+        // 5. Verify Rewarded Ad Completion (only if task explicitly requires it)
+        if (taskData.requireRewardedAd === true && !adCompleted) {
+          return sendJson(res, 200, {
+            success: false,
+            error: 'Verification Cancelled: You must watch the complete advertisement to verify this task.',
+          });
+        }
+
+        // 6. Grant Reward & Store Completion Record
+        const rewardPoints = taskData.reward || 100;
+        const tokenReward = taskData.tokenReward || 0;
+
+        const batch = dbInstance.batch();
+        batch.set(userTaskRef, {
+          taskId: String(taskId),
+          telegramId: numId,
+          completedAt: FieldValue.serverTimestamp(),
+          rewardClaimed: true,
+          rewardPoints,
+          tokenReward,
+        });
+
+        const userRef = dbInstance.collection('users').doc(String(numId));
+        batch.set(userRef, {
+          points: FieldValue.increment(rewardPoints),
+          tokens: FieldValue.increment(tokenReward),
+        }, { merge: true });
+
+        batch.update(taskRef, {
+          completedCount: FieldValue.increment(1),
+        });
+
+        await batch.commit();
+
+        return sendJson(res, 200, {
+          success: true,
+          reward: rewardPoints,
+          tokenReward: tokenReward,
+          message: 'Task Completed',
+        });
+      } catch (err) {
+        console.error('[Bot] Task Verification Error:', err.message);
+        return sendJson(res, 500, { success: false, error: 'Server error during task verification.' });
+      }
     }
 
     // ── Everything below requires Authorization: Bearer <API_SECRET> ────────
@@ -717,163 +1005,7 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok });
     }
 
-    // ── X (TWITTER) OAUTH & VERIFICATION ENGINE ENDPOINTS ────────────────────
 
-    if (req.method === 'GET' && url.startsWith('/api/x/auth-url')) {
-      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
-      const telegramId = urlParams.get('telegramId');
-      if (!isValidTelegramId(telegramId)) {
-        return sendJson(res, 400, { error: 'telegramId is required' });
-      }
-      const authData = getXOAuthAuthUrl(telegramId);
-      return sendJson(res, 200, { ok: true, ...authData });
-    }
-
-    if (req.method === 'POST' && url === '/api/x/callback') {
-      const { code, state, codeVerifier } = data;
-      if (!code) return sendJson(res, 400, { error: 'OAuth code is required' });
-      try {
-        const result = await handleXOAuthCallback(code, state, codeVerifier);
-        return sendJson(res, 200, { ok: true, ...result });
-      } catch (err) {
-        console.error('[OAuth Callback] handleXOAuthCallback error:', err.message);
-        return sendJson(res, 400, { ok: false, error: err.message });
-      }
-    }
-
-    // ── GET /api/x/verify-oauth-session ──────────────────────────────────────
-    // Called by the Mini App after it resumes via startapp=oauth_success.
-    // Verifies the one-time sessionToken stored in localStorage by OAuthCallbackPage.
-    // On success marks the user's X connection as confirmed and returns user info.
-    if (req.method === 'GET' && url.startsWith('/api/x/verify-oauth-session')) {
-      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
-      const sessionToken = urlParams.get('sessionToken');
-
-      if (!sessionToken) {
-        return sendJson(res, 400, { ok: false, error: 'sessionToken is required' });
-      }
-
-      const session = verifyOAuthSession(sessionToken);
-      if (!session) {
-        return sendJson(res, 401, { ok: false, error: 'Invalid or expired OAuth session token' });
-      }
-
-      console.log(`✅ [verify-oauth-session] Verified: telegramId=${session.telegramId} xUsername=@${session.xUsername}`);
-      return sendJson(res, 200, {
-        ok: true,
-        telegramId: session.telegramId,
-        xUsername: session.xUsername,
-        xUserId: session.xUserId,
-      });
-    }
-
-    if (req.method === 'POST' && url === '/api/x/verify-task') {
-      const { telegramId, taskId, taskType, targetId, rewardAmount } = data;
-      if (!isValidTelegramId(telegramId) || !taskId) {
-        return sendJson(res, 400, { error: 'valid telegramId and taskId required' });
-      }
-      const result = await verifyXTask(telegramId, taskId, taskType, targetId, rewardAmount || 100);
-      return sendJson(res, 200, result);
-    }
-
-    // ── PUBLIC: POST /api/tasks/verify ───────────────────────────────────────
-    if (req.method === 'POST' && url === '/api/tasks/verify') {
-      const { telegramId, taskId, taskType, userAnswer, adCompleted, requireSocialConnection } = data;
-      if (!isValidTelegramId(telegramId) || !taskId) {
-        return sendJson(res, 400, { success: false, error: 'valid telegramId and taskId required' });
-      }
-
-      const numId = Number(telegramId);
-      const db = getFirestore();
-
-      try {
-        // 1. Check Duplicate Task Completion
-        const userTaskRef = db.collection('userTasks').doc(`${numId}_${taskId}`);
-        const userTaskSnap = await userTaskRef.get();
-        if (userTaskSnap.exists) {
-          return sendJson(res, 200, { success: false, error: 'Task Already Completed', isCompleted: true });
-        }
-
-        // 2. Check Task Definition in Firestore
-        const taskRef = db.collection('tasks').doc(String(taskId));
-        const taskSnap = await taskRef.get();
-        if (!taskSnap.exists) {
-          return sendJson(res, 404, { success: false, error: 'Task not found' });
-        }
-
-        const taskData = taskSnap.data();
-
-        // 3. Verify Answer / Quiz Solution on Server
-        if (taskData.answer && String(taskData.answer).trim()) {
-          const expected = String(taskData.answer).trim();
-          const provided = String(userAnswer || '').trim();
-          const isMatch = taskData.answerCaseSensitive ? expected === provided : expected.toLowerCase() === provided.toLowerCase();
-          if (!isMatch) {
-            return sendJson(res, 200, { success: false, error: '❌ Incorrect Answer. Please check your answer and try again.' });
-          }
-        }
-
-        // 4. Verify Social OAuth Connection on Server
-        const requiredPlatform = requireSocialConnection || taskData.requireSocialConnection;
-        if (requiredPlatform && requiredPlatform !== 'none') {
-          const userRef = db.collection('users').doc(String(numId));
-          const userSnap = await userRef.get();
-          const userData = userSnap.exists ? userSnap.data() : {};
-          const conn = userData.socialConnections?.[requiredPlatform];
-          if (!conn || !conn.connected) {
-            return sendJson(res, 200, {
-              success: false,
-              error: `Verification Failed: Please connect your ${requiredPlatform.toUpperCase()} account in Profile first!`,
-              requirePlatform: requiredPlatform,
-            });
-          }
-        }
-
-        // 5. Verify Rewarded Ad Completion
-        if (taskData.requireRewardedAd !== false && !adCompleted) {
-          return sendJson(res, 200, {
-            success: false,
-            error: 'Verification Cancelled: You must watch the complete advertisement to verify this task.',
-          });
-        }
-
-        // 6. Grant Reward & Store Completion Record
-        const rewardPoints = taskData.reward || 100;
-        const tokenReward = taskData.tokenReward || 0;
-
-        const batch = db.batch();
-        batch.set(userTaskRef, {
-          taskId: String(taskId),
-          telegramId: numId,
-          completedAt: FieldValue.serverTimestamp(),
-          rewardClaimed: true,
-          rewardPoints,
-          tokenReward,
-        });
-
-        const userRef = db.collection('users').doc(String(numId));
-        batch.set(userRef, {
-          points: FieldValue.increment(rewardPoints),
-          tokens: FieldValue.increment(tokenReward),
-        }, { merge: true });
-
-        batch.update(taskRef, {
-          completedCount: FieldValue.increment(1),
-        });
-
-        await batch.commit();
-
-        return sendJson(res, 200, {
-          success: true,
-          reward: rewardPoints,
-          tokenReward: tokenReward,
-          message: 'Task Completed',
-        });
-      } catch (err) {
-        console.error('[Bot] Task Verification Error:', err.message);
-        return sendJson(res, 500, { success: false, error: 'Server error during task verification.' });
-      }
-    }
 
     return sendJson(res, 404, { error: 'Not found' });
   } catch (err) {

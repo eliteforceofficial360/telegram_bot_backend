@@ -988,7 +988,15 @@ function App() {
 
 
         {/* Dynamic content scroll area */}
-        <div className="flex-1 overflow-y-auto px-5 pt-4 pb-20 custom-scrollbar relative z-10">
+        <div
+          className="flex-1 overflow-y-auto px-5 pt-4 pb-20 custom-scrollbar relative z-10"
+          style={{
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehaviorY: 'contain',
+            willChange: 'scroll-position',
+            transform: 'translateZ(0)',
+          }}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}

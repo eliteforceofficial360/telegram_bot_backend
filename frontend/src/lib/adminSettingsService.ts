@@ -18,12 +18,15 @@ export interface AdminSettings {
   energyMax: number;
 
   // Daily Check-in rewards per day (Day 1–7, then cycles)
-  dailyClaimRewards: number[];  // [100, 150, 200, 300, 500, 750, 1000]
+  dailyClaimRewards: number[];          // Standard users [100, 150, 200, 300, 500, 750, 1000]
+  premiumDailyClaimRewards: number[];   // Telegram Premium users [200, 300, 400, 600, 1000, 1500, 2000]
 
-  // Auto Miner
-  autoMinerDuration: number;    // seconds (default 300 = 5min)
-  autoMinerReward: number;      // EForce per session
-  autoMinerCooldown: number;    // seconds (default 86400 = 24h)
+  // Auto Miner (Standard vs Telegram Premium)
+  autoMinerDuration: number;            // Standard seconds (default 300 = 5min)
+  autoMinerReward: number;              // Standard EForce per session
+  premiumAutoMinerDuration: number;     // Telegram Premium seconds (default 300 = 5min or custom)
+  premiumAutoMinerReward: number;       // Telegram Premium EForce per session
+  autoMinerCooldown: number;            // seconds (default 86400 = 24h)
   autoMinerPremiumOnly: boolean;
 
   // Referral
@@ -39,15 +42,17 @@ export interface AdminSettings {
   // Ads / Monetag
   adEnabled: boolean;
   adDailyLimit: number;
-  adRewardAmount: number;   // EForce per ad watch
-  monetagZoneId: string;    // Monetag Zone ID (e.g. '11271101')
-  monetagDirectLink?: string; // Optional Monetag Direct Smartlink fallback URL
+  adRewardAmount: number;        // Standard EForce per ad watch
+  premiumAdRewardAmount: number; // Telegram Premium EForce per ad watch
+  monetagZoneId: string;         // Monetag Zone ID (e.g. '11271101')
+  monetagDirectLink?: string;    // Optional Monetag Direct Smartlink fallback URL
   adRequireDailyClaim: boolean;
   adRequireTasks: boolean;
   adRequireAutoMiner: boolean;
   adTokenReward: number;         // Tokens reward per ad watch task
   adDailyLimitNormal: number;    // Ad watch limit normal
   adDailyLimitPremium: number;   // Ad watch limit premium
+
 
   // Bot Notifications & App Configuration
   botApiUrl: string;             // Backend bot API URL for push notifications
@@ -122,8 +127,11 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   comboReward: 3,
   energyMax: 1000,
   dailyClaimRewards: [100, 150, 200, 300, 500, 750, 1000],
+  premiumDailyClaimRewards: [200, 300, 400, 600, 1000, 1500, 2000],
   autoMinerDuration: 300,
   autoMinerReward: 500,
+  premiumAutoMinerDuration: 300,
+  premiumAutoMinerReward: 1000,
   autoMinerCooldown: 86400,
   autoMinerPremiumOnly: false,
   referralRewardUsdt: 0.05,
@@ -137,6 +145,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   adEnabled: true,
   adDailyLimit: 5,
   adRewardAmount: 100,
+  premiumAdRewardAmount: 200,
   monetagZoneId: '11271101',
   monetagDirectLink: '',
   adRequireDailyClaim: false,

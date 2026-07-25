@@ -4,8 +4,6 @@
 import {
   collection,
   doc,
-  getDoc,
-  setDoc,
   addDoc,
   updateDoc,
   deleteDoc,
@@ -16,6 +14,7 @@ import {
   getDocs,
   orderBy,
   Timestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 
@@ -214,47 +213,53 @@ export const claimTaskReward = async (
 
   const docId = `${telegramId}_${task.id}`;
   const userTaskRef = doc(db, USER_TASKS_COLLECTION, docId);
+  const taskRef = doc(db, TASKS_COLLECTION, task.id);
 
   try {
-    const existing = await getDoc(userTaskRef);
-    if (existing.exists()) {
-      const rec = existing.data() as UserTaskRecord;
-      const today = new Date().toISOString().slice(0, 10);
+    await runTransaction(db, async (transaction) => {
+      const existing = await transaction.get(userTaskRef);
 
-      // For daily tasks: allow repeat if last completion was before today
-      if (task.type === 'daily') {
-        const lastDate = rec.completedAt instanceof Timestamp
-          ? rec.completedAt.toDate().toISOString().slice(0, 10)
-          : today;
-        if (lastDate === today) {
-          return { success: false, reason: 'Already completed today.' };
+      if (existing.exists()) {
+        const rec = existing.data() as UserTaskRecord;
+        const today = new Date().toISOString().slice(0, 10);
+
+        // For daily tasks: allow repeat if last completion was before today
+        if (task.type === 'daily') {
+          const lastDate = rec.completedAt instanceof Timestamp
+            ? rec.completedAt.toDate().toISOString().slice(0, 10)
+            : today;
+          if (lastDate === today) {
+            throw Object.assign(new Error('Already completed today.'), { code: 'DUPLICATE' });
+          }
+        } else {
+          throw Object.assign(new Error('Task already completed.'), { code: 'DUPLICATE' });
         }
-      } else {
-        return { success: false, reason: 'Task already completed.' };
       }
-    }
 
-    // Write completion record
-    await setDoc(userTaskRef, {
-      taskId: task.id,
-      telegramId,
-      completedAt: serverTimestamp(),
-      rewardClaimed: true,
+      // Write completion record
+      transaction.set(userTaskRef, {
+        taskId: task.id,
+        telegramId,
+        completedAt: serverTimestamp(),
+        rewardClaimed: true,
+      });
+
+      // Increment global completedCount atomically
+      if (!task.id.startsWith('default_')) {
+        const taskSnap = await transaction.get(taskRef);
+        if (taskSnap.exists()) {
+          transaction.update(taskRef, {
+            completedCount: (taskSnap.data().completedCount || 0) + 1,
+          });
+        }
+      }
     });
-
-    // Increment global completedCount safely using setDoc merge (avoids missing doc error)
-    if (!task.id.startsWith('default_')) {
-      try {
-        await setDoc(doc(db, TASKS_COLLECTION, task.id), {
-          completedCount: (task.completedCount || 0) + 1,
-        }, { merge: true });
-      } catch (err) {
-        console.warn("Could not update task completedCount:", err);
-      }
-    }
 
     return { success: true };
   } catch (err: any) {
+    if (err?.code === 'DUPLICATE') {
+      return { success: false, reason: err.message };
+    }
     console.error("Error in claimTaskReward:", err);
     return { success: false, reason: err?.message || 'Network error. Try again.' };
   }

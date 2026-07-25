@@ -29,6 +29,9 @@ import {
   subscribeToAdminSettings, saveAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings,
 } from '../lib/adminSettingsService';
 import {
+  subscribeToReferralTiers, createReferralTier, updateReferralTier, deleteReferralTier, reorderReferralTiers, type ReferralClaimTier,
+} from '../lib/referralTierService';
+import {
   sendMessageToUser, sendAnnouncement, sendWithdrawNotification,
 } from '../lib/notificationService';
 import { uploadFile } from '../lib/uploadService';
@@ -198,6 +201,99 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // --- Referral Claim Limit Manager State ---
+  const [referralTiers, setReferralTiers] = useState<ReferralClaimTier[]>([]);
+  const [newTierRefs, setNewTierRefs] = useState<number>(5);
+  const [newTierLimit, setNewTierLimit] = useState<number>(10000);
+  const [newTierBonus, setNewTierBonus] = useState<number>(0.05);
+  const [newTierBadge, setNewTierBadge] = useState<string>('🥉 Bronze');
+  const [editingTierId, setEditingTierId] = useState<string | null>(null);
+  const [editTierRefs, setEditTierRefs] = useState<number>(0);
+  const [editTierLimit, setEditTierLimit] = useState<number>(0);
+  const [editTierBonus, setEditTierBonus] = useState<number>(0);
+  const [editTierBadge, setEditTierBadge] = useState<string>('');
+
+  useEffect(() => {
+    const unsub = subscribeToReferralTiers(setReferralTiers);
+    return unsub;
+  }, []);
+
+  const handleAddReferralTier = async () => {
+    if (newTierRefs < 0 || newTierLimit <= 0) {
+      showToast('Please enter valid required referrals and claim limit.', 'warning');
+      return;
+    }
+    const maxSort = referralTiers.reduce((max, t) => Math.max(max, t.sortOrder || 0), 0);
+    const newId = await createReferralTier({
+      requiredReferrals: Number(newTierRefs),
+      claimLimit: Number(newTierLimit),
+      bonusUSDT: Number(newTierBonus),
+      badge: newTierBadge.trim() || '⚡ Level',
+      isActive: true,
+      sortOrder: maxSort + 1,
+    });
+    if (newId) {
+      showToast('✅ New Referral Claim Tier added & live pushed to all users!', 'success');
+      setNewTierRefs(prev => prev + 5);
+      setNewTierLimit(prev => prev + 5000);
+      setNewTierBonus(prev => Number((prev + 0.05).toFixed(2)));
+    } else {
+      showToast('Failed to create referral tier.', 'error');
+    }
+  };
+
+  const handleStartEditTier = (tier: ReferralClaimTier) => {
+    setEditingTierId(tier.id);
+    setEditTierRefs(tier.requiredReferrals);
+    setEditTierLimit(tier.claimLimit);
+    setEditTierBonus(tier.bonusUSDT);
+    setEditTierBadge(tier.badge || '');
+  };
+
+  const handleSaveEditTier = async (id: string) => {
+    const ok = await updateReferralTier(id, {
+      requiredReferrals: Number(editTierRefs),
+      claimLimit: Number(editTierLimit),
+      bonusUSDT: Number(editTierBonus),
+      badge: editTierBadge.trim(),
+    });
+    if (ok) {
+      showToast('✅ Referral Tier updated & live pushed to users!', 'success');
+      setEditingTierId(null);
+    } else {
+      showToast('Failed to update tier.', 'error');
+    }
+  };
+
+  const handleDeleteTier = async (id: string) => {
+    if (!window.confirm('Delete this referral tier? All connected users will update instantly.')) return;
+    const ok = await deleteReferralTier(id);
+    if (ok) {
+      showToast('Tier deleted & live pushed.', 'info');
+    } else {
+      showToast('Failed to delete tier.', 'error');
+    }
+  };
+
+  const handleToggleTierActive = async (tier: ReferralClaimTier) => {
+    const ok = await updateReferralTier(tier.id, { isActive: !tier.isActive });
+    if (ok) {
+      showToast(tier.isActive ? 'Tier disabled & live pushed' : 'Tier enabled & live pushed', 'success');
+    }
+  };
+
+  const handleMoveTier = async (index: number, direction: 'up' | 'down') => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= referralTiers.length) return;
+    const updated = [...referralTiers];
+    const temp = updated[index];
+    updated[index] = updated[newIndex];
+    updated[newIndex] = temp;
+    setReferralTiers(updated);
+    await reorderReferralTiers(updated);
+    showToast('Tier order updated & live pushed!', 'success');
+  };
   // Upload progress per asset key (0–100), used for progress bars on branding uploads
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
 
@@ -2296,6 +2392,78 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
+                {/* Auto Miner & Telegram Premium Limits Configuration */}
+                <SectionCard accentColor="#00E5FFaa">
+                  <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-base">⛏️</span>
+                      <span className="text-sm font-black text-white">Auto Miner & Telegram Premium Timers/Limits</span>
+                    </div>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Customize mining session duration timers and rewards separately for Standard vs Telegram Premium users</p>
+                  </div>
+                  <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <div>
+                        <label className="text-xs text-slate-300 font-bold block">Standard Mining Duration (Seconds)</label>
+                        <span className="text-[9px] text-slate-500">e.g. 300 = 5min, 3600 = 1h, 86400 = 24h</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={settings.autoMinerDuration || 300}
+                        onChange={e => setSettings(p => ({ ...p, autoMinerDuration: Number(e.target.value) }))}
+                        className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <div>
+                        <label className="text-xs text-slate-300 font-bold block">Standard Mining Session Reward (EFC)</label>
+                        <span className="text-[9px] text-slate-500">Points awarded per session for standard users</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={settings.autoMinerReward || 500}
+                        onChange={e => setSettings(p => ({ ...p, autoMinerReward: Number(e.target.value) }))}
+                        className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 py-3 bg-amber-400/[0.03] px-2.5 py-3 rounded-xl border border-amber-400/15 my-1">
+                      <div>
+                        <label className="text-xs text-amber-300 font-black flex items-center gap-1">
+                          <span>⭐ Telegram Premium Mining Duration (Seconds)</span>
+                        </label>
+                        <span className="text-[9px] text-slate-400">Duration timer for Telegram Premium subscribers (e.g. 300s, 14400s)</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={settings.premiumAutoMinerDuration || settings.autoMinerDuration || 300}
+                        onChange={e => setSettings(p => ({ ...p, premiumAutoMinerDuration: Number(e.target.value) }))}
+                        className="w-28 h-8 rounded-xl px-3 text-xs text-amber-300 font-bold outline-none text-right font-mono border border-amber-400/30"
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between gap-4 py-3 bg-amber-400/[0.03] px-2.5 py-3 rounded-xl border border-amber-400/15 my-1">
+                      <div>
+                        <label className="text-xs text-amber-300 font-black flex items-center gap-1">
+                          <span>⭐ Telegram Premium Mining Reward (EFC)</span>
+                        </label>
+                        <span className="text-[9px] text-slate-400">Points awarded per session for Telegram Premium subscribers</span>
+                      </div>
+                      <input
+                        type="number"
+                        value={settings.premiumAutoMinerReward || 1000}
+                        onChange={e => setSettings(p => ({ ...p, premiumAutoMinerReward: Number(e.target.value) }))}
+                        className="w-28 h-8 rounded-xl px-3 text-xs text-amber-300 font-bold outline-none text-right font-mono border border-amber-400/30"
+                        style={inputStyle}
+                      />
+                    </div>
+                  </div>
+                </SectionCard>
+
                 {/* Referral & Withdrawal */}
                 <SectionCard accentColor="#B388FF55">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
@@ -2349,6 +2517,240 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         <span className="text-[9px] text-slate-600">Your running backend URL (for notifications)</span>
                       </div>
                       <input type="text" placeholder="http://your-server:4000" value={settings.botApiUrl || ''} onChange={e => setSettings(prev => ({ ...prev, botApiUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono" style={inputStyle} />
+                    </div>
+                  </div>
+                </SectionCard>
+
+                {/* ── FULLY DYNAMIC REFERRAL CLAIM LIMIT MANAGER ── */}
+                <SectionCard accentColor="#FF8A00aa">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🏆</span>
+                        <span className="text-sm font-black text-white">Referral Claim Limit Manager</span>
+                      </div>
+                      <p className="text-[9px] text-slate-400 mt-0.5">
+                        Add, edit, delete, reorder, or toggle referral tiers. Changes push in real-time to all connected users without reloading!
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold text-[#FF8A00] bg-[#FF8A00]/10 border border-[#FF8A00]/25 px-2.5 py-1 rounded-full">
+                      {referralTiers.length} Active Tiers
+                    </span>
+                  </div>
+
+                  <div className="p-4 flex flex-col gap-4">
+                    {/* Add New Tier Form */}
+                    <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-3">
+                      <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
+                        <Plus size={13} className="text-[#FF8A00]" /> Add New Referral Claim Tier
+                      </span>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+                        <div>
+                          <label className="text-[8px] text-slate-400 uppercase tracking-wider font-bold block mb-1">
+                            Required Referrals
+                          </label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 15"
+                            value={newTierRefs}
+                            onChange={e => setNewTierRefs(Number(e.target.value))}
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] text-slate-400 uppercase tracking-wider font-bold block mb-1">
+                            Max Claim Limit (EFC)
+                          </label>
+                          <input
+                            type="number"
+                            placeholder="e.g. 20000"
+                            value={newTierLimit}
+                            onChange={e => setNewTierLimit(Number(e.target.value))}
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] text-slate-400 uppercase tracking-wider font-bold block mb-1">
+                            USDT Bonus ($)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            placeholder="e.g. 0.15"
+                            value={newTierBonus}
+                            onChange={e => setNewTierBonus(Number(e.target.value))}
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[8px] text-slate-400 uppercase tracking-wider font-bold block mb-1">
+                            Badge Label
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. 🥇 Gold"
+                            value={newTierBadge}
+                            onChange={e => setNewTierBadge(e.target.value)}
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleAddReferralTier}
+                        className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#FF8A00] to-[#FFB347] text-black text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.01] transition-all ml-auto mt-1"
+                      >
+                        <Plus size={14} /> Create Tier & Live Push
+                      </button>
+                    </div>
+
+                    {/* Tiers List */}
+                    <div className="flex flex-col gap-2">
+                      {referralTiers.length === 0 ? (
+                        <div className="p-4 text-center text-xs text-slate-500 border border-dashed border-white/10 rounded-2xl">
+                          No referral claim tiers configured yet.
+                        </div>
+                      ) : (
+                        referralTiers.map((tier, idx) => {
+                          const isEditing = editingTierId === tier.id;
+
+                          if (isEditing) {
+                            return (
+                              <div key={tier.id} className="p-3.5 rounded-2xl bg-[#FF8A00]/10 border border-[#FF8A00]/30 flex flex-col gap-2">
+                                <span className="text-xs font-bold text-[#FF8A00]">Editing Tier #{idx + 1} ({tier.id})</span>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                                  <div>
+                                    <label className="text-[8px] text-slate-400 font-bold block mb-1">Req Referrals</label>
+                                    <input
+                                      type="number"
+                                      value={editTierRefs}
+                                      onChange={e => setEditTierRefs(Number(e.target.value))}
+                                      className={inputCls}
+                                      style={inputStyle}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[8px] text-slate-400 font-bold block mb-1">Claim Limit (EFC)</label>
+                                    <input
+                                      type="number"
+                                      value={editTierLimit}
+                                      onChange={e => setEditTierLimit(Number(e.target.value))}
+                                      className={inputCls}
+                                      style={inputStyle}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[8px] text-slate-400 font-bold block mb-1">USDT Bonus ($)</label>
+                                    <input
+                                      type="number"
+                                      step="0.01"
+                                      value={editTierBonus}
+                                      onChange={e => setEditTierBonus(Number(e.target.value))}
+                                      className={inputCls}
+                                      style={inputStyle}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[8px] text-slate-400 font-bold block mb-1">Badge</label>
+                                    <input
+                                      type="text"
+                                      value={editTierBadge}
+                                      onChange={e => setEditTierBadge(e.target.value)}
+                                      className={inputCls}
+                                      style={inputStyle}
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 justify-end mt-1">
+                                  <button
+                                    onClick={() => setEditingTierId(null)}
+                                    className="h-8 px-3 rounded-xl bg-white/5 text-slate-300 text-xs font-bold hover:bg-white/10"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => handleSaveEditTier(tier.id)}
+                                    className="h-8 px-4 rounded-xl bg-[#FF8A00] text-black text-xs font-black flex items-center gap-1 hover:brightness-110"
+                                  >
+                                    <Save size={12} /> Save & Push Live
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div
+                              key={tier.id}
+                              className={`flex items-center justify-between gap-3 p-3 rounded-2xl border transition-all ${
+                                tier.isActive
+                                  ? 'bg-white/[0.025] border-white/8 hover:bg-white/[0.04]'
+                                  : 'bg-white/[0.01] border-white/4 opacity-50'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="flex flex-col gap-0.5 shrink-0">
+                                  <button
+                                    onClick={() => handleMoveTier(idx, 'up')}
+                                    disabled={idx === 0}
+                                    className="p-1 text-slate-500 hover:text-white disabled:opacity-20"
+                                    title="Move Up"
+                                  >
+                                    <ChevronUp size={12} />
+                                  </button>
+                                  <button
+                                    onClick={() => handleMoveTier(idx, 'down')}
+                                    disabled={idx === referralTiers.length - 1}
+                                    className="p-1 text-slate-500 hover:text-white disabled:opacity-20"
+                                    title="Move Down"
+                                  >
+                                    <ChevronDown size={12} />
+                                  </button>
+                                </div>
+
+                                <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/8 flex items-center justify-center text-xs font-black shrink-0">
+                                  {tier.requiredReferrals}
+                                </div>
+
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-xs font-black text-white">{tier.badge || `Tier #${idx + 1}`}</span>
+                                    <span className="text-[9px] text-slate-500 font-mono">({tier.requiredReferrals} Referrals)</span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                    Max Claim: <span className="font-bold text-[#FF8A00]">{tier.claimLimit.toLocaleString()} EFC</span> · Bonus: <span className="font-bold text-emerald-400">${tier.bonusUSDT.toFixed(2)} USDT</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Toggle
+                                  on={tier.isActive}
+                                  onToggle={() => handleToggleTierActive(tier)}
+                                  accentColor="#4ADE80"
+                                />
+                                <button
+                                  onClick={() => handleStartEditTier(tier)}
+                                  className="p-2 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all"
+                                  title="Edit Tier"
+                                >
+                                  <Edit3 size={13} />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteTier(tier.id)}
+                                  className="p-2 rounded-xl bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 transition-all"
+                                  title="Delete Tier"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 </SectionCard>
@@ -2758,10 +3160,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                     <div className="flex items-center justify-between py-3"><label className="text-xs text-slate-400">Enable Ads System</label><Toggle on={settings.adEnabled} onToggle={() => setSettings(p => ({ ...p, adEnabled: !p.adEnabled }))} accentColor="#4ADE80" /></div>
                     <div className="flex items-center justify-between gap-4 py-3"><label className="text-xs text-slate-400">Monetag Zone ID</label><input type="text" value={settings.monetagZoneId} onChange={e => setSettings(p => ({ ...p, monetagZoneId: e.target.value }))} className="w-36 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} /></div>
                     <div className="flex items-center justify-between gap-4 py-3"><label className="text-xs text-slate-400">Monetag Direct Link (Fallback)</label><input type="text" placeholder="https://..." value={settings.monetagDirectLink || ''} onChange={e => setSettings(p => ({ ...p, monetagDirectLink: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} /></div>
-                    {[{ label: 'Ad EForce Reward', key: 'adRewardAmount' }, { label: 'Ad Token Reward', key: 'adTokenReward' }, { label: 'Daily Ads (Normal)', key: 'adDailyLimitNormal' }, { label: 'Daily Ads (Premium)', key: 'adDailyLimitPremium' }].map(f => (
+                    {[{ label: 'Ad EForce Reward (Normal)', key: 'adRewardAmount' }, { label: '⭐ Ad EForce Reward (Premium)', key: 'premiumAdRewardAmount' }, { label: 'Ad Token Reward', key: 'adTokenReward' }, { label: 'Daily Ads Limit (Normal)', key: 'adDailyLimitNormal' }, { label: '⭐ Daily Ads Limit (Premium)', key: 'adDailyLimitPremium' }].map(f => (
                       <div key={f.key} className="flex items-center justify-between gap-4 py-3">
                         <label className="text-xs text-slate-400">{f.label}</label>
-                        <input type="number" value={(settings as any)[f.key]} onChange={e => setSettings(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
+                        <input type="number" value={(settings as any)[f.key] ?? (f.key === 'premiumAdRewardAmount' ? 200 : 0)} onChange={e => setSettings(prev => ({ ...prev, [f.key]: Number(e.target.value) }))} className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
                       </div>
                     ))}
                     <div className="flex items-center justify-between py-3"><label className="text-xs text-slate-400">Require Ad for Daily Check-in</label><Toggle on={settings.adRequireDailyClaim} onToggle={() => setSettings(p => ({ ...p, adRequireDailyClaim: !p.adRequireDailyClaim }))} accentColor="#FF8A00" /></div>
@@ -2931,21 +3333,59 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
-                {/* Daily Check-in */}
+                {/* Daily Check-in Rewards */}
                 <SectionCard accentColor="#FBBF2444">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                     <div className="flex items-center gap-2"><span className="text-base">📅</span><span className="text-sm font-black text-white">Daily Check-in Rewards</span></div>
-                    <p className="text-[9px] text-slate-500 mt-0.5">EForce points awarded for each consecutive day</p>
+                    <p className="text-[9px] text-slate-500 mt-0.5">EForce points awarded for each consecutive day (Standard vs Telegram Premium)</p>
                   </div>
-                  <div className="p-4">
-                    <div className="grid grid-cols-4 gap-2">
-                      {settings.dailyClaimRewards.map((reward, i) => (
-                        <div key={i} className="flex flex-col items-center gap-1.5">
-                          <div className="text-[8px] font-black text-slate-500 uppercase tracking-wider">Day {i + 1}</div>
-                          <input type="number" value={reward} onChange={e => { const nr = [...settings.dailyClaimRewards]; nr[i] = Number(e.target.value); setSettings(prev => ({ ...prev, dailyClaimRewards: nr })); }}
-                            className="w-full h-9 rounded-xl px-1 text-[10px] text-white outline-none text-center font-bold" style={inputStyle} />
-                        </div>
-                      ))}
+                  <div className="p-4 flex flex-col gap-4">
+                    {/* Standard Daily Rewards */}
+                    <div className="flex flex-col gap-2">
+                      <span className="text-xs font-bold text-slate-300">Standard User Daily Rewards (Day 1–7)</span>
+                      <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+                        {settings.dailyClaimRewards.map((reward, i) => (
+                          <div key={i} className="flex flex-col items-center gap-1">
+                            <div className="text-[8px] font-black text-slate-500 uppercase tracking-wider">Day {i + 1}</div>
+                            <input
+                              type="number"
+                              value={reward}
+                              onChange={e => {
+                                const nr = [...settings.dailyClaimRewards];
+                                nr[i] = Number(e.target.value);
+                                setSettings(prev => ({ ...prev, dailyClaimRewards: nr }));
+                              }}
+                              className="w-full h-9 rounded-xl px-1 text-[10px] text-white outline-none text-center font-bold"
+                              style={inputStyle}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Telegram Premium Daily Rewards */}
+                    <div className="flex flex-col gap-2 p-3 rounded-2xl bg-amber-400/[0.03] border border-amber-400/20">
+                      <span className="text-xs font-black text-amber-300 flex items-center gap-1">
+                        <span>⭐ Telegram Premium User Daily Rewards (Day 1–7)</span>
+                      </span>
+                      <div className="grid grid-cols-4 md:grid-cols-7 gap-2">
+                        {(settings.premiumDailyClaimRewards || [200, 300, 400, 600, 1000, 1500, 2000]).map((reward, i) => (
+                          <div key={i} className="flex flex-col items-center gap-1">
+                            <div className="text-[8px] font-black text-amber-400 uppercase tracking-wider">Day {i + 1}</div>
+                            <input
+                              type="number"
+                              value={reward}
+                              onChange={e => {
+                                const nr = [...(settings.premiumDailyClaimRewards || [200, 300, 400, 600, 1000, 1500, 2000])];
+                                nr[i] = Number(e.target.value);
+                                setSettings(prev => ({ ...prev, premiumDailyClaimRewards: nr }));
+                              }}
+                              className="w-full h-9 rounded-xl px-1 text-[10px] text-amber-300 outline-none text-center font-bold border border-amber-400/30"
+                              style={inputStyle}
+                            />
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </SectionCard>

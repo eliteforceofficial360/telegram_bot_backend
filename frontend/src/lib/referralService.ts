@@ -11,7 +11,7 @@ import {
   where,
   onSnapshot,
   serverTimestamp,
-  updateDoc,
+  runTransaction,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 
@@ -136,11 +136,12 @@ export const recordReferral = async (
     rewardPoints,
   } satisfies Omit<ReferralRecord, 'id'>);
 
-  // Update referrer's referral count, wallet, points, and tokens in users collection
+  // Update referrer's referral count, wallet, points, and tokens atomically
   try {
     const userRef = doc(db, 'users', String(referrerId));
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
+    await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) return;
       const data = userSnap.data();
       const currentReferrals = Number(data.referrals || 0);
       const currentReferralCount = Number(data.referralCount || 0);
@@ -152,31 +153,32 @@ export const recordReferral = async (
       const updatedPoints = currentPoints + (isValid ? rewardPoints : 0);
       const updatedTokens = currentTokens + (isValid ? rewardTokens : 0);
 
-      await updateDoc(userRef, {
+      transaction.update(userRef, {
         referrals: currentReferrals + 1,
         referralCount: currentReferralCount + (isValid ? 1 : 0),
         wallet: updatedWallet,
         points: updatedPoints,
         tokens: updatedTokens,
       });
+    });
 
-      // Clear savedReferrerId once successfully recorded
-      try {
-        sessionStorage.removeItem('savedReferrerId');
-        localStorage.removeItem('savedReferrerId');
-      } catch { /* noop */ }
+    // Clear savedReferrerId once successfully recorded
+    try {
+      sessionStorage.removeItem('savedReferrerId');
+      localStorage.removeItem('savedReferrerId');
+    } catch { /* noop */ }
 
-      // Notify referrer via bot API if enabled
-      const targetApi = settings.botApiUrl || 'https://elite-force-telegram-app.onrender.com';
-      fetch(`${targetApi.replace(/\/$/, '')}/notify/referral`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer https://elite-force-telegram-app.onrender.com`
-        },
-        body: JSON.stringify({ referrerId, refereeName: `User #${referredId}` })
-      }).catch(() => {});
-    }
+    // Notify referrer via bot API if enabled
+    const targetApi = settings.botApiUrl || 'https://elite-force-telegram-app.onrender.com';
+    const notifySecret = settings.botApiUrl ? (settings as any).botApiSecret || '' : '';
+    fetch(`${targetApi.replace(/\/$/, '')}/notify/referral`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(notifySecret ? { 'Authorization': `Bearer ${notifySecret}` } : {}),
+      },
+      body: JSON.stringify({ referrerId, refereeName: `User #${referredId}` })
+    }).catch(() => {});
   } catch (err) {
     console.error("Error updating referrer rewards:", err);
   }

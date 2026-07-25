@@ -17,6 +17,7 @@ import {
   orderBy,
   limit,
   Timestamp,
+  runTransaction,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import type { TelegramUser } from './telegramUser';
@@ -498,37 +499,43 @@ export const claimDailyAdVideoReward = async (
 
   const userRef = doc(db, USERS_COLLECTION, String(telegramId));
   try {
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) {
-      return { success: false, countToday: 0, reason: 'User not initialized.' };
-    }
+    let resultCountToday = 0;
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists()) {
+        throw new Error('User not initialized.');
+      }
+      const userData = snap.data() as any;
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const lastAdDate = userData.dailyAdWatchDate || '';
+      let adCount = (lastAdDate !== todayStr) ? 0 : (userData.dailyAdWatchCount || 0);
 
-    const userData = snap.data() as any;
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const lastAdDate = userData.dailyAdWatchDate || '';
-    let adCount = userData.dailyAdWatchCount || 0;
+      const dailyLimit = isPremium ? limitPremium : limitNormal;
+      if (adCount >= dailyLimit) {
+        const err: any = new Error(`Daily limit of ${dailyLimit} video ads reached.`);
+        err.countToday = adCount;
+        throw err;
+      }
 
-    if (lastAdDate !== todayStr) {
-      adCount = 0;
-    }
+      const nextAdCount = adCount + 1;
+      const currentTokens = Number(userData.tokens || 0);
+      resultCountToday = nextAdCount;
 
-    const limit = isPremium ? limitPremium : limitNormal;
-    if (adCount >= limit) {
-      return { success: false, countToday: adCount, reason: `Daily limit of ${limit} video ads reached.` };
-    }
-
-    const nextAdCount = adCount + 1;
-    const currentTokens = userData.tokens || 0;
-    const updatedTokens = currentTokens + tokenReward;
-
-    await updateDoc(userRef, {
-      tokens: updatedTokens,
-      dailyAdWatchDate: todayStr,
-      dailyAdWatchCount: nextAdCount,
+      transaction.update(userRef, {
+        tokens: currentTokens + tokenReward,
+        dailyAdWatchDate: todayStr,
+        dailyAdWatchCount: nextAdCount,
+      });
     });
-
-    return { success: true, countToday: nextAdCount };
-  } catch (err) {
+    return { success: true, countToday: resultCountToday };
+  } catch (err: any) {
+    const isLimitError = err?.message?.includes('Daily limit');
+    if (isLimitError) {
+      return { success: false, countToday: err.countToday ?? 0, reason: err.message };
+    }
+    if (err?.message === 'User not initialized.') {
+      return { success: false, countToday: 0, reason: err.message };
+    }
     console.error("Error in claimDailyAdVideoReward:", err);
     return { success: false, countToday: 0, reason: 'Network error. Please try again.' };
   }
@@ -869,46 +876,60 @@ export const recordDailyCheckin = async (
     return { success: true, reward: 100, newStreak: 1 };
   }
   const userRef = doc(db, USERS_COLLECTION, String(telegramId));
-  // Retry up to 3 times on transient failures
+
+  // Retry up to 3 times on transient Firestore errors
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const snap = await getDoc(userRef);
-      if (!snap.exists()) {
-        // Doc missing — silently return: user must open app first
-        return { success: false, reward: 0, newStreak: 0, reason: 'User not initialized. Open the app first.' };
+      let result: { success: boolean; reward: number; newStreak: number; reason?: string } =
+        { success: false, reward: 0, newStreak: 0 };
+
+      await runTransaction(db, async (transaction) => {
+        const snap = await transaction.get(userRef);
+        if (!snap.exists()) {
+          throw Object.assign(new Error('User not initialized. Open the app first.'), { code: 'USER_NOT_FOUND' });
+        }
+        const user = snap.data() as FirestoreUser;
+
+        const today = new Date().toISOString().slice(0, 10);
+        if (user.lastClaimDate === today) {
+          throw Object.assign(
+            new Error('Already claimed today.'),
+            { code: 'ALREADY_CLAIMED', streak: user.dailyClaimStreak }
+          );
+        }
+
+        const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+        const newStreak = user.lastClaimDate === yesterday
+          ? (user.dailyClaimStreak || 0) + 1
+          : 1;
+
+        const rewardIndex = (newStreak - 1) % claimRewards.length;
+        const reward = claimRewards[rewardIndex] || 100;
+        const newPoints = (user.points || 0) + reward;
+
+        transaction.set(userRef, {
+          dailyClaimStreak: newStreak,
+          lastClaimDate: today,
+          points: newPoints,
+        }, { merge: true });
+
+        result = { success: true, reward, newStreak };
+      });
+
+      return result;
+    } catch (err: any) {
+      if (err?.code === 'USER_NOT_FOUND') {
+        return { success: false, reward: 0, newStreak: 0, reason: err.message };
       }
-      const user = snap.data() as FirestoreUser;
-
-      const today = new Date().toISOString().slice(0, 10);
-      if (user.lastClaimDate === today) {
-        return { success: false, reward: 0, newStreak: user.dailyClaimStreak, reason: 'Already claimed today.' };
+      if (err?.code === 'ALREADY_CLAIMED') {
+        return { success: false, reward: 0, newStreak: err.streak ?? 0, reason: err.message };
       }
-
-      // Check streak continuity
-      const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-      const newStreak = user.lastClaimDate === yesterday
-        ? (user.dailyClaimStreak || 0) + 1
-        : 1;
-
-      const rewardIndex = (newStreak - 1) % claimRewards.length;
-      const reward = claimRewards[rewardIndex] || 100;
-      const newPoints = (user.points || 0) + reward;
-
-      await setDoc(userRef, {
-        dailyClaimStreak: newStreak,
-        lastClaimDate: today,
-        points: newPoints,
-      }, { merge: true });
-
-      return { success: true, reward, newStreak };
-    } catch (err: unknown) {
       const isNetworkError = err instanceof Error && (
         err.message.includes('network') ||
         err.message.includes('offline') ||
         err.message.includes('unavailable')
       );
       if (isNetworkError && attempt < 2) {
-        // Wait then retry
         await new Promise(r => setTimeout(r, 800 * (attempt + 1)));
         continue;
       }
@@ -929,32 +950,41 @@ export const startAutoMinerSession = async (
   if (!isFirebaseConfigured()) return { success: true };
   const userRef = doc(db, USERS_COLLECTION, String(telegramId));
   try {
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) return { success: false, reason: 'User not found.' };
-    const user = snap.data() as FirestoreUser;
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists()) throw Object.assign(new Error('User not found.'), { code: 'NOT_FOUND' });
+      const user = snap.data() as FirestoreUser;
 
-    if (user.autoMinerLastUsed) {
-      const lastUsed = user.autoMinerLastUsed instanceof Timestamp
-        ? user.autoMinerLastUsed.toDate()
-        : new Date(user.autoMinerLastUsed as string);
-      const elapsed = (Date.now() - lastUsed.getTime()) / 1000;
-      if (elapsed < cooldownSeconds) {
-        const remaining = Math.ceil(cooldownSeconds - elapsed);
-        const hrs = Math.floor(remaining / 3600);
-        const mins = Math.floor((remaining % 3600) / 60);
-        return { success: false, reason: `Cooldown: ${hrs}h ${mins}m remaining.` };
+      if (user.autoMinerLastUsed) {
+        const lastUsed = user.autoMinerLastUsed instanceof Timestamp
+          ? user.autoMinerLastUsed.toDate()
+          : new Date(user.autoMinerLastUsed as string);
+        const elapsed = (Date.now() - lastUsed.getTime()) / 1000;
+        if (elapsed < cooldownSeconds) {
+          const remaining = Math.ceil(cooldownSeconds - elapsed);
+          const hrs = Math.floor(remaining / 3600);
+          const mins = Math.floor((remaining % 3600) / 60);
+          throw Object.assign(
+            new Error(`Cooldown: ${hrs}h ${mins}m remaining.`),
+            { code: 'COOLDOWN' }
+          );
+        }
       }
-    }
 
-    await updateDoc(userRef, { autoMinerActive: true, autoMinerLastUsed: serverTimestamp() });
+      transaction.update(userRef, { autoMinerActive: true, autoMinerLastUsed: serverTimestamp() });
+    });
     return { success: true };
-  } catch {
+  } catch (err: any) {
+    if (err?.code === 'NOT_FOUND' || err?.code === 'COOLDOWN') {
+      return { success: false, reason: err.message };
+    }
     return { success: false, reason: 'Network error.' };
   }
 };
 
 /**
  * Records auto miner session end and credits reward.
+ * Uses runTransaction to prevent duplicate payouts under concurrent calls.
  */
 export const endAutoMinerSession = async (
   telegramId: number,
@@ -964,14 +994,16 @@ export const endAutoMinerSession = async (
   if (!isFirebaseConfigured()) return;
   const userRef = doc(db, USERS_COLLECTION, String(telegramId));
   try {
-    const snap = await getDoc(userRef);
-    if (!snap.exists()) return;
-    const user = snap.data() as FirestoreUser;
-    if (!user.autoMinerActive) return; // Prevent duplicate payouts
-    await updateDoc(userRef, {
-      autoMinerActive: false,
-      autoMinerLastUsed: completionTime ? Timestamp.fromDate(completionTime) : serverTimestamp(),
-      points: (user.points || 0) + reward,
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists()) return;
+      const user = snap.data() as FirestoreUser;
+      if (!user.autoMinerActive) return; // Prevent duplicate payouts
+      transaction.update(userRef, {
+        autoMinerActive: false,
+        autoMinerLastUsed: completionTime ? Timestamp.fromDate(completionTime) : serverTimestamp(),
+        points: (user.points || 0) + reward,
+      });
     });
   } catch { /* noop */ }
 };
@@ -1080,22 +1112,53 @@ export const submitWithdrawRequest = async (
   type: 'usdt' | 'token' = 'usdt'
 ): Promise<{ success: boolean; reason?: string }> => {
   if (!isFirebaseConfigured()) return { success: true };
+  if (!amount || isNaN(amount) || amount <= 0) {
+    return { success: false, reason: 'Invalid withdrawal amount.' };
+  }
+
+  const userRef = doc(db, USERS_COLLECTION, String(telegramId));
+  const reqId = `${telegramId}_${Date.now()}`;
+  const withdrawRef = doc(db, 'withdrawRequests', reqId);
+
   try {
-    const reqId = `${telegramId}_${Date.now()}`;
-    await setDoc(doc(db, 'withdrawRequests', reqId), {
-      telegramId,
-      username,
-      walletAddress,
-      amount,
-      type,
-      status: 'Pending',
-      createdAt: serverTimestamp(),
-      processedAt: null,
-      adminNote: '',
+    await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) {
+        throw new Error('User record not found.');
+      }
+      const userData = userSnap.data() as FirestoreUser;
+
+      if (type === 'usdt') {
+        const currentWallet = Number(userData.wallet || 0);
+        if (currentWallet < amount) {
+          throw new Error('Insufficient USDT balance.');
+        }
+        transaction.update(userRef, { wallet: Number((currentWallet - amount).toFixed(4)) });
+      } else {
+        const currentTokens = Number(userData.tokens || 0);
+        if (currentTokens < amount) {
+          throw new Error('Insufficient EForce Token balance.');
+        }
+        transaction.update(userRef, { tokens: Number((currentTokens - amount).toFixed(4)) });
+      }
+
+      transaction.set(withdrawRef, {
+        telegramId,
+        username,
+        walletAddress,
+        amount,
+        type,
+        status: 'Pending',
+        createdAt: serverTimestamp(),
+        processedAt: null,
+        adminNote: '',
+      });
     });
+
     return { success: true };
-  } catch {
-    return { success: false, reason: 'Failed to submit request.' };
+  } catch (err: any) {
+    console.error('[submitWithdrawRequest] Transaction error:', err?.message || err);
+    return { success: false, reason: err?.message || 'Failed to submit withdrawal request.' };
   }
 };
 
@@ -1121,14 +1184,44 @@ export const updateWithdrawRequest = async (
   adminNote = ''
 ): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
+  const withdrawRef = doc(db, 'withdrawRequests', reqId);
+
   try {
-    await updateDoc(doc(db, 'withdrawRequests', reqId), {
-      status,
-      adminNote,
-      processedAt: serverTimestamp(),
+    await runTransaction(db, async (transaction) => {
+      const withdrawSnap = await transaction.get(withdrawRef);
+      if (!withdrawSnap.exists()) {
+        throw new Error('Withdrawal request not found.');
+      }
+      const data = withdrawSnap.data();
+      const currentStatus = data.status;
+
+      // If rejecting a pending request, refund the balance to the user
+      if ((status === 'Rejected' || status === 'Banned') && currentStatus === 'Pending') {
+        const userRef = doc(db, USERS_COLLECTION, String(data.telegramId));
+        const userSnap = await transaction.get(userRef);
+
+        if (userSnap.exists()) {
+          const userData = userSnap.data() as FirestoreUser;
+          if (data.type === 'usdt') {
+            const currentWallet = Number(userData.wallet || 0);
+            transaction.update(userRef, { wallet: Number((currentWallet + (data.amount || 0)).toFixed(4)) });
+          } else {
+            const currentTokens = Number(userData.tokens || 0);
+            transaction.update(userRef, { tokens: Number((currentTokens + (data.amount || 0)).toFixed(4)) });
+          }
+        }
+      }
+
+      transaction.update(withdrawRef, {
+        status,
+        adminNote,
+        processedAt: serverTimestamp(),
+      });
     });
+
     return true;
-  } catch {
+  } catch (err: any) {
+    console.error('[updateWithdrawRequest] Transaction error:', err?.message || err);
     return false;
   }
 };

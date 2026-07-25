@@ -164,12 +164,11 @@ export const Navigation: React.FC<NavigationProps> = ({ activeTab, setActiveTab 
       <div
         className="relative flex items-center justify-around px-1 py-1.5 rounded-[30px] overflow-hidden"
         style={{
-          background: 'rgba(8,11,24,0.95)',
-          backdropFilter: 'blur(28px)',
-          WebkitBackdropFilter: 'blur(28px)',
-          border: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.07)',
+          background: 'rgba(10, 14, 30, 0.96)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04), inset 0 1px 0 rgba(255,255,255,0.07)',
           willChange: 'transform',
+          transform: 'translateZ(0)',
         }}
       >
         {/* Top shimmer */}
