@@ -2364,8 +2364,149 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </motion.div>
                 ))}
               </SectionCard>
+
+              {/* ── Protected Users — X Connection Status ── */}
+              <SectionCard accentColor="#38BDF888">
+                <div className="px-5 py-4 border-b flex items-center gap-2.5 flex-wrap" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                  <ShieldCheck size={15} className="text-[#38BDF8]" />
+                  <span className="text-sm font-black text-white">Protected Users</span>
+                  <span className="text-[9px] text-slate-400 font-medium">X Account Link Status</span>
+                  <div className="ml-auto flex items-center gap-2">
+                    <span className="text-[9px] font-black px-2.5 py-1 rounded-full"
+                      style={{ color: '#34D399', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.25)' }}>
+                      {usersList.filter(u => (u as any).socialConnections?.x?.connected).length} connected
+                    </span>
+                    <span className="text-[9px] font-black px-2.5 py-1 rounded-full"
+                      style={{ color: '#FB923C', background: 'rgba(251,146,60,0.10)', border: '1px solid rgba(251,146,60,0.25)' }}>
+                      {usersList.filter(u => !(u as any).socialConnections?.x?.connected).length} unlinked
+                    </span>
+                  </div>
+                </div>
+
+                {/* Summary Stats */}
+                <div className="grid grid-cols-3 divide-x divide-white/5" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  {[
+                    {
+                      label: 'X Connected',
+                      value: usersList.filter(u => (u as any).socialConnections?.x?.connected).length,
+                      color: '#34D399',
+                      icon: '🔗',
+                    },
+                    {
+                      label: 'X Verified',
+                      value: usersList.filter(u => (u as any).socialConnections?.x?.verified).length,
+                      color: '#38BDF8',
+                      icon: '✅',
+                    },
+                    {
+                      label: 'Unlinked',
+                      value: usersList.filter(u => !(u as any).socialConnections?.x?.connected).length,
+                      color: '#FB923C',
+                      icon: '⚠️',
+                    },
+                  ].map(s => (
+                    <div key={s.label} className="flex flex-col items-center justify-center py-4 gap-1">
+                      <span className="text-lg">{s.icon}</span>
+                      <span className="text-xl font-black" style={{ color: s.color }}>{s.value}</span>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider">{s.label}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* User rows */}
+                <div className="divide-y" style={{ '--tw-divide-opacity': 1 } as React.CSSProperties}>
+                  {usersList.length === 0 ? (
+                    <div className="text-center py-12 flex flex-col items-center gap-3">
+                      <span className="text-3xl">👥</span>
+                      <span className="text-xs text-slate-500 font-semibold">No users found.</span>
+                    </div>
+                  ) : usersList.map((u, idx) => {
+                    const xConn = (u as any).socialConnections?.x;
+                    const isConnected = !!xConn?.connected;
+                    const isVerified  = !!xConn?.verified;
+                    const handle      = xConn?.handle || null;
+
+                    return (
+                      <motion.div
+                        key={u.telegramId}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.02 }}
+                        className="flex items-center gap-3 px-5 py-3.5 hover:bg-white/[0.015] transition-all"
+                        style={{ borderColor: 'rgba(255,255,255,0.04)' }}
+                      >
+                        {/* Avatar */}
+                        <div
+                          className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-black shrink-0"
+                          style={{
+                            background: isConnected ? 'rgba(56,189,248,0.12)' : 'rgba(251,146,60,0.10)',
+                            border: `1px solid ${isConnected ? 'rgba(56,189,248,0.3)' : 'rgba(251,146,60,0.25)'}`,
+                            color: isConnected ? '#38BDF8' : '#FB923C',
+                          }}
+                        >
+                          {(u.firstName?.[0] ?? 'U').toUpperCase()}
+                        </div>
+
+                        {/* User info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-bold text-white">{u.firstName} {u.lastName}</span>
+                            {u.username && (
+                              <span className="text-[9px] text-slate-500 font-mono">@{u.username}</span>
+                            )}
+                            {isVerified && (
+                              <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full"
+                                style={{ color: '#38BDF8', background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.25)' }}>
+                                ✓ VERIFIED
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {isConnected ? (
+                              <span className="text-[9px] font-mono font-bold text-[#34D399]">
+                                𝕏 {handle || 'linked'}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] text-[#FB923C] font-semibold">X not connected</span>
+                            )}
+                            <span className="text-[9px] text-slate-600">·</span>
+                            <span className="text-[9px] text-slate-500">{(u.points ?? 0).toLocaleString()} pts</span>
+                            <span className="text-[9px] text-slate-600">·</span>
+                            <span className="text-[9px] text-slate-500">ID: {u.telegramId}</span>
+                          </div>
+                        </div>
+
+                        {/* Status badge */}
+                        <div className="shrink-0">
+                          {isConnected ? (
+                            <span
+                              className="text-[9px] font-black px-2.5 py-1 rounded-full"
+                              style={{
+                                color: isVerified ? '#34D399' : '#38BDF8',
+                                background: isVerified ? 'rgba(52,211,153,0.10)' : 'rgba(56,189,248,0.10)',
+                                border: `1px solid ${isVerified ? 'rgba(52,211,153,0.25)' : 'rgba(56,189,248,0.25)'}`,
+                              }}
+                            >
+                              {isVerified ? '🔒 LOCKED' : '🔗 LINKED'}
+                            </span>
+                          ) : (
+                            <span
+                              className="text-[9px] font-black px-2.5 py-1 rounded-full"
+                              style={{ color: '#FB923C', background: 'rgba(251,146,60,0.08)', border: '1px solid rgba(251,146,60,0.2)' }}
+                            >
+                              ⚠️ UNLINKED
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </SectionCard>
+
             </div>
           )}
+
 
           {/* ════════════════════ SETTINGS ════════════════════ */}
           {activeTab === 'settings' && (

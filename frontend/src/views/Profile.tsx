@@ -46,6 +46,7 @@ export const Profile = ({
 }: ProfileProps) => {
   const connectedAddress = dbUser?.walletAddress || null;
   const [copiedId, setCopiedId] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   const handleCopyId = () => {
     if (!telegramUser) return;
@@ -195,13 +196,12 @@ export const Profile = ({
               : 'bg-gradient-to-tr from-[#FF8A00]/60 to-[#00E5FF]/60'
           }`}>
             <div className="w-full h-full rounded-full bg-[#080d21] flex items-center justify-center text-white font-bold text-xl relative overflow-hidden">
-              {/* ✅ FIX: Prefer dbUser.photoUrl (updated by admin upload) over telegramUser.photoUrl */}
-              {(dbUser?.photoUrl || telegramUser?.photoUrl) ? (
+              {(dbUser?.photoUrl || telegramUser?.photoUrl) && !imgError ? (
                 <img
                   src={dbUser?.photoUrl || telegramUser?.photoUrl || ''}
                   alt={getDisplayName(telegramUser)}
                   className="w-full h-full object-cover rounded-full"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  onError={() => setImgError(true)}
                 />
               ) : (
                 <span className="text-lg font-black text-transparent bg-clip-text bg-gradient-to-r from-[#FF8A00] to-[#00E5FF]">

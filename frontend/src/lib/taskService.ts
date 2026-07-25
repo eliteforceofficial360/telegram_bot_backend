@@ -52,6 +52,20 @@ export interface EForceTask {
   cooldownSeconds?: number;
   completedCount: number;
   createdAt: unknown;
+
+  // User-Created Campaign Task Extensions
+  createdBy?: number;
+  createdByName?: string;
+  status?: 'active' | 'under_review' | 'completed' | 'paused' | 'cancelled';
+  escrowedAmount?: number;
+  quantityTotal?: number;
+  platform?: string;
+  actionType?: string;
+  minTier?: 'stone' | 'bronze' | 'silver' | 'gold';
+  verifiedOnly?: boolean;
+  stepsChecklist?: string[];
+  inputFields?: string[];
+  noteToReviewers?: string;
 }
 
 export interface UserTaskRecord {
@@ -463,3 +477,134 @@ const getDefaultTasks = (): EForceTask[] => [
     createdAt: null,
   },
 ];
+
+/**
+ * Create a new User-Funded Campaign Task with Escrow deduction.
+ */
+export const createUserCampaignTask = async (
+  telegramId: number,
+  taskData: Omit<EForceTask, 'id' | 'completedCount' | 'createdAt'>,
+  totalEscrow: number
+): Promise<{ success: boolean; taskId?: string; reason?: string }> => {
+  if (!isFirebaseConfigured()) {
+    return { success: false, reason: 'Firebase not configured' };
+  }
+
+  try {
+    const userRef = doc(db, 'users', String(telegramId));
+    let newTaskId = '';
+
+    await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) {
+        throw new Error('User profile not found.');
+      }
+
+      const userData = userSnap.data();
+      const currentPoints = Number(userData.points || 0);
+
+      if (currentPoints < totalEscrow) {
+        throw new Error(`Insufficient balance. Required: ${totalEscrow} EFC, Current: ${currentPoints} EFC`);
+      }
+
+      // Deduct escrow
+      transaction.update(userRef, { points: currentPoints - totalEscrow });
+
+      // Create Task doc
+      const newTaskRef = doc(collection(db, TASKS_COLLECTION));
+      newTaskId = newTaskRef.id;
+
+      transaction.set(newTaskRef, {
+        ...taskData,
+        createdBy: telegramId,
+        escrowedAmount: totalEscrow,
+        completedCount: 0,
+        createdAt: serverTimestamp(),
+      });
+    });
+
+    return { success: true, taskId: newTaskId };
+  } catch (err: any) {
+    console.error('[createUserCampaignTask] Error:', err);
+    return { success: false, reason: err?.message || 'Failed to create campaign task.' };
+  }
+};
+
+/**
+ * Subscribe to tasks created by a specific user.
+ */
+export const subscribeToUserCreatedTasks = (
+  telegramId: number,
+  callback: (tasks: EForceTask[]) => void
+): (() => void) => {
+  if (!isFirebaseConfigured()) {
+    callback([]);
+    return () => {};
+  }
+  const q = query(
+    collection(db, TASKS_COLLECTION),
+    where('createdBy', '==', telegramId)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const tasks: EForceTask[] = [];
+      snap.forEach((d) => tasks.push({ id: d.id, ...d.data() } as EForceTask));
+      callback(tasks);
+    },
+    () => callback([])
+  );
+};
+
+/**
+ * Update user campaign status (Pause / Resume / Cancel & Refund)
+ */
+export const updateUserCampaignStatus = async (
+  telegramId: number,
+  taskId: string,
+  newStatus: 'active' | 'paused' | 'cancelled'
+): Promise<{ success: boolean; refundedAmount?: number; reason?: string }> => {
+  if (!isFirebaseConfigured()) return { success: false, reason: 'Firebase not configured' };
+
+  try {
+    const taskRef = doc(db, TASKS_COLLECTION, taskId);
+    const userRef = doc(db, 'users', String(telegramId));
+    let refunded = 0;
+
+    await runTransaction(db, async (transaction) => {
+      const taskSnap = await transaction.get(taskRef);
+      if (!taskSnap.exists()) throw new Error('Task not found.');
+
+      const taskData = taskSnap.data() as EForceTask;
+      if (taskData.createdBy !== telegramId) {
+        throw new Error('Unauthorized.');
+      }
+
+      if (newStatus === 'cancelled') {
+        const total = taskData.totalCompletionLimit || 1;
+        const done = taskData.completedCount || 0;
+        const remaining = Math.max(0, total - done);
+        const escrow = taskData.escrowedAmount || 0;
+        refunded = Math.round((escrow / total) * remaining);
+
+        const userSnap = await transaction.get(userRef);
+        if (userSnap.exists()) {
+          const curPoints = Number(userSnap.data()?.points || 0);
+          transaction.update(userRef, { points: curPoints + refunded });
+        }
+
+        transaction.update(taskRef, { status: 'cancelled', isEnabled: false });
+      } else {
+        transaction.update(taskRef, {
+          status: newStatus,
+          isEnabled: newStatus === 'active',
+        });
+      }
+    });
+
+    return { success: true, refundedAmount: refunded };
+  } catch (err: any) {
+    return { success: false, reason: err?.message || 'Failed to update campaign.' };
+  }
+};
+

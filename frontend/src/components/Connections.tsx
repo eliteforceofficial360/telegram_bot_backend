@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, X as CloseIcon } from 'lucide-react';
 import { type TelegramUser } from '../lib/telegramUser';
@@ -314,9 +315,10 @@ export const Connections = ({
       </div>
 
       {/* ── DISCONNECT CONFIRMATION POPUP ── */}
-      <AnimatePresence>
-        {disconnectTarget && disconnectModalPlatObj && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      {disconnectTarget && disconnectModalPlatObj && createPortal(
+        <AnimatePresence>
+          {disconnectTarget && disconnectModalPlatObj && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -351,13 +353,16 @@ export const Connections = ({
               </div>
             </motion.div>
           </div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
 
       {/* ── LINK MODALS ── */}
-      <AnimatePresence>
-        {activeModal && currentModalPlat && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      {activeModal && currentModalPlat && createPortal(
+        <AnimatePresence>
+          {activeModal && currentModalPlat && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -455,7 +460,9 @@ export const Connections = ({
             </motion.div>
           </div>
         )}
-      </AnimatePresence>
+        </AnimatePresence>,
+        document.body
+      )}
     </div>
   );
 };
