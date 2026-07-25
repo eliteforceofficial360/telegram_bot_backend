@@ -44,3 +44,7 @@ testsprite_tests\tmp\config.json
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Large 3D model files (served via Firebase Hosting, not tracked in git)
+*.glb
+*.gltf
