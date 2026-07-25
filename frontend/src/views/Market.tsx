@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { Search, SlidersHorizontal, Plus, RefreshCw, Store, Clock, Sparkles, Layers } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, SlidersHorizontal, Plus, RefreshCw, Store, Clock, Sparkles, Layers, ShieldAlert, Bell, Home } from 'lucide-react';
 import {
   type MarketTask, type TaskSubmission, type DiscoverFilters,
   fetchDiscoverTasks, fetchMyTasks, fetchCreatedTasks,
@@ -23,8 +23,145 @@ interface MarketProps {
 
 type MarketTab = 'discover' | 'my_tasks' | 'created' | 'completed' | 'history';
 
+const MarketMaintenanceOverlay: React.FC<{
+  adminSettings: any;
+  setActiveTab: (tab: string) => void;
+  showToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void;
+}> = ({ adminSettings, setActiveTab, showToast }) => {
+  const status = adminSettings?.marketStatus || 'off';
+  const until = adminSettings?.marketMaintenanceUntil;
+  const reason = adminSettings?.marketLockReason || 'Task Market is currently undergoing maintenance and security checks.';
+
+  const [timeLeftStr, setTimeLeftStr] = useState<string>('');
+  const [reminderSet, setReminderSet] = useState<boolean>(() => {
+    return localStorage.getItem('market_reminder_set') === 'true';
+  });
+
+  useEffect(() => {
+    if (!until) return;
+    const updateTimer = () => {
+      const diff = new Date(until).getTime() - Date.now();
+      if (diff <= 0) {
+        setTimeLeftStr('00:00:00');
+        return;
+      }
+      const hrs = Math.floor(diff / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const secs = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeftStr(
+        `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      );
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [until]);
+
+  const toggleReminder = () => {
+    const next = !reminderSet;
+    setReminderSet(next);
+    localStorage.setItem('market_reminder_set', next ? 'true' : 'false');
+    if (next) {
+      showToast('🔔 Reminder set! We will notify you when Market unlocks.', 'success');
+    } else {
+      showToast('Reminder cancelled.', 'info');
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 text-center select-none">
+      <motion.div
+        initial={{ scale: 0.85, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="w-full max-w-sm rounded-[28px] p-6 space-y-5 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(145deg, rgba(20,24,40,0.92) 0%, rgba(10,12,24,0.95) 100%)',
+          border: '1.5px solid rgba(255,215,0,0.25)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(255,215,0,0.1)',
+        }}
+      >
+        {/* Ambient Glow */}
+        <div
+          className="absolute -top-20 left-1/2 -translate-x-1/2 w-40 h-40 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(255,215,0,0.25) 0%, transparent 70%)' }}
+        />
+
+        {/* Lock Shield */}
+        <div className="relative mx-auto w-20 h-20 rounded-3xl flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,138,0,0.1))',
+            border: '1.5px solid rgba(255,215,0,0.4)',
+            boxShadow: '0 0 25px rgba(255,215,0,0.25)',
+          }}>
+          <ShieldAlert size={38} color="#FFD700" />
+        </div>
+
+        {/* Status Badge */}
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest"
+          style={{
+            background: 'rgba(255,215,0,0.12)',
+            border: '1px solid rgba(255,215,0,0.3)',
+            color: '#FFD700',
+          }}>
+          {status === 'maintenance' ? '⏳ SCHEDULED MAINTENANCE' : '🔒 MARKET TEMPORARILY LOCKED'}
+        </div>
+
+        <div>
+          <h2 className="text-lg font-black text-white tracking-tight mb-1">
+            Task Market is Locked
+          </h2>
+          <p className="text-xs text-slate-400 leading-relaxed px-2">
+            {reason}
+          </p>
+        </div>
+
+        {/* Countdown Display */}
+        {until && (
+          <div className="p-4 rounded-2xl bg-white/[0.04] border border-white/10 space-y-1">
+            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              Estimated Unlock Countdown
+            </div>
+            <div className="text-2xl font-black font-mono tracking-widest"
+              style={{ color: '#FFD700', textShadow: '0 0 15px rgba(255,215,0,0.4)' }}>
+              {timeLeftStr || '00:00:00'}
+            </div>
+            <div className="text-[9px] text-slate-500">
+              Unlocks at: {new Date(until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="space-y-2 pt-1">
+          {until && (
+            <button
+              onClick={toggleReminder}
+              className="w-full py-3 rounded-2xl text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer transition-all"
+              style={{
+                background: reminderSet ? 'rgba(0,255,136,0.15)' : 'rgba(255,215,0,0.15)',
+                border: reminderSet ? '1px solid rgba(0,255,136,0.4)' : '1px solid rgba(255,215,0,0.35)',
+                color: reminderSet ? '#00FF88' : '#FFD700',
+              }}
+            >
+              <Bell size={14} />
+              {reminderSet ? '✓ Reminder Active' : '🔔 Remind Me When Live'}
+            </button>
+          )}
+
+          <button
+            onClick={() => setActiveTab('home')}
+            className="w-full py-3 rounded-2xl text-xs font-bold text-slate-400 hover:text-white bg-white/5 border border-white/8 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Home size={14} /> Return to Home
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
 export const Market: React.FC<MarketProps> = ({
-  efcBalance, telegramUser, showToast,
+  efcBalance, telegramUser, showToast, adminSettings, setActiveTab,
 }) => {
   const [activeTab, setActiveTabLocal] = useState<MarketTab>('discover');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -90,6 +227,22 @@ export const Market: React.FC<MarketProps> = ({
   };
 
   const featuredTask = discoverTasks.find(t => t.featured) || discoverTasks[0];
+
+  const marketStatus = adminSettings?.marketStatus || 'on';
+  const marketUntil = adminSettings?.marketMaintenanceUntil;
+  const isMarketLocked =
+    marketStatus === 'off' ||
+    (marketStatus === 'maintenance' && marketUntil && new Date(marketUntil).getTime() > Date.now());
+
+  if (isMarketLocked) {
+    return (
+      <MarketMaintenanceOverlay
+        adminSettings={adminSettings}
+        setActiveTab={setActiveTab}
+        showToast={showToast}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col h-full space-y-4 pb-20 relative select-none">

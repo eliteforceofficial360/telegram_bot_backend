@@ -6,7 +6,7 @@ import {
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff, Upload,
-  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info, Send,
+  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info, Send, Lock,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -201,6 +201,42 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // --- Admin Settings & Market Access State ---
+  const [marketStatus, setMarketStatus] = useState<'on' | 'off' | 'maintenance'>('on');
+  const [marketMaintenanceUntil, setMarketMaintenanceUntil] = useState('');
+  const [marketLockReason, setMarketLockReason] = useState('');
+  const [savingMarketSettings, setSavingMarketSettings] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeToAdminSettings((s) => {
+      setMarketStatus(s.marketStatus || 'on');
+      setMarketMaintenanceUntil(s.marketMaintenanceUntil || '');
+      setMarketLockReason(s.marketLockReason || 'Task Market is currently undergoing system maintenance and campaign security audits.');
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSetMarketTimerPreset = (minutes: number) => {
+    const future = new Date(Date.now() + minutes * 60000).toISOString();
+    setMarketMaintenanceUntil(future);
+    setMarketStatus('maintenance');
+  };
+
+  const handleSaveMarketSettings = async () => {
+    setSavingMarketSettings(true);
+    const success = await saveAdminSettings({
+      marketStatus,
+      marketMaintenanceUntil: marketStatus === 'on' ? '' : marketMaintenanceUntil,
+      marketLockReason,
+    });
+    setSavingMarketSettings(false);
+    if (success) {
+      showToast(`Task Market access settings updated: ${marketStatus.toUpperCase()}`, 'success');
+    } else {
+      showToast('Failed to update Market access settings', 'error');
+    }
+  };
 
   // --- Referral Claim Limit Manager State ---
   const [referralTiers, setReferralTiers] = useState<ReferralClaimTier[]>([]);
@@ -2178,6 +2214,130 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       <div className="text-[10px] text-slate-300 leading-relaxed">
                         All market tasks deduct escrow from campaign creators upfront. Workers receive automated payouts upon task verification. Submissions with suspicious URLs or policy violations should be paused or rejected immediately.
                       </div>
+                    </div>
+                  </div>
+
+                  {/* ── Market Access & Lock Controller ── */}
+                  <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-black text-white flex items-center gap-2">
+                          <Lock size={14} className="text-[#FF8A00]" />
+                          Market Access & Maintenance Controller
+                        </h4>
+                        <p className="text-[10px] text-slate-400">Lock the Market UI, set scheduled maintenance timers, or unlock for users</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full uppercase border ${
+                        marketStatus === 'on' ? 'bg-[#00FF88]/15 text-[#00FF88] border-[#00FF88]/30' :
+                        marketStatus === 'maintenance' ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' :
+                        'bg-red-500/15 text-red-400 border-red-500/30'
+                      }`}>
+                        {marketStatus === 'on' ? '🟢 Market Unlocked (ON)' : marketStatus === 'maintenance' ? '⏳ Scheduled Maintenance' : '🔴 Market Locked (OFF)'}
+                      </span>
+                    </div>
+
+                    {/* Status Mode Selectors */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setMarketStatus('on')}
+                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          marketStatus === 'on' ? 'bg-[#00FF88]/20 text-[#00FF88] border border-[#00FF88]/50 shadow-lg' : 'bg-white/5 text-slate-400 border border-white/10'
+                        }`}
+                      >
+                        <CheckCircle2 size={14} /> ON (Unlocked)
+                      </button>
+                      <button
+                        onClick={() => setMarketStatus('off')}
+                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          marketStatus === 'off' ? 'bg-red-500/20 text-red-400 border border-red-500/50 shadow-lg' : 'bg-white/5 text-slate-400 border border-white/10'
+                        }`}
+                      >
+                        <Ban size={14} /> OFF (Locked)
+                      </button>
+                      <button
+                        onClick={() => setMarketStatus('maintenance')}
+                        className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          marketStatus === 'maintenance' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50 shadow-lg' : 'bg-white/5 text-slate-400 border border-white/10'
+                        }`}
+                      >
+                        <Clock size={14} /> Maintenance Timer
+                      </button>
+                    </div>
+
+                    {/* Maintenance Time Presets (when maintenance or off) */}
+                    {marketStatus !== 'on' && (
+                      <div className="space-y-3 pt-2 border-t border-white/5">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
+                          Set Maintenance Time Limit (Countdown Timer)
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { label: '+15m', mins: 15 },
+                            { label: '+30m', mins: 30 },
+                            { label: '+1h', mins: 60 },
+                            { label: '+2h', mins: 120 },
+                            { label: '+6h', mins: 360 },
+                            { label: '+12h', mins: 720 },
+                            { label: '+24h', mins: 1440 },
+                          ].map(p => (
+                            <button
+                              key={p.label}
+                              onClick={() => handleSetMarketTimerPreset(p.mins)}
+                              className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 hover:border-amber-500/40 text-slate-300 hover:text-amber-400 transition-all cursor-pointer"
+                            >
+                              {p.label}
+                            </button>
+                          ))}
+                          <button
+                            onClick={() => setMarketMaintenanceUntil('')}
+                            className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
+                          >
+                            Clear Timer
+                          </button>
+                        </div>
+
+                        {/* Expiry DateTime input */}
+                        <div className="flex items-center gap-3 pt-1">
+                          <input
+                            type="datetime-local"
+                            value={marketMaintenanceUntil ? new Date(marketMaintenanceUntil).toISOString().slice(0, 16) : ''}
+                            onChange={e => setMarketMaintenanceUntil(e.target.value ? new Date(e.target.value).toISOString() : '')}
+                            className="px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white focus:outline-none"
+                          />
+                          {marketMaintenanceUntil && (
+                            <span className="text-[10px] font-mono text-amber-400">
+                              Unlocks at: {new Date(marketMaintenanceUntil).toLocaleString()}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Lock Notice Message */}
+                        <div>
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                            Lock Screen Reason / Notice Message
+                          </label>
+                          <textarea
+                            value={marketLockReason}
+                            onChange={e => setMarketLockReason(e.target.value)}
+                            placeholder="Enter notice shown to users when locked..."
+                            rows={2}
+                            className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white placeholder-slate-600 focus:outline-none resize-none"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Save Button */}
+                    <div className="flex justify-end pt-1">
+                      <button
+                        onClick={handleSaveMarketSettings}
+                        disabled={savingMarketSettings}
+                        className="px-5 py-2.5 rounded-xl text-xs font-black text-black cursor-pointer transition-all shadow-lg flex items-center gap-1.5"
+                        style={{ background: 'linear-gradient(135deg, #FFD700, #FF8A00)' }}
+                      >
+                        {savingMarketSettings ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+                        Save Market Access Settings
+                      </button>
                     </div>
                   </div>
                 </div>

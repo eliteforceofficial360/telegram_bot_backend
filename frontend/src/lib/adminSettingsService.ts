@@ -115,6 +115,11 @@ export interface AdminSettings {
   // Custom Top Miners (shown as pinned entries on Leaderboard)
   customTopMiners: { name: string; score: number; badge: string }[];
 
+  // Market Maintenance & Access Control
+  marketStatus?: 'on' | 'off' | 'maintenance';
+  marketMaintenanceUntil?: string;
+  marketLockReason?: string;
+
   // App Customization / Branding Images
   loadingLogoUrl: string;
   coinIconUrl: string;
@@ -198,6 +203,9 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   telegramGroupUrl: 'https://t.me/EliteForceGroup',
   telegramGroupId: '@EliteForceGroup',
   verificationCooldownSeconds: 30,
+  marketStatus: 'on',
+  marketMaintenanceUntil: '',
+  marketLockReason: 'Task Market is currently undergoing system maintenance and campaign security audits.',
   customTopMiners: [],
   loadingLogoUrl: '/loading-logo.png',
   coinIconUrl: '/coin.png',

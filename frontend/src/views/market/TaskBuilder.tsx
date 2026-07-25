@@ -6,6 +6,7 @@ import {
   type CreateTaskPayload,
 } from '../../lib/marketService';
 import { type TelegramUser } from '../../lib/telegramUser';
+import { PlatformIcon, ActionIcon } from './components/PlatformIcons';
 
 interface TaskBuilderProps {
   onClose: () => void;
@@ -221,7 +222,9 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                           boxShadow: form.platform === p.id ? `0 0 16px ${p.color}20` : 'none',
                         }}
                       >
-                        <span className="text-xl leading-none">{p.icon}</span>
+                        <span className="w-6 h-6 flex items-center justify-center">
+                          <PlatformIcon platformId={p.id} size={20} color={form.platform === p.id ? p.color : '#64748b'} />
+                        </span>
                         <span className="text-[9px] font-bold" style={{ color: form.platform === p.id ? p.color : '#64748b' }}>
                           {p.id}
                         </span>
@@ -245,7 +248,9 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                           }}
                         >
                           <div className="flex items-center gap-3">
-                            <span className="text-lg">{a.icon}</span>
+                            <span className="w-5 h-5 flex items-center justify-center">
+                              <ActionIcon action={a.label} size={16} color={form.action === a.label ? '#FF8A00' : '#64748b'} />
+                            </span>
                             <span className="text-xs font-bold" style={{ color: form.action === a.label ? '#FF8A00' : '#cbd5e1' }}>
                               {a.label}
                             </span>
