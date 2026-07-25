@@ -88,7 +88,7 @@ export const Home: React.FC<HomeProps> = ({
 
   const settingsRef = useRef(settings);
   const telegramUserRef = useRef(telegramUser);
-  
+
   useEffect(() => { settingsRef.current = settings; }, [settings]);
   useEffect(() => { telegramUserRef.current = telegramUser; }, [telegramUser]);
 
@@ -97,8 +97,8 @@ export const Home: React.FC<HomeProps> = ({
   const activeBanners = validHeroBanners.length > 0
     ? validHeroBanners
     : settings.welcomeBannerUrl
-    ? [{ id: 'default', imageUrl: settings.welcomeBannerUrl, title: '' }]
-    : [];
+      ? [{ id: 'default', imageUrl: settings.welcomeBannerUrl, title: '' }]
+      : [];
 
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
@@ -227,7 +227,7 @@ export const Home: React.FC<HomeProps> = ({
       setIsMiningCompleted(false);
 
       if (telegramUser) {
-        syncPointsToFirestore(telegramUser.id, efcBalance + rewardToClaim).catch(() => {});
+        syncPointsToFirestore(telegramUser.id, efcBalance + rewardToClaim).catch(() => { });
       }
 
       showToast(`🎁 Claimed +${rewardToClaim.toLocaleString()} EFC Points! Next mining session started.`, 'success');
@@ -292,7 +292,7 @@ export const Home: React.FC<HomeProps> = ({
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
           },
           efcBalance
-        ).catch(() => {});
+        ).catch(() => { });
 
         // Retry checkin
         result = await recordDailyCheckin(telegramUser.id, activeDailyRewards);
@@ -333,14 +333,14 @@ export const Home: React.FC<HomeProps> = ({
         // Add point reward to user (Telegram Premium bonus vs Standard)
         const reward = effectiveAdReward;
         setEfcBalance(prev => prev + reward);
-        
+
         // Save to Firestore by updating the user profile points
         const updatedCount = adWatchesToday + 1;
         setAdWatchesToday(updatedCount);
         localStorage.setItem('adWatchCount', String(updatedCount));
-        
+
         await syncPointsToFirestore(telegramUser.id, efcBalance + reward);
-        
+
         showToast(`🎉 Ad watch complete! +${reward} EFC Points added.`, 'success');
         confetti({ particleCount: 20, spread: 40, origin: { y: 0.6 }, ticks: 80, disableForReducedMotion: true, colors: ['#FF8A00', '#00E5FF'] });
       } else {
@@ -408,9 +408,9 @@ export const Home: React.FC<HomeProps> = ({
               className={`absolute inset-0 w-full h-full ${activeBanners[currentBannerIndex]?.linkUrl ? 'cursor-pointer' : ''}`}
             >
               {activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.mp4') ||
-               activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.webm') ||
-               activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.mov') ||
-               activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().startsWith('data:video/') ? (
+                activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.webm') ||
+                activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().includes('.mov') ||
+                activeBanners[currentBannerIndex]?.imageUrl?.toLowerCase().startsWith('data:video/') ? (
                 <video
                   src={activeBanners[currentBannerIndex]?.imageUrl}
                   autoPlay
@@ -444,9 +444,8 @@ export const Home: React.FC<HomeProps> = ({
                 <button
                   key={idx}
                   onClick={() => setCurrentBannerIndex(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-300 ${
-                    idx === currentBannerIndex ? 'w-4 bg-[#FF8A00]' : 'w-1.5 bg-white/40'
-                  }`}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${idx === currentBannerIndex ? 'w-4 bg-[#FF8A00]' : 'w-1.5 bg-white/40'
+                    }`}
                 />
               ))}
             </div>
@@ -488,8 +487,8 @@ export const Home: React.FC<HomeProps> = ({
             boxShadow: isMiningCompleted
               ? '0 0 0 1px rgba(255,215,0,0.18), 0 24px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,215,0,0.15)'
               : isMiningActive
-              ? '0 0 0 1px rgba(0,229,255,0.12), 0 24px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(0,229,255,0.08)'
-              : '0 0 0 1px rgba(255,138,0,0.10), 0 24px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,138,0,0.07)',
+                ? '0 0 0 1px rgba(0,229,255,0.12), 0 24px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(0,229,255,0.08)'
+                : '0 0 0 1px rgba(255,138,0,0.10), 0 24px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,138,0,0.07)',
             padding: '28px 20px 24px',
           }}
         >
@@ -512,18 +511,18 @@ export const Home: React.FC<HomeProps> = ({
               background: isMiningCompleted
                 ? 'radial-gradient(ellipse, rgba(255,200,0,0.16) 0%, transparent 70%)'
                 : isMiningActive
-                ? 'radial-gradient(ellipse, rgba(0,229,255,0.09) 0%, transparent 70%)'
-                : 'radial-gradient(ellipse, rgba(255,138,0,0.07) 0%, transparent 70%)',
+                  ? 'radial-gradient(ellipse, rgba(0,229,255,0.09) 0%, transparent 70%)'
+                  : 'radial-gradient(ellipse, rgba(255,138,0,0.07) 0%, transparent 70%)',
               // No filter:blur here — the radial-gradient itself provides the soft edge
             }}
           />
 
           {/* ── Golden Ambient Particles (5 max for 60fps on mobile) ─ */}
           {(isMiningActive || isMiningCompleted) && ([
-            { left: '18%', size: 3, dur: '3.8s', delay: '0s',   tx: '-15px' },
-            { left: '35%', size: 2, dur: '4.5s', delay: '0.8s', tx: '10px'  },
-            { left: '50%', size: 4, dur: '3.2s', delay: '1.4s', tx: '-8px'  },
-            { left: '67%', size: 2, dur: '5.0s', delay: '0.3s', tx: '18px'  },
+            { left: '18%', size: 3, dur: '3.8s', delay: '0s', tx: '-15px' },
+            { left: '35%', size: 2, dur: '4.5s', delay: '0.8s', tx: '10px' },
+            { left: '50%', size: 4, dur: '3.2s', delay: '1.4s', tx: '-8px' },
+            { left: '67%', size: 2, dur: '5.0s', delay: '0.3s', tx: '18px' },
             { left: '80%', size: 3, dur: '4.2s', delay: '1.9s', tx: '-20px' },
           ] as const).map((p, i) => (
             <div
@@ -552,16 +551,15 @@ export const Home: React.FC<HomeProps> = ({
           >
             {/* Outer wide glow — static radial, no filter:blur (zero paint cost) */}
             <div
-              className={`absolute rounded-full pointer-events-none transition-opacity duration-700 ${
-                isMiningCompleted ? 'completed-aura' : ''
-              }`}
+              className={`absolute rounded-full pointer-events-none transition-opacity duration-700 ${isMiningCompleted ? 'completed-aura' : ''
+                }`}
               style={{
                 inset: '-16px',
                 background: isMiningCompleted
                   ? 'radial-gradient(circle, rgba(255,200,0,0.28) 0%, rgba(255,120,0,0.12) 55%, transparent 80%)'
                   : isMiningActive
-                  ? 'radial-gradient(circle, rgba(0,229,255,0.20) 0%, rgba(0,136,255,0.10) 55%, transparent 80%)'
-                  : 'transparent',
+                    ? 'radial-gradient(circle, rgba(0,229,255,0.20) 0%, rgba(0,136,255,0.10) 55%, transparent 80%)'
+                    : 'transparent',
               }}
             />
 
@@ -573,8 +571,8 @@ export const Home: React.FC<HomeProps> = ({
                 border: isMiningCompleted
                   ? '1px dashed rgba(255,215,0,0.45)'
                   : isMiningActive
-                  ? '1px dashed rgba(0,229,255,0.38)'
-                  : '1px dashed rgba(255,138,0,0.18)',
+                    ? '1px dashed rgba(0,229,255,0.38)'
+                    : '1px dashed rgba(255,138,0,0.18)',
                 borderRadius: '50%',
               }}
             />
@@ -587,8 +585,8 @@ export const Home: React.FC<HomeProps> = ({
                 border: isMiningCompleted
                   ? '1px dashed rgba(255,180,0,0.25)'
                   : isMiningActive
-                  ? '1px dashed rgba(0,200,255,0.20)'
-                  : '1px dashed rgba(255,138,0,0.10)',
+                    ? '1px dashed rgba(0,200,255,0.20)'
+                    : '1px dashed rgba(255,138,0,0.10)',
                 borderRadius: '50%',
               }}
             />
@@ -601,14 +599,14 @@ export const Home: React.FC<HomeProps> = ({
                 border: isMiningCompleted
                   ? '1.5px solid rgba(255,215,0,0.55)'
                   : isMiningActive
-                  ? '1.5px solid rgba(0,229,255,0.40)'
-                  : '1.5px solid rgba(255,138,0,0.22)',
+                    ? '1.5px solid rgba(0,229,255,0.40)'
+                    : '1.5px solid rgba(255,138,0,0.22)',
                 borderRadius: '50%',
                 boxShadow: isMiningCompleted
                   ? '0 0 30px rgba(255,215,0,0.35), inset 0 0 22px rgba(255,215,0,0.12)'
                   : isMiningActive
-                  ? '0 0 30px rgba(0,229,255,0.28), inset 0 0 20px rgba(0,229,255,0.10)'
-                  : '0 0 18px rgba(255,138,0,0.14)',
+                    ? '0 0 30px rgba(0,229,255,0.28), inset 0 0 20px rgba(0,229,255,0.10)'
+                    : '0 0 18px rgba(255,138,0,0.14)',
               }}
             />
 
@@ -667,8 +665,8 @@ export const Home: React.FC<HomeProps> = ({
                 border: isMiningCompleted
                   ? '1px solid rgba(255,215,0,0.22)'
                   : isMiningActive
-                  ? '1px solid rgba(0,229,255,0.16)'
-                  : '1px solid rgba(255,255,255,0.07)',
+                    ? '1px solid rgba(0,229,255,0.16)'
+                    : '1px solid rgba(255,255,255,0.07)',
                 padding: '16px',
                 boxShadow: isMiningCompleted
                   ? '0 0 0 1px rgba(255,200,0,0.08), 0 8px 24px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,215,0,0.10)'
@@ -682,9 +680,8 @@ export const Home: React.FC<HomeProps> = ({
                   size={11}
                   className={isMiningActive ? 'text-[#00E5FF] animate-pulse' : isMiningCompleted ? 'text-[#FFD700]' : 'text-[#FF8A00]'}
                 />
-                <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${
-                  isMiningActive ? 'text-[#00E5FF]' : isMiningCompleted ? 'text-[#FFD700]' : 'text-slate-400'
-                }`}>
+                <span className={`text-[9px] font-black uppercase tracking-[0.18em] ${isMiningActive ? 'text-[#00E5FF]' : isMiningCompleted ? 'text-[#FFD700]' : 'text-slate-400'
+                  }`}>
                   {isMiningActive ? 'Live Mining Yield' : isMiningCompleted ? 'Mining Complete' : 'Cloud Mining Machine'}
                 </span>
               </div>
@@ -692,17 +689,16 @@ export const Home: React.FC<HomeProps> = ({
               {/* Big reward number — premium typography */}
               <div className="flex items-baseline gap-2 justify-center mt-0.5">
                 <span
-                  className={`font-black leading-none ${
-                    isMiningCompleted ? 'text-[#FFD700]' : isMiningActive ? 'text-[#00E5FF]' : 'text-slate-400'
-                  }`}
+                  className={`font-black leading-none ${isMiningCompleted ? 'text-[#FFD700]' : isMiningActive ? 'text-[#00E5FF]' : 'text-slate-400'
+                    }`}
                   style={{
                     fontSize: '2rem',
                     letterSpacing: '-0.02em',
                     textShadow: isMiningCompleted
                       ? '0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,138,0,0.3)'
                       : isMiningActive
-                      ? '0 0 20px rgba(0,229,255,0.5)'
-                      : 'none',
+                        ? '0 0 20px rgba(0,229,255,0.5)'
+                        : 'none',
                   }}
                 >
                   +{accumulatedMinedPoints.toLocaleString()}
@@ -731,13 +727,13 @@ export const Home: React.FC<HomeProps> = ({
                       background: isMiningCompleted
                         ? 'linear-gradient(90deg, #FF8A00 0%, #FFB347 45%, #FFD700 100%)'
                         : isMiningActive
-                        ? 'linear-gradient(90deg, #00B4CC 0%, #00E5FF 60%, #4DFFFF 100%)'
-                        : 'rgba(255,255,255,0.10)',
+                          ? 'linear-gradient(90deg, #00B4CC 0%, #00E5FF 60%, #4DFFFF 100%)'
+                          : 'rgba(255,255,255,0.10)',
                       boxShadow: isMiningCompleted
                         ? '0 0 12px rgba(255,200,0,0.7), 0 0 4px rgba(255,138,0,0.5)'
                         : isMiningActive
-                        ? '0 0 12px rgba(0,229,255,0.6)'
-                        : 'none',
+                          ? '0 0 12px rgba(0,229,255,0.6)'
+                          : 'none',
                       width: `${miningProgress}%`,
                       transition: 'width 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94)',
                     }}
@@ -759,8 +755,8 @@ export const Home: React.FC<HomeProps> = ({
                   {isMiningActive
                     ? `⏱ ${timeRemainingStr}`
                     : isMiningCompleted
-                    ? '✦ Ready to Claim!'
-                    : 'Automated Cloud Mining'}
+                      ? '✦ Ready to Claim!'
+                      : 'Automated Cloud Mining'}
                 </span>
                 <span className="text-[9px] font-bold text-slate-500 font-mono">
                   {miningProgress.toFixed(1)}%
@@ -841,11 +837,10 @@ export const Home: React.FC<HomeProps> = ({
           <button
             onClick={claimDailyReward}
             disabled={dailyClaimed || claimingDaily}
-            className={`h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${
-              dailyClaimed
+            className={`h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${dailyClaimed
                 ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
                 : 'bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_14px_rgba(255,138,0,0.3)]'
-            }`}
+              }`}
           >
             {claimingDaily ? (
               <span className="w-3 h-3 border-2 border-t-transparent border-white rounded-full animate-spin" />
@@ -865,16 +860,15 @@ export const Home: React.FC<HomeProps> = ({
             return (
               <div
                 key={i}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl border transition-all ${
-                  isCurrent && !dailyClaimed
+                className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl border transition-all ${isCurrent && !dailyClaimed
                     ? 'border-[#FF8A00]/50 bg-[#FF8A00]/10'
                     : isPast
-                    ? 'border-accent-success/30 bg-accent-success/5'
-                    : 'border-white/5 bg-white/[0.02]'
-                }`}
+                      ? 'border-accent-success/30 bg-accent-success/5'
+                      : 'border-white/5 bg-white/[0.02]'
+                  }`}
               >
                 <span className="text-[7px] text-slate-500 font-bold">D{dayNum}</span>
-                <span className="text-[9px] font-black text-white">{reward >= 1000 ? (reward/1000).toFixed(1)+'k' : reward}</span>
+                <span className="text-[9px] font-black text-white">{reward >= 1000 ? (reward / 1000).toFixed(1) + 'k' : reward}</span>
               </div>
             );
           })}
@@ -890,9 +884,9 @@ export const Home: React.FC<HomeProps> = ({
             </h4>
             <div className="flex items-center gap-2">
               <p className="text-[10px] text-slate-400 font-mono leading-tight">
-                {adWatchesToday < effectiveAdDailyLimit 
-                  ? `${effectiveAdDailyLimit - adWatchesToday}/${effectiveAdDailyLimit} left today` 
-                  : 'Daily limit reached'} · Monetag Ad service ready
+                {adWatchesToday < effectiveAdDailyLimit
+                  ? `${effectiveAdDailyLimit - adWatchesToday}/${effectiveAdDailyLimit} left today`
+                  : 'Daily limit reached'}
               </p>
               {isTelegramPremium && (
                 <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-cyan-400/15 text-cyan-300 border border-cyan-400/30 whitespace-nowrap shrink-0">
@@ -905,11 +899,10 @@ export const Home: React.FC<HomeProps> = ({
           <button
             onClick={handleWatchAdClick}
             disabled={watchingAd || adWatchesToday >= effectiveAdDailyLimit}
-            className={`h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              adWatchesToday >= effectiveAdDailyLimit
+            className={`h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${adWatchesToday >= effectiveAdDailyLimit
                 ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
                 : 'bg-[#E5A338] text-black border border-[#FFD700]/30 hover:brightness-110 active:scale-95 shadow-[0_0_12px_rgba(229,163,56,0.3)]'
-            }`}
+              }`}
           >
             {watchingAd ? (
               <span className="w-3.5 h-3.5 border-2 border-t-transparent border-black rounded-full animate-spin" />
