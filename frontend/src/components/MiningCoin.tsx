@@ -68,6 +68,9 @@ export const MiningCoin: React.FC<MiningCoinProps> = ({
       (gltf) => {
         const model = gltf.scene;
 
+        // Stand upright facing camera (ImageToStl models lie flat on XZ plane by default)
+        model.rotation.x = Math.PI / 2;
+
         // Auto-center and fit model size
         const box = new THREE.Box3().setFromObject(model);
         const center = box.getCenter(new THREE.Vector3());
