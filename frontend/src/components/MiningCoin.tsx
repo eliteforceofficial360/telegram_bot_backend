@@ -1,7 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { motion } from 'framer-motion';
 
 interface MiningCoinProps {
   isMiningActive: boolean;
@@ -16,7 +14,6 @@ export const MiningCoin: React.FC<MiningCoinProps> = ({
 }) => {
   const mountRef = useRef<HTMLDivElement>(null);
   const isMiningRef = useRef<boolean>(isMiningActive);
-  const [glbLoaded, setGlbLoaded] = useState(false);
 
   useEffect(() => {
     isMiningRef.current = isMiningActive;
@@ -26,117 +23,233 @@ export const MiningCoin: React.FC<MiningCoinProps> = ({
     const container = mountRef.current;
     if (!container) return;
 
-    const width = 240;
-    const height = 240;
+    const SIZE = 240;
 
-    // ── 1. Scene, Camera, Renderer ─────────────────────────────────────────
+    // ── Scene, Camera, Renderer ──────────────────────────────────────────────
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100);
     camera.position.set(0, 0, 4.5);
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
-    renderer.setSize(width, height);
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(SIZE, SIZE);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
 
-    while (container.firstChild) {
-      container.removeChild(container.firstChild);
-    }
+    while (container.firstChild) container.removeChild(container.firstChild);
     container.appendChild(renderer.domElement);
 
-    // ── 2. Lights ──────────────────────────────────────────────────────────
-    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
-    scene.add(ambientLight);
+    // ── Gold Canvas Texture (EF Emblem) ────────────────────────────────────
+    const makeEmblemTexture = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d')!;
+      const cx = 256, cy = 256, r = 230;
 
-    const dirLight1 = new THREE.DirectionalLight(0xffd700, 3.5);
-    dirLight1.position.set(5, 5, 5);
-    scene.add(dirLight1);
+      // Deep gold background gradient
+      const bg = ctx.createRadialGradient(cx - 40, cy - 50, 30, cx, cy, r);
+      bg.addColorStop(0, '#FFE066');
+      bg.addColorStop(0.4, '#FFA800');
+      bg.addColorStop(0.75, '#C07000');
+      bg.addColorStop(1, '#7A4000');
+      ctx.fillStyle = bg;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
 
-    const dirLight2 = new THREE.DirectionalLight(0xff8a00, 2.5);
-    dirLight2.position.set(-5, -3, 3);
-    scene.add(dirLight2);
+      // Outer rim light ring
+      ctx.strokeStyle = 'rgba(255,240,180,0.6)';
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r - 10, 0, Math.PI * 2);
+      ctx.stroke();
 
-    const pointLight = new THREE.PointLight(0xffd700, 3.0, 10);
-    pointLight.position.set(0, 0, 4);
-    scene.add(pointLight);
+      // Dashed inner milled ring
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255,240,160,0.45)';
+      ctx.lineWidth = 5;
+      ctx.setLineDash([14, 10]);
+      ctx.beginPath();
+      ctx.arc(cx, cy, r - 32, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
 
-    // ── 3. Model Loading ───────────────────────────────────────────────────
-    let modelGroup: THREE.Group | null = null;
-    const loader = new GLTFLoader();
+      // Specular highlight
+      const hiGrad = ctx.createRadialGradient(cx - 60, cy - 70, 10, cx, cy, r);
+      hiGrad.addColorStop(0, 'rgba(255,255,220,0.55)');
+      hiGrad.addColorStop(0.5, 'rgba(255,220,100,0.10)');
+      hiGrad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = hiGrad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
 
-    loader.load(
-      '/3dsvg.glb',
-      (gltf) => {
-        modelGroup = gltf.scene;
+      // ── Diamond outline ────────────────────────────────
+      const ds = 130;
+      ctx.strokeStyle = 'rgba(255,245,200,0.95)';
+      ctx.lineWidth = 9;
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(255,200,50,0.8)';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - ds);
+      ctx.lineTo(cx + ds, cy);
+      ctx.lineTo(cx, cy + ds);
+      ctx.lineTo(cx - ds, cy);
+      ctx.closePath();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
 
-        // Apply Gold Material / Points Material styling
-        modelGroup.traverse((child) => {
-          if ((child as THREE.Points).isPoints) {
-            const pts = child as THREE.Points;
-            pts.material = new THREE.PointsMaterial({
-              color: 0xffb300,
-              size: 0.035,
-              transparent: true,
-              opacity: 0.95,
-              blending: THREE.AdditiveBlending,
-            });
-          } else if ((child as THREE.Mesh).isMesh) {
-            const mesh = child as THREE.Mesh;
-            mesh.material = new THREE.MeshStandardMaterial({
-              color: 0xffd700,
-              metalness: 0.9,
-              roughness: 0.2,
-            });
-          }
-        });
+      // Inner diamond ring
+      const ds2 = 100;
+      ctx.strokeStyle = 'rgba(255,245,200,0.4)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - ds2);
+      ctx.lineTo(cx + ds2, cy);
+      ctx.lineTo(cx, cy + ds2);
+      ctx.lineTo(cx - ds2, cy);
+      ctx.closePath();
+      ctx.stroke();
 
-        // Center and scale bounding box
-        const box = new THREE.Box3().setFromObject(modelGroup);
-        const center = box.getCenter(new THREE.Vector3());
-        const size = box.getSize(new THREE.Vector3());
+      // ── EF Monogram ─────────────────────────────────────
+      ctx.strokeStyle = 'rgba(255,245,200,0.98)';
+      ctx.lineWidth = 13;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = 'rgba(255,200,50,1)';
+      ctx.shadowBlur = 14;
 
-        modelGroup.position.sub(center);
-        const maxDim = Math.max(size.x, size.y, size.z);
-        if (maxDim > 0) {
-          const scale = 2.6 / maxDim;
-          modelGroup.scale.set(scale, scale, scale);
-        }
+      // "E" - left stroke
+      ctx.beginPath();
+      ctx.moveTo(cx - 68, cy - 60);
+      ctx.lineTo(cx - 68, cy + 60);
+      ctx.stroke();
+      // "E" - top bar
+      ctx.beginPath();
+      ctx.moveTo(cx - 68, cy - 60);
+      ctx.lineTo(cx - 10, cy - 60);
+      ctx.stroke();
+      // "E" - middle bar
+      ctx.beginPath();
+      ctx.moveTo(cx - 68, cy);
+      ctx.lineTo(cx - 18, cy);
+      ctx.stroke();
+      // "E" - bottom bar
+      ctx.beginPath();
+      ctx.moveTo(cx - 68, cy + 60);
+      ctx.lineTo(cx - 10, cy + 60);
+      ctx.stroke();
 
-        scene.add(modelGroup);
-        setGlbLoaded(true);
-      },
-      undefined,
-      (err) => {
-        console.warn('[MiningCoin3D] GLB Load fallback:', err);
-      }
-    );
+      // "F" - vertical
+      ctx.beginPath();
+      ctx.moveTo(cx + 10, cy - 60);
+      ctx.lineTo(cx + 10, cy + 60);
+      ctx.stroke();
+      // "F" - top bar
+      ctx.beginPath();
+      ctx.moveTo(cx + 10, cy - 60);
+      ctx.lineTo(cx + 65, cy - 60);
+      ctx.stroke();
+      // "F" - middle bar
+      ctx.beginPath();
+      ctx.moveTo(cx + 10, cy);
+      ctx.lineTo(cx + 50, cy);
+      ctx.stroke();
 
-    // ── 4. Animation Loop ──────────────────────────────────────────────────
+      ctx.shadowBlur = 0;
+      return new THREE.CanvasTexture(canvas);
+    };
+
+    // ── Coin Body Geometry ───────────────────────────────────────────────────
+    const coinGroup = new THREE.Group();
+
+    // Front face disc
+    const discGeo = new THREE.CircleGeometry(1.5, 128);
+    const discMat = new THREE.MeshStandardMaterial({
+      map: makeEmblemTexture(),
+      metalness: 0.7,
+      roughness: 0.25,
+    });
+    const frontDisc = new THREE.Mesh(discGeo, discMat);
+    frontDisc.position.z = 0.13;
+    coinGroup.add(frontDisc);
+
+    // Back face disc
+    const backGeo = new THREE.CircleGeometry(1.5, 128);
+    const backMat = new THREE.MeshStandardMaterial({
+      color: 0xC07000,
+      metalness: 0.85,
+      roughness: 0.30,
+    });
+    const backDisc = new THREE.Mesh(backGeo, backMat);
+    backDisc.rotation.y = Math.PI;
+    backDisc.position.z = -0.13;
+    coinGroup.add(backDisc);
+
+    // Edge cylinder
+    const edgeGeo = new THREE.CylinderGeometry(1.5, 1.5, 0.26, 128, 1, true);
+    const edgeMat = new THREE.MeshStandardMaterial({
+      color: 0xB06000,
+      metalness: 0.9,
+      roughness: 0.35,
+    });
+    const edgeMesh = new THREE.Mesh(edgeGeo, edgeMat);
+    edgeMesh.rotation.x = Math.PI / 2;
+    coinGroup.add(edgeMesh);
+
+    // Milled dashes on edge
+    for (let i = 0; i < 80; i++) {
+      const angle = (i / 80) * Math.PI * 2;
+      const dashGeo = new THREE.BoxGeometry(0.025, 0.26, 0.03);
+      const dashMat = new THREE.MeshStandardMaterial({ color: 0xFFD060, metalness: 0.9, roughness: 0.2 });
+      const dash = new THREE.Mesh(dashGeo, dashMat);
+      dash.position.set(Math.cos(angle) * 1.52, 0, Math.sin(angle) * 1.52);
+      dash.lookAt(0, 0, 0);
+      coinGroup.add(dash);
+    }
+
+    scene.add(coinGroup);
+
+    // ── Lights ───────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0xffffff, 1.4));
+
+    const key = new THREE.DirectionalLight(0xffe8a0, 3.5);
+    key.position.set(3, 4, 5);
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight(0xff9900, 1.8);
+    fill.position.set(-4, -2, 2);
+    scene.add(fill);
+
+    const rim = new THREE.DirectionalLight(0xffffff, 1.2);
+    rim.position.set(0, 0, -5);
+    scene.add(rim);
+
+    const pointL = new THREE.PointLight(0xffd700, 2.5, 10);
+    pointL.position.set(0, 2, 3);
+    scene.add(pointL);
+
+    // ── Animation ─────────────────────────────────────────────────────────────
     let reqId: number;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
 
     const animate = () => {
       reqId = requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
 
-      if (modelGroup) {
-        if (isMiningRef.current) {
-          modelGroup.rotation.y += 0.022;
-          const elapsedTime = clock.getElapsedTime();
-          modelGroup.position.y = Math.sin(elapsedTime * 2) * 0.08;
-          modelGroup.rotation.x = Math.sin(elapsedTime * 1.5) * 0.04;
-        } else {
-          modelGroup.rotation.y = THREE.MathUtils.lerp(modelGroup.rotation.y, 0, 0.05);
-          modelGroup.position.y = THREE.MathUtils.lerp(modelGroup.position.y, 0, 0.05);
-          modelGroup.rotation.x = THREE.MathUtils.lerp(modelGroup.rotation.x, 0, 0.05);
-        }
+      if (isMiningRef.current) {
+        coinGroup.rotation.y += 0.022;
+        coinGroup.rotation.x = Math.sin(t * 1.2) * 0.07;
+        coinGroup.position.y = Math.sin(t * 2) * 0.07;
+      } else {
+        coinGroup.rotation.y = THREE.MathUtils.lerp(coinGroup.rotation.y, 0, 0.06);
+        coinGroup.rotation.x = THREE.MathUtils.lerp(coinGroup.rotation.x, 0, 0.06);
+        coinGroup.position.y = THREE.MathUtils.lerp(coinGroup.position.y, 0, 0.06);
       }
 
       renderer.render(scene, camera);
     };
-
     animate();
 
     return () => {
@@ -150,63 +263,19 @@ export const MiningCoin: React.FC<MiningCoinProps> = ({
   }, []);
 
   return (
-    <div
-      className={`relative w-full h-full flex items-center justify-center select-none ${className}`}
-    >
-      {/* Ambient Glow Aura */}
-      <div
-        className={`absolute inset-[-16px] rounded-full blur-3xl transition-all duration-700 pointer-events-none ${
-          isMiningActive
-            ? 'bg-[#FF8A00]/45 animate-pulse'
-            : isMiningCompleted
-            ? 'bg-[#FFD700]/55 animate-pulse'
-            : 'bg-[#FF8A00]/15'
-        }`}
-      />
-      <div
-        className={`absolute inset-[-4px] rounded-full blur-xl transition-all duration-700 pointer-events-none ${
-          isMiningActive
-            ? 'bg-[#00E5FF]/35'
-            : isMiningCompleted
-            ? 'bg-[#FFD700]/40'
-            : 'bg-[#FF8A00]/20'
-        }`}
-      />
-
-      {/* Three.js 3D WebGL Canvas */}
+    <div className={`relative w-full h-full flex items-center justify-center select-none ${className}`}>
+      {/* Ambient Glow */}
+      <div className={`absolute inset-[-16px] rounded-full blur-3xl transition-all duration-700 pointer-events-none ${
+        isMiningActive ? 'bg-[#FF8A00]/50 animate-pulse' : isMiningCompleted ? 'bg-[#FFD700]/55 animate-pulse' : 'bg-[#FF8A00]/15'
+      }`} />
+      <div className={`absolute inset-[-4px] rounded-full blur-xl transition-all duration-700 pointer-events-none ${
+        isMiningActive ? 'bg-[#FFD700]/35' : isMiningCompleted ? 'bg-[#FFD700]/40' : 'bg-[#FF8A00]/20'
+      }`} />
+      {/* 3D Canvas */}
       <div
         ref={mountRef}
-        className={`w-[240px] h-[240px] relative z-10 flex items-center justify-center pointer-events-none transition-opacity duration-500 ${
-          glbLoaded ? 'opacity-100' : 'opacity-0'
-        }`}
+        className="w-[240px] h-[240px] relative z-10 pointer-events-none"
       />
-
-      {/* Fallback Gold EF Emblem until 3D GLB initializes */}
-      {!glbLoaded && (
-        <div className="absolute inset-0 z-20 flex items-center justify-center">
-          <motion.div
-            className="w-52 h-52 rounded-full relative flex items-center justify-center bg-gradient-to-br from-[#FFD700] via-[#FF8A00] to-[#804000] p-1.5 shadow-[0_15px_40px_rgba(0,0,0,0.8)] border-4 border-[#FFE5B4]/50 overflow-hidden"
-            animate={isMiningActive ? { rotateY: [0, 180, 360] } : { rotateY: 0 }}
-            transition={isMiningActive ? { repeat: Infinity, duration: 4, ease: 'linear' } : { duration: 0.4 }}
-          >
-            <svg viewBox="0 0 1625 1625" className="w-[90%] h-[90%] object-contain">
-              <defs>
-                <linearGradient id="fallbackGold" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#FFF9D2" />
-                  <stop offset="50%" stopColor="#FFD700" />
-                  <stop offset="100%" stopColor="#FF8A00" />
-                </linearGradient>
-              </defs>
-              <circle cx="812.5" cy="812.5" r="700" stroke="url(#fallbackGold)" strokeWidth="24" fill="none" opacity="0.85" />
-              <g transform="translate(812.5, 812.5) scale(1.15) translate(-812.5, -812.5)">
-                <path d="M812.5 320 L1180 687.5 L812.5 1055 L445 687.5 Z" fill="none" stroke="url(#fallbackGold)" strokeWidth="48" strokeLinejoin="round" />
-                <path d="M660 510 L880 510 L660 730 L880 730 M660 620 L840 620" fill="none" stroke="url(#fallbackGold)" strokeWidth="56" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M880 510 L1020 510 M880 620 L980 620 M880 510 L880 860" fill="none" stroke="url(#fallbackGold)" strokeWidth="56" strokeLinecap="round" strokeLinejoin="round" />
-              </g>
-            </svg>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 };
