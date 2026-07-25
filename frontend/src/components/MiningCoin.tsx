@@ -68,8 +68,9 @@ export const MiningCoin: React.FC<MiningCoinProps> = ({
       (gltf) => {
         const model = gltf.scene;
 
-        // ImageToStl GLB models have their main emblem face on XY plane facing directly forward (+Z)
-        model.rotation.set(0, 0, 0);
+        // ImageToStl GLB models have their main emblem face in XZ plane with Y-axis thickness (0.21).
+        // Rotating -90deg (-Math.PI/2) on X axis tilts the XZ face into the XY plane facing camera (+Z)
+        model.rotation.x = -Math.PI / 2;
 
         const pivot = new THREE.Group();
         pivot.add(model);
