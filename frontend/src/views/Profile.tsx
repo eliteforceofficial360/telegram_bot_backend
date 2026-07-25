@@ -26,6 +26,7 @@ import { Connections } from '../components/Connections';
 interface ProfileProps {
   efcBalance: number;
   usdtBalance?: number;
+  eforceTokens?: number;
   referralsCount?: number;
   adminSettings?: AdminSettings;
   dbUser: FirestoreUser | null;
@@ -36,6 +37,7 @@ interface ProfileProps {
 export const Profile = ({ 
   efcBalance, 
   usdtBalance = 0, 
+  eforceTokens = 0,
   referralsCount = 0,
   adminSettings,
   dbUser, 
@@ -75,19 +77,25 @@ export const Profile = ({
   const country = dbUser?.country && dbUser.country !== 'Unknown' ? dbUser.country : 'BD';
   const flag = country === 'BD' || country.toLowerCase().includes('bangladesh') ? '🇧🇩' : '🌐';
 
-  // Calculate Agent Level based on points
-  const getAgentLevel = (points: number) => {
-    if (points >= 100000) return { title: 'Cyber Overlord', level: 5, badge: '👑 VIP' };
-    if (points >= 25000) return { title: 'Grandmaster Miner', level: 4, badge: '💎 DIAMOND' };
-    if (points >= 5000) return { title: 'Elite Commander', level: 3, badge: '🔥 GOLD' };
-    if (points >= 1000) return { title: 'Vanguard Agent', level: 2, badge: '⚡ SILVER' };
+  // Compute Real-Time Values
+  const totalPoints = dbUser?.points ?? efcBalance ?? 0;
+  const totalTokens = dbUser?.tokens ?? eforceTokens ?? 0;
+  const totalRef = dbUser?.referrals ?? dbUser?.referralCount ?? referralsCount ?? 0;
+
+  // Real-Time Agent Rank Calculation (dependent on both EFC Points & Referrals)
+  const getAgentLevel = (points: number, refs: number) => {
+    const rankScore = points + (refs * 1000);
+
+    if (rankScore >= 100000 || refs >= 50) return { title: 'Cyber Overlord', level: 5, badge: '👑 VIP' };
+    if (rankScore >= 25000 || refs >= 20) return { title: 'Grandmaster Miner', level: 4, badge: '💎 DIAMOND' };
+    if (rankScore >= 5000 || refs >= 5) return { title: 'Elite Commander', level: 3, badge: '🔥 GOLD' };
+    if (rankScore >= 1000 || refs >= 1) return { title: 'Vanguard Agent', level: 2, badge: '⚡ SILVER' };
     return { title: 'Recruit Node', level: 1, badge: '🌱 BRONZE' };
   };
 
-  const agentLevel = getAgentLevel(efcBalance);
+  const agentLevel = getAgentLevel(totalPoints, totalRef);
 
   // Dynamic Milestones / Achievements
-  const totalRef = dbUser?.referrals || referralsCount || 0;
   const achievements = [
     { 
       id: 'first_mine',
@@ -236,13 +244,21 @@ export const Profile = ({
           </div>
         </div>
 
-        {/* Quick Stats Metrics Row */}
-        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-white/8 relative z-10">
+        {/* Quick Stats Metrics Row — 4 Metric Cards */}
+        <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-white/8 relative z-10">
+          {/* EFC Points */}
           <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
             <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold">Points</span>
-            <span className="text-sm font-black text-[#FF8A00] truncate">{efcBalance.toLocaleString()} EFC</span>
+            <span className="text-sm font-black text-[#FF8A00] truncate">{totalPoints.toLocaleString()} EFC</span>
           </div>
 
+          {/* EForce Token */}
+          <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
+            <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold">EForce Token</span>
+            <span className="text-sm font-black text-[#B388FF] truncate">{totalTokens.toLocaleString()} EForce</span>
+          </div>
+
+          {/* USDT Wallet */}
           <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
             <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold flex items-center gap-1">
               <UsdtIcon size={10} /> USDT Wallet
@@ -250,6 +266,7 @@ export const Profile = ({
             <span className="text-sm font-black text-accent-success truncate">${(dbUser?.wallet || usdtBalance).toFixed(2)}</span>
           </div>
 
+          {/* Real-time Agent Rank */}
           <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
             <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold">Agent Rank</span>
             <span className="text-xs font-black text-[#00E5FF] truncate">{agentLevel.title}</span>

@@ -732,6 +732,7 @@ export default function App() {
           <Profile 
             efcBalance={efcBalance} 
             usdtBalance={usdtBalance}
+            eforceTokens={eforceTokens}
             referralsCount={referralsCount}
             adminSettings={adminSettings}
             dbUser={dbUser}
