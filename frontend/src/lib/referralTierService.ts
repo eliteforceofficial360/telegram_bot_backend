@@ -6,7 +6,6 @@ import {
   doc,
   getDocs,
   setDoc,
-  updateDoc,
   deleteDoc,
   onSnapshot,
   query,
@@ -204,6 +203,7 @@ export const createReferralTier = async (
 
 /**
  * Update an existing Referral Claim Tier.
+ * Uses setDoc with merge:true to ensure updates succeed even if doc was loaded from defaults.
  */
 export const updateReferralTier = async (
   id: string,
@@ -215,7 +215,7 @@ export const updateReferralTier = async (
     const now = new Date().toISOString();
     const cleanData = JSON.parse(JSON.stringify({ ...tierData, updatedAt: now }));
     delete cleanData.id;
-    await updateDoc(docRef, cleanData);
+    await setDoc(docRef, cleanData, { merge: true });
     return true;
   } catch (err) {
     console.error('[ReferralTierService] Update error:', err);
