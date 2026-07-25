@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Share2, Users, Check, Award, Lock, Sparkles } from 'lucide-react';
+import { UsdtIcon } from '../components/UsdtIcon';
 import { getReferralLink, getUserReferrals, type ReferralRecord } from '../lib/referralService';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import {
@@ -285,8 +286,8 @@ export const Referral: React.FC<ReferralProps> = ({
                     {tier.claimLimit.toLocaleString()} EFC
                   </span>
                   {tier.bonusUSDT > 0 && (
-                    <span className="text-[9px] font-bold text-emerald-400">
-                      +${tier.bonusUSDT.toFixed(2)} USDT Bonus
+                    <span className="text-[9px] font-bold text-emerald-400 flex items-center justify-end gap-1">
+                      <UsdtIcon size={11} />+${tier.bonusUSDT.toFixed(2)} USDT Bonus
                     </span>
                   )}
                 </div>

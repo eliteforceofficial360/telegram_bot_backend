@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
 import { type FirestoreUser } from '../lib/userService';
+import { UsdtIcon } from '../components/UsdtIcon';
 import { DEFAULT_ADMIN_SETTINGS, type AdminSettings } from '../lib/adminSettingsService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { Connections } from '../components/Connections';
@@ -243,7 +244,9 @@ export const Profile = ({
           </div>
 
           <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
-            <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold">USDT Wallet</span>
+            <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold flex items-center gap-1">
+              <UsdtIcon size={10} /> USDT Wallet
+            </span>
             <span className="text-sm font-black text-accent-success truncate">${(dbUser?.wallet || usdtBalance).toFixed(2)}</span>
           </div>
 

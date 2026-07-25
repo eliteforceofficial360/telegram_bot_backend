@@ -19,7 +19,6 @@ import { auth, isFirebaseConfigured } from './lib/firebase';
 import { loadRecaptcha } from './utils/loadRecaptcha';
 import { initMonetag, showRewardedAd } from './lib/monetag';
 import { ForceJoinModal } from './components/ForceJoinModal';
-import { OAuthCallbackPage } from './components/OAuthCallbackPage';
 
 interface Toast {
   id: number;
@@ -27,20 +26,7 @@ interface Toast {
   type: 'success' | 'error' | 'warning' | 'info';
 }
 
-/**
- * AppRouter — top-level router component.
- * Renders OAuthCallbackPage at /auth/x/callback so the OAuth redirect
- * is handled in any browser (not just inside Telegram WebView).
- * All other paths render the main App component.
- */
-export default function AppRouter() {
-  if (window.location.pathname === '/auth/x/callback') {
-    return <OAuthCallbackPage />;
-  }
-  return <App />;
-}
-
-function App() {
+export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
 

@@ -35,8 +35,7 @@ export const Connections = ({
   const [disconnectTarget, setDisconnectTarget] = useState<PlatformType | null>(null);
   const [handleInput, setHandleInput] = useState('');
   const [saving, setSaving] = useState(false);
-  // Tracks when we are fetching the OAuth URL from the backend
-  const [isOauthLoading, setIsOauthLoading] = useState(false);
+  const [usernameError, setUsernameError] = useState<string | null>(null);
 
   const socialConnections: SocialConnections = dbUser?.socialConnections || {};
 
@@ -44,7 +43,7 @@ export const Connections = ({
     {
       id: 'x',
       name: 'X',
-      isOauth: true,
+      isOauth: false,  // Username-based: no OAuth required
       color: '#FFFFFF',
       bgColor: '#000000',
       icon: (
@@ -128,9 +127,8 @@ export const Connections = ({
   ];
 
   /**
-   * Open a plain external link for non-OAuth platforms (Discord invite, etc.)
-   * Uses Telegram WebApp.openLink when available so the link opens inside
-   * Telegram's in-app browser rather than a separate app.
+   * Open a plain external link for OAuth platforms (Discord, etc.)
+   * Uses Telegram WebApp.openLink when available.
    */
   const openExternalUrl = (url: string) => {
     try {
@@ -144,56 +142,6 @@ export const Connections = ({
     }
   };
 
-  /**
-   * Fetch a real PKCE OAuth URL from the backend, save the state for CSRF
-   * validation, then open the X authorization page.
-   *
-   * Why backend? X requires a real SHA-256 code_challenge (S256 method).
-   * Generating it client-side and passing a fake "plain" challenge causes
-   * X to return "Something went wrong. You weren't able to give access."
-   * The backend (xVerificationEngine.js) already generates proper PKCE.
-   */
-  const fetchAndOpenXOAuth = async () => {
-    if (!telegramUser) {
-      showToast('Please open in Telegram to connect your X account.', 'warning');
-      return;
-    }
-    if (isOauthLoading) return;
-
-    setIsOauthLoading(true);
-    showToast('Preparing X OAuth…', 'info');
-
-    try {
-      const botApiUrl = (adminSettings.botApiUrl || 'https://elite-force-telegram-app.onrender.com').replace(/\/$/, '');
-      const res = await fetch(`${botApiUrl}/api/x/auth-url?telegramId=${telegramUser.id}`);
-      if (!res.ok) throw new Error(`Backend returned HTTP ${res.status}`);
-
-      const data = await res.json();
-      if (!data.ok || !data.authUrl) throw new Error(data.error || 'No authUrl returned from backend');
-
-      // Save state in localStorage so OAuthCallbackPage can validate it (CSRF)
-      if (data.state) {
-        localStorage.setItem('x_oauth_state', data.state);
-      }
-
-      // Open the real X authorization URL (S256 PKCE, valid state, correct redirect_uri)
-      const tg = (window as any).Telegram?.WebApp;
-      if (tg?.openLink) {
-        // Opens in Telegram's external browser — required so X can redirect back
-        tg.openLink(data.authUrl);
-      } else {
-        window.open(data.authUrl, '_blank', 'noopener,noreferrer');
-      }
-
-      showToast('X authorization page opened. Please grant access.', 'info');
-    } catch (err) {
-      console.error('[Connections] fetchAndOpenXOAuth error:', err);
-      showToast('Failed to start X authentication. Please try again.', 'error');
-    } finally {
-      setIsOauthLoading(false);
-    }
-  };
-
   const handleOpenConnectModal = (plat: PlatformConfig) => {
     if (!telegramUser) {
       showToast('Please open in Telegram to link your social accounts.', 'warning');
@@ -201,14 +149,13 @@ export const Connections = ({
     }
 
     setHandleInput('');
+    setUsernameError(null);
     setActiveModal(plat.id);
 
-    if (plat.isOauth && plat.id === 'x') {
-      // Use backend-driven PKCE OAuth — never generate URL client-side
-      fetchAndOpenXOAuth();
-      return;
-    }
+    // X: username input — no OAuth redirect
+    if (plat.id === 'x') return;
 
+    // Discord OAuth
     if (plat.isOauth && plat.id === 'discord') {
       const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
       const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
@@ -219,19 +166,52 @@ export const Connections = ({
     }
   };
 
-
   const handleSaveConnection = async () => {
     if (!telegramUser || !activeModal) return;
 
-    const finalValue = handleInput.trim();
-
-    if (!finalValue) {
+    const rawValue = handleInput.trim();
+    if (!rawValue) {
       showToast('Please enter a valid username, handle or link.', 'warning');
       return;
     }
 
+    // ── X username: validate & save via /api/x/save-username ─────────────────
+    if (activeModal === 'x') {
+      const normalized = rawValue.replace(/^@/, '').replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//, '').split('?')[0].split('/')[0].trim().toLowerCase();
+      const usernameRegex = /^[A-Za-z0-9_]{1,15}$/;
+      if (!usernameRegex.test(normalized)) {
+        setUsernameError('Invalid username. Use 1–15 letters, numbers, or underscores only (e.g. EliteForce or @EliteForce).');
+        return;
+      }
+      setUsernameError(null);
+      setSaving(true);
+      try {
+        const botApiUrl = (adminSettings.botApiUrl || 'https://elite-force-telegram-app.onrender.com').replace(/\/$/, '');
+        const res = await fetch(`${botApiUrl}/api/x/save-username`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramId: telegramUser.id, username: normalized }),
+        });
+        const data = await res.json();
+        if (data.ok) {
+          showToast(`✅ @${data.twitterUsername} connected!${data.locked ? ' (Locked after verification)' : ''}`, 'success');
+          setActiveModal(null);
+        } else {
+          setUsernameError(data.error || 'Failed to save X username.');
+          showToast(data.error || 'Failed to save X username.', 'error');
+        }
+      } catch (err) {
+        console.error('[Connections] save-username error:', err);
+        showToast('Network error. Check connection and try again.', 'error');
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+
+    // ── Other platforms: save via Firestore directly ──────────────────────────
     setSaving(true);
-    const success = await saveSocialConnection(telegramUser.id, activeModal, finalValue);
+    const success = await saveSocialConnection(telegramUser.id, activeModal, rawValue);
     setSaving(false);
 
     if (success) {
@@ -241,6 +221,7 @@ export const Connections = ({
       showToast('Failed to save connection. Try again.', 'error');
     }
   };
+
 
   const confirmDisconnect = async () => {
     if (!telegramUser || !disconnectTarget) return;
@@ -403,45 +384,56 @@ export const Connections = ({
               </div>
 
               <div className="flex flex-col gap-4">
-                {currentModalPlat.isOauth && (
+                {/* X: username hint banner */}
+                {currentModalPlat.id === 'x' && (
+                  <div className="flex items-start gap-2 bg-white/5 border border-white/10 rounded-xl p-3">
+                    <span className="text-[#FF8A00] text-sm mt-0.5">ℹ️</span>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      Enter your X (Twitter) <b>@username</b>. Your account will be verified server-side when you complete X tasks.
+                      After first successful verification, your username will be <b>locked</b> for security.
+                    </p>
+                  </div>
+                )}
+
+                {/* Discord OAuth button (only for Discord) */}
+                {currentModalPlat.isOauth && currentModalPlat.id === 'discord' && (
                   <div className="flex flex-col gap-2 border-b border-white/10 pb-4">
                     <p className="text-xs text-slate-300 font-medium">
                       Authenticate with {currentModalPlat.name} OAuth 2.0:
                     </p>
                     <button
                       onClick={() => {
-                        if (currentModalPlat.id === 'x') {
-                          // Use backend-driven PKCE — never generate client-side
-                          fetchAndOpenXOAuth();
-                        } else if (currentModalPlat.id === 'discord') {
-                          const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
-                          const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
-                          const scope = encodeURIComponent('openid identify email');
-                          openExternalUrl(`https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`);
-                        } else {
-                          showToast(`OAuth not configured for ${currentModalPlat.name}.`, 'warning');
-                        }
+                        const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
+                        const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
+                        const scope = encodeURIComponent('openid identify email');
+                        openExternalUrl(`https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`);
                       }}
-                      disabled={isOauthLoading}
-                      className="w-full h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                      className="w-full h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <span className="shrink-0">{currentModalPlat.icon}</span>
-                      <span>{isOauthLoading && currentModalPlat.id === 'x' ? 'Preparing…' : `Authorize with ${currentModalPlat.name}`}</span>
+                      <span>Authorize with {currentModalPlat.name}</span>
                     </button>
                   </div>
                 )}
 
                 <div>
                   <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    {currentModalPlat.isOauth ? 'Or enter your @handle / username manually:' : currentModalPlat.subtitle}
+                    {currentModalPlat.id === 'x'
+                      ? 'Enter your X @username:'
+                      : currentModalPlat.isOauth
+                        ? 'Or enter your @handle / username manually:'
+                        : currentModalPlat.subtitle}
                   </label>
                   <input
                     type="text"
                     placeholder={currentModalPlat.inputPlaceholder}
                     value={handleInput}
-                    onChange={(e) => setHandleInput(e.target.value)}
-                    className="w-full h-11 rounded-xl bg-[#121212] border border-white/10 px-4 text-xs text-white placeholder-slate-500 outline-none focus:border-[#E5A338] transition-all font-mono"
+                    onChange={(e) => { setHandleInput(e.target.value); setUsernameError(null); }}
+                    className={`w-full h-11 rounded-xl bg-[#121212] border px-4 text-xs text-white placeholder-slate-500 outline-none focus:border-[#E5A338] transition-all font-mono ${usernameError ? 'border-red-500' : 'border-white/10'}`}
                   />
+                  {usernameError && (
+                    <p className="text-red-400 text-[11px] mt-1.5 leading-relaxed">{usernameError}</p>
+                  )}
                 </div>
 
                 <button
@@ -449,8 +441,9 @@ export const Connections = ({
                   disabled={saving}
                   className="w-full h-11 rounded-xl bg-[#E5A338] text-black font-extrabold text-xs shadow-lg hover:brightness-110 active:scale-95 transition-all flex items-center justify-center cursor-pointer disabled:opacity-50 mt-1"
                 >
-                  {saving ? 'Linking...' : 'Save Connection'}
+                  {saving ? 'Saving...' : currentModalPlat.id === 'x' ? 'Connect X Account' : 'Save Connection'}
                 </button>
+
 
                 <button
                   onClick={() => setActiveModal(null)}

@@ -3072,7 +3072,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       { key: 'referralBannerUrl', label: 'Referral & Earn Header Banner', desc: 'Header banner image on Referral page', defaultVal: '/coin-logo.jpg' },
                       { key: 'walletBannerUrl', label: 'Wallet & Payout Header Banner', desc: 'Header banner image on Wallet page', defaultVal: '/coin.jpg' },
                       { key: 'leaderboardBannerUrl', label: 'Leaderboard Header Banner', desc: 'Top banner image on Leaderboard page', defaultVal: '/coin-logo.jpg' },
-                      { key: 'usdtIconUrl', label: 'USDT Currency Badge Icon', desc: 'Custom badge icon for USDT balance and rewards', defaultVal: 'https://cryptologos.cc/logos/tether-usdt-logo.png' },
+                      { key: 'usdtIconUrl', label: 'USDT Currency Badge Icon', desc: 'Custom badge icon for USDT balance and rewards', defaultVal: 'https://assets.coingecko.com/coins/images/325/large/Tether.png' },
                       { key: 'eforceTokenIconUrl', label: 'EForce Token Badge Icon', desc: 'Custom badge icon for EForce token balance', defaultVal: '/coin.png' },
                     ].map(item => {
                       const displayUrl = (settings as any)[item.key] || item.defaultVal;

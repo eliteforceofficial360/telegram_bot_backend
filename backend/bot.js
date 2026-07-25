@@ -10,9 +10,7 @@ import {
 } from './uploadService.js';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import {
-  getXOAuthAuthUrl,
-  handleXOAuthCallback,
-  verifyOAuthSession,
+  saveXUsername,
   verifyXTask,
   runXPeriodicMonitoring,
 } from './xVerificationEngine.js';
@@ -647,63 +645,30 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
-    // ── PUBLIC: GET /api/x/auth-url ─────────────────────────────────────────
-    if (req.method === 'GET' && url.startsWith('/api/x/auth-url')) {
-      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
-      const telegramId = urlParams.get('telegramId');
-      if (!isValidTelegramId(telegramId)) {
-        return sendJson(res, 400, { error: 'telegramId is required' });
-      }
-      try {
-        const authData = getXOAuthAuthUrl(telegramId);
-        return sendJson(res, 200, { ok: true, ...authData });
-      } catch (err) {
-        console.error('[API] GET /api/x/auth-url error:', err.message);
-        return sendJson(res, 500, { ok: false, error: err.message });
-      }
-    }
 
-    // ── PUBLIC: POST /api/x/callback ────────────────────────────────────────
-    if (req.method === 'POST' && url === '/api/x/callback') {
+    // ── PUBLIC: POST /api/x/save-username ───────────────────────────────────
+    // Stores (or updates) a user's X username for subsequent task verification.
+    // No OAuth — username is entered manually and verified server-side on task claim.
+    if (req.method === 'POST' && url === '/api/x/save-username') {
       let bodyData;
       try {
         bodyData = await readJsonBody(req);
       } catch {
-        return sendJson(res, 400, { error: 'Invalid JSON' });
+        return sendJson(res, 400, { ok: false, error: 'Invalid JSON' });
       }
-      const { code, state, codeVerifier } = bodyData;
-      if (!code) return sendJson(res, 400, { error: 'OAuth code is required' });
+      const { telegramId, username } = bodyData;
+      if (!isValidTelegramId(telegramId) || !username) {
+        return sendJson(res, 400, { ok: false, error: 'telegramId and username are required' });
+      }
       try {
-        const result = await handleXOAuthCallback(code, state, codeVerifier);
-        return sendJson(res, 200, { ok: true, ...result });
+        const result = await saveXUsername(telegramId, username);
+        return sendJson(res, result.ok ? 200 : 400, result);
       } catch (err) {
-        console.error('[OAuth Callback] handleXOAuthCallback error:', err.message);
-        return sendJson(res, 400, { ok: false, error: err.message });
+        console.error('[API] POST /api/x/save-username error:', err.message);
+        return sendJson(res, 500, { ok: false, error: 'Server error while saving X username.' });
       }
     }
 
-    // ── PUBLIC: GET /api/x/verify-oauth-session ─────────────────────────────
-    if (req.method === 'GET' && url.startsWith('/api/x/verify-oauth-session')) {
-      const urlParams = new URL(req.url, `http://${req.headers.host}`).searchParams;
-      const sessionToken = urlParams.get('sessionToken');
-
-      if (!sessionToken) {
-        return sendJson(res, 400, { ok: false, error: 'sessionToken is required' });
-      }
-
-      const session = verifyOAuthSession(sessionToken);
-      if (!session) {
-        return sendJson(res, 401, { ok: false, error: 'Invalid or expired OAuth session token' });
-      }
-
-      console.log(`✅ [verify-oauth-session] Verified: telegramId=${session.telegramId} xUsername=@${session.xUsername}`);
-      return sendJson(res, 200, {
-        ok: true,
-        telegramId: session.telegramId,
-        xUsername: session.xUsername,
-        xUserId: session.xUserId,
-      });
-    }
 
     // ── PUBLIC: POST /api/x/verify-task ─────────────────────────────────────
     if (req.method === 'POST' && url === '/api/x/verify-task') {

@@ -199,7 +199,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   tasksBannerUrl: '/coin-logo.jpg',
   walletBannerUrl: '/coin.jpg',
   leaderboardBannerUrl: '/coin-logo.jpg',
-  usdtIconUrl: 'https://cryptologos.cc/logos/tether-usdt-logo.png',
+  usdtIconUrl: 'https://assets.coingecko.com/coins/images/325/large/Tether.png',
   eforceTokenIconUrl: '/coin.png',
 };
 

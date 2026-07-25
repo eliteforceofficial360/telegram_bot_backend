@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAlert, X, Edit3, Save, RefreshCw } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { type AdminSettings } from '../lib/adminSettingsService';
+import { UsdtIcon } from '../components/UsdtIcon';
 import { showRewardedAd } from '../lib/monetag';
 import { submitWithdrawRequest, updateWalletAddress, subscribeToUser, updateUserDatabaseValues, getUserTodayWithdrawalAmount, getUserTodayWithdrawalTokens, type FirestoreUser } from '../lib/userService';
 import type { TelegramUser } from '../lib/telegramUser';
@@ -352,7 +353,7 @@ export const Wallet: React.FC<WalletProps> = ({
         <div className="w-full h-px bg-white/5 my-0.5" />
         <div className="flex items-center justify-between text-[10px]">
           <span className="text-slate-500">Total commission in USDT balance:</span>
-          <span className="text-accent-success font-bold">${usdtBalance.toFixed(2)} USDT</span>
+          <span className="text-accent-success font-bold flex items-center gap-1.5"><UsdtIcon size={13} />${usdtBalance.toFixed(2)} USDT</span>
         </div>
       </div>
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
@@ -474,7 +475,10 @@ export const Wallet: React.FC<WalletProps> = ({
               {/* Balances Display */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex flex-col gap-0.5">
-                  <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable USDT</span>
+                  <div className="flex items-center gap-1">
+                    <UsdtIcon size={12} />
+                    <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable USDT</span>
+                  </div>
                   <span className="text-xs font-extrabold text-accent-success font-mono">${usdtBalance.toFixed(2)} USDT</span>
                   <span className="text-[8px] text-slate-500 font-medium">Min: ${settings.withdrawMinAmount}</span>
                 </div>
@@ -501,8 +505,9 @@ export const Wallet: React.FC<WalletProps> = ({
               <div className="grid grid-cols-2 gap-2 mt-1">
                 <button
                   onClick={() => handleWithdrawClick('usdt')}
-                  className="h-10 rounded-xl bg-gradient-to-r from-[#FF8A00] to-[#E52E71] text-white text-[11px] font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1"
+                  className="h-10 rounded-xl bg-gradient-to-r from-[#FF8A00] to-[#E52E71] text-white text-[11px] font-black shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-1.5"
                 >
+                  <UsdtIcon size={15} />
                   Withdraw USDT
                 </button>
                 <button
@@ -636,13 +641,13 @@ export const Wallet: React.FC<WalletProps> = ({
                       setWithdrawAmount(usdtBalance.toFixed(2));
                     }}
                     type="button"
-                    className={`h-9 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1 ${
+                    className={`h-9 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
                       withdrawAsset === 'usdt'
                         ? 'bg-accent-success/10 border-accent-success text-accent-success'
                         : 'bg-white/5 border-white/8 text-slate-400'
                     }`}
                   >
-                    USDT (${usdtBalance.toFixed(2)})
+                    <UsdtIcon size={14} /> USDT (${usdtBalance.toFixed(2)})
                   </button>
                   <button
                     onClick={() => {

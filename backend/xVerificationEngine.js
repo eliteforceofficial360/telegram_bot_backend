@@ -1,5 +1,5 @@
-// Nexora Labs — Elite Force X Verification Engine v2.0
-// Official X (Twitter) OAuth 2.0, API v2 Task Verification, Anti-Fraud Engine & Periodical Scheduler
+﻿// Nexora Labs — Elite Force X Verification Engine v3.0
+// Username-Based Verification | App-Only Bearer Token | No OAuth Required
 
 import crypto from 'crypto';
 import fs from 'fs';
@@ -17,7 +17,6 @@ function getFirebaseAdminCredential() {
       console.warn('[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT:', e.message);
     }
   }
-
   if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
     try {
       return cert({
@@ -29,8 +28,6 @@ function getFirebaseAdminCredential() {
       console.warn('[Firebase Admin] Failed to parse clientEmail/privateKey:', e.message);
     }
   }
-
-  // Look for any local firebase-adminsdk *.json file in working directory
   try {
     const cwd = process.cwd();
     const files = fs.readdirSync(cwd);
@@ -39,14 +36,10 @@ function getFirebaseAdminCredential() {
       const content = fs.readFileSync(path.join(cwd, saFile), 'utf8');
       return cert(JSON.parse(content));
     }
-  } catch (e) {
-    /* silent catch */
-  }
-
+  } catch (e) { /* silent */ }
   return null;
 }
 
-// Initialize Firebase Admin safely
 if (!getApps().length) {
   try {
     const credential = getFirebaseAdminCredential();
@@ -54,10 +47,8 @@ if (!getApps().length) {
       initializeApp({ credential });
       console.log('✅ [Firebase Admin] Initialized with Service Account Credentials!');
     } else {
-      initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4',
-      });
-      console.log('⚠️ [Firebase Admin] Initialized with Project ID (No Service Account credentials set).');
+      initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4' });
+      console.log('⚠️ [Firebase Admin] Initialized with Project ID only.');
     }
   } catch (err) {
     console.warn('[Firebase Admin] Initialization warning:', err.message);
@@ -65,773 +56,258 @@ if (!getApps().length) {
 }
 
 const db = getFirestore();
-
-const X_CLIENT_ID = process.env.X_CLIENT_ID || 'TTJzVW9MZEFlYXRHRmZTMHR6Si06MTpjaQ';
-const X_CLIENT_SECRET = process.env.X_CLIENT_SECRET || 'Gud3evcnm97ShMJNYpJe_z1cu5C19Tgsz14gHbP3xKR1_siSJ8';
-const X_CALLBACK_URL = process.env.X_CALLBACK_URL || 'https://mini-telegram-app-c0fb4.web.app/auth/x/callback';
-
-// In-memory sessions & rate-limiting maps
-const pkceSessions = new Map();       // state → { telegramId, codeVerifier, createdAt }
-const oauthSessions = new Map();      // sessionToken → { telegramId, xUsername, expiresAt } — one-time use
+const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || '';
 const verificationRateLimits = new Map();
+const USERNAME_REGEX = /^[A-Za-z0-9_]{1,15}$/;
 
-/**
- * Base64URL encoding helper for PKCE
- */
-function base64UrlEncode(str) {
-  return str
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
+function normalizeUsername(raw) {
+  return raw.trim().replace(/^@/, '').toLowerCase();
 }
 
-/**
- * Generate PKCE Code Verifier & Challenge (S256)
- */
-function generatePKCE() {
-  const codeVerifier = base64UrlEncode(crypto.randomBytes(32));
-  const hash = crypto.createHash('sha256').update(codeVerifier).digest();
-  const codeChallenge = base64UrlEncode(hash);
-  return { codeVerifier, codeChallenge };
+function isValidUsername(username) {
+  return USERNAME_REGEX.test(username);
 }
 
-/**
- * Anti-Fraud Rate Limiter: Max 3 verification requests per 60s per user
- */
 function checkRateLimit(telegramId) {
   const now = Date.now();
   const windowMs = 60 * 1000;
-  const maxRequests = 3;
-
+  const maxRequests = 5;
   const userLogs = verificationRateLimits.get(telegramId) || [];
   const validLogs = userLogs.filter(ts => now - ts < windowMs);
-
-  if (validLogs.length >= maxRequests) {
-    return false;
-  }
-
+  if (validLogs.length >= maxRequests) return false;
   validLogs.push(now);
   verificationRateLimits.set(telegramId, validLogs);
   return true;
 }
 
-/**
- * Audit Logger for Security, Verification, Authentication & Fraud Logs
- */
 async function writeLog(collectionName, data) {
   try {
-    await db.collection(collectionName).add({
-      ...data,
-      timestamp: FieldValue.serverTimestamp(),
-    });
+    await db.collection(collectionName).add({ ...data, timestamp: FieldValue.serverTimestamp() });
   } catch (err) {
-    console.warn(`[X Engine v2.0] Log write error (${collectionName}):`, err.message);
+    console.warn(`[X Engine v3.0] Log write error (${collectionName}):`, err.message);
   }
 }
 
-/**
- * Generate OAuth 2.0 PKCE Auth URL
- */
-export function getXOAuthAuthUrl(telegramId) {
-  if (!telegramId) {
-    throw new Error('Telegram User ID is required');
+async function xApiGet(endpoint) {
+  if (!X_BEARER_TOKEN) {
+    console.warn('[X Engine v3.0] X_BEARER_TOKEN is not set. Verification unavailable.');
+    return { ok: false, status: 0, error: 'X_BEARER_TOKEN not configured' };
   }
-
-  const { codeVerifier, codeChallenge } = generatePKCE();
-  const state = crypto.randomBytes(16).toString('hex');
-
-  // Store session (valid for 15 mins)
-  pkceSessions.set(state, {
-    telegramId: Number(telegramId),
-    codeVerifier,
-    createdAt: Date.now(),
-  });
-
-  const scope = encodeURIComponent('tweet.read users.read follows.read like.read offline.access');
-  const redirectUri = encodeURIComponent(X_CALLBACK_URL);
-
-  const authUrl = `https://twitter.com/i/oauth2/authorize?response_type=code&client_id=${X_CLIENT_ID}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
-
-  writeLog('authenticationLogs', {
-    telegramId: Number(telegramId),
-    event: 'OAUTH_URL_GENERATED',
-    state,
-  });
-
-  return { authUrl, state, codeVerifier };
-}
-
-/**
- * Handle OAuth 2.0 PKCE Callback & Token Exchange
- */
-export async function handleXOAuthCallback(code, state, codeVerifierInput = null) {
-  let session = pkceSessions.get(state);
-  let codeVerifier = session?.codeVerifier || codeVerifierInput;
-  let telegramId = session?.telegramId;
-
-  if (!codeVerifier) {
-    throw new Error('Invalid or expired OAuth state session');
-  }
-
-  const basicAuth = Buffer.from(`${X_CLIENT_ID}:${X_CLIENT_SECRET}`).toString('base64');
-
-  const params = new URLSearchParams();
-  params.append('code', code);
-  params.append('grant_type', 'authorization_code');
-  params.append('client_id', X_CLIENT_ID);
-  params.append('redirect_uri', X_CALLBACK_URL);
-  params.append('code_verifier', codeVerifier);
-
-  const tokenRes = await fetch('https://api.twitter.com/2/oauth2/token', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${basicAuth}`,
-    },
-    body: params.toString(),
-  });
-
-  if (!tokenRes.ok) {
-    const errText = await tokenRes.text();
-    console.error('[X Engine v2.0] Token exchange failed:', errText);
-    writeLog('fraudLogs', { telegramId, event: 'TOKEN_EXCHANGE_FAILED', details: errText });
-    throw new Error(`X OAuth exchange failed: ${tokenRes.statusText}`);
-  }
-
-  const tokenData = await tokenRes.json();
-  const { access_token, refresh_token, expires_in } = tokenData;
-
-  // Fetch X User profile
-  const profileRes = await fetch('https://api.twitter.com/2/users/me', {
-    headers: { 'Authorization': `Bearer ${access_token}` },
-  });
-
-  if (!profileRes.ok) {
-    throw new Error('Failed to fetch X user profile');
-  }
-
-  const profileData = await profileRes.json();
-  const xUser = profileData.data; // { id, name, username }
-
-  // Fraud Prevention: Check if this X account is already linked to another Telegram account
-  if (telegramId) {
-    const existingSnap = await db.collection('xUsers').where('xUserId', '==', xUser.id).get();
-    for (const doc of existingSnap.docs) {
-      if (doc.data().telegramId !== Number(telegramId)) {
-        console.warn(`🚨 [Fraud Detection] X account @${xUser.username} (${xUser.id}) is already linked to Telegram user ${doc.data().telegramId}!`);
-        await writeLog('fraudLogs', {
-          telegramId: Number(telegramId),
-          attemptedXUserId: xUser.id,
-          attemptedXUsername: xUser.username,
-          existingTelegramId: doc.data().telegramId,
-          reason: 'MULTIPLE_TELEGRAM_ACCOUNTS_LINKED_TO_ONE_X_ACCOUNT',
-        });
-        throw new Error('This X account is already linked to another Telegram account.');
-      }
-    }
-  }
-
-  const expiresAt = Date.now() + (expires_in || 7200) * 1000;
-
-  // Store in xUsers collection
-  if (telegramId) {
-    await db.collection('xUsers').doc(String(telegramId)).set({
-      telegramId: Number(telegramId),
-      xUserId: xUser.id,
-      username: xUser.username,
-      displayName: xUser.name,
-      accessToken: access_token,
-      refreshToken: refresh_token || null,
-      expiresAt,
-      authTimestamp: FieldValue.serverTimestamp(),
-      lastVerificationTimestamp: FieldValue.serverTimestamp(),
-      riskScore: 0,
-    }, { merge: true });
-
-    // Update user profile socialConnections
-    await db.collection('users').doc(String(telegramId)).set({
-      socialConnections: {
-        x: {
-          handle: `@${xUser.username}`,
-          connected: true,
-          linkedAt: new Date().toISOString(),
-          xUserId: xUser.id,
-        },
-      },
-    }, { merge: true });
-
-    await writeLog('authenticationLogs', {
-      telegramId: Number(telegramId),
-      xUserId: xUser.id,
-      xUsername: xUser.username,
-      event: 'AUTHENTICATED_SUCCESS',
-    });
-  }
-
-  if (state) pkceSessions.delete(state);
-
-  // ── Generate one-time sessionToken for Mini App deep-link verification ──
-  // After OAuth the external browser redirects to the OAuthCallbackPage.
-  // That page stores this token in localStorage, then opens:
-  //   https://t.me/<bot>?startapp=oauth_success
-  // When the Mini App resumes it reads the token from localStorage and calls
-  //   GET /api/x/verify-oauth-session?sessionToken=xxx
-  // to confirm the auth and auto-complete any pending X task.
-  const sessionToken = crypto.randomBytes(24).toString('hex');
-  const SESSION_TTL_MS = 10 * 60 * 1000; // 10 minutes
-  oauthSessions.set(sessionToken, {
-    telegramId: Number(telegramId),
-    xUsername: xUser.username,
-    xUserId: xUser.id,
-    expiresAt: Date.now() + SESSION_TTL_MS,
-  });
-
-  // Clean up expired sessions lazily
-  for (const [token, sess] of oauthSessions.entries()) {
-    if (Date.now() > sess.expiresAt) oauthSessions.delete(token);
-  }
-
-  return {
-    telegramId,
-    xUserId: xUser.id,
-    xUsername: xUser.username,
-    sessionToken, // ← returned to OAuthCallbackPage
-    authenticated: true,
-  };
-}
-
-/**
- * Retrieve Valid Access Token (Auto Token Refresh)
- */
-async function getValidXAccessToken(telegramId) {
-  const docRef = db.collection('xUsers').doc(String(telegramId));
-  const snap = await docRef.get();
-
-  if (!snap.exists) return null;
-
-  const data = snap.data();
-  let { accessToken, refreshToken, expiresAt, xUserId } = data;
-
-  if (Date.now() > (expiresAt - 5 * 60 * 1000) && refreshToken) {
-    try {
-      const basicAuth = Buffer.from(`${X_CLIENT_ID}:${X_CLIENT_SECRET}`).toString('base64');
-      const params = new URLSearchParams();
-      params.append('grant_type', 'refresh_token');
-      params.append('refresh_token', refreshToken);
-
-      const refreshRes = await fetch('https://api.twitter.com/2/oauth2/token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': `Basic ${basicAuth}`,
-        },
-        body: params.toString(),
-      });
-
-      if (refreshRes.ok) {
-        const freshData = await refreshRes.json();
-        accessToken = freshData.access_token;
-        refreshToken = freshData.refresh_token || refreshToken;
-        expiresAt = Date.now() + (freshData.expires_in || 7200) * 1000;
-
-        await docRef.set({
-          accessToken,
-          refreshToken,
-          expiresAt,
-          lastRefreshedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-      }
-    } catch (err) {
-      console.error('[X Engine v2.0] Token refresh error:', err.message);
-    }
-  }
-
-  return { accessToken, xUserId, data };
-}
-
-/**
- * Official X API v2 Verification Helpers
- */
-
-async function verifyFollowOnX(accessToken, xUserId, targetXUserId) {
   try {
-    const res = await fetch(`https://api.twitter.com/2/users/${xUserId}/following?max_results=1000`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` },
+    const res = await fetch(`https://api.twitter.com/2/${endpoint}`, {
+      headers: { Authorization: `Bearer ${X_BEARER_TOKEN}` },
     });
-
-    if (res.status === 429 || res.status >= 500) {
-      return { verifiable: false, code: 'VERIFICATION_UNAVAILABLE', message: 'X API endpoint rate-limited or unavailable.' };
-    }
-
-    if (!res.ok) return { verifiable: true, isDone: false, code: 'FOLLOW_NOT_FOUND', message: 'User is not following the required account.' };
-
-    const json = await res.json();
-    const list = json.data || [];
-    const isFollowing = list.some(u => u.id === targetXUserId || u.username?.toLowerCase() === targetXUserId?.toLowerCase());
-
-    return {
-      verifiable: true,
-      isDone: isFollowing,
-      code: isFollowing ? 'SUCCESS' : 'FOLLOW_NOT_FOUND',
-      message: isFollowing ? 'Follow verified.' : 'User is not following the required account.',
-    };
+    let data = null;
+    try { data = await res.json(); } catch { /* non-JSON */ }
+    return { ok: res.ok, status: res.status, data, error: data?.errors?.[0]?.message || null };
   } catch (err) {
-    return { verifiable: false, code: 'VERIFICATION_UNAVAILABLE', message: err.message };
+    return { ok: false, status: 0, error: err.message };
   }
 }
 
-async function verifyLikeOnX(accessToken, xUserId, targetTweetId) {
-  try {
-    const res = await fetch(`https://api.twitter.com/2/users/${xUserId}/liked_tweets?max_results=100`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` },
-    });
-
-    if (res.status === 429 || res.status >= 500) {
-      return { verifiable: false, code: 'VERIFICATION_UNAVAILABLE', message: 'X API endpoint rate-limited or unavailable.' };
-    }
-
-    if (!res.ok) return { verifiable: true, isDone: false, code: 'LIKE_NOT_FOUND', message: 'User has not liked the required post.' };
-
-    const json = await res.json();
-    const list = json.data || [];
-    const isLiked = list.some(t => t.id === targetTweetId);
-
-    return {
-      verifiable: true,
-      isDone: isLiked,
-      code: isLiked ? 'SUCCESS' : 'LIKE_NOT_FOUND',
-      message: isLiked ? 'Like verified.' : 'User has not liked the required post.',
-    };
-  } catch (err) {
-    return { verifiable: false, code: 'VERIFICATION_UNAVAILABLE', message: err.message };
+async function resolveXUserId(twitterUsername) {
+  const snap = await db.collection('xUserIds').doc(twitterUsername).get();
+  if (snap.exists && snap.data().xUserId) return snap.data().xUserId;
+  const result = await xApiGet(`users/by/username/${encodeURIComponent(twitterUsername)}?user.fields=id,username,name`);
+  if (!result.ok) {
+    if (result.status === 404) throw new Error(`X account @${twitterUsername} not found.`);
+    if (result.status === 403) throw new Error('X API access denied. Bearer Token may be invalid.');
+    throw new Error(`X API error (HTTP ${result.status}): ${result.error || 'Unknown error'}`);
   }
+  const xUserId = result.data?.data?.id;
+  if (!xUserId) throw new Error(`Could not resolve X user ID for @${twitterUsername}`);
+  await db.collection('xUserIds').doc(twitterUsername).set({ xUserId, username: twitterUsername, cachedAt: FieldValue.serverTimestamp() });
+  return xUserId;
 }
 
-async function verifyRepostOnX(accessToken, xUserId, targetTweetId) {
-  try {
-    const res = await fetch(`https://api.twitter.com/2/tweets/${targetTweetId}/retweeted_by`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` },
-    });
-
-    if (res.status === 429 || res.status >= 500) {
-      return { verifiable: false, code: 'VERIFICATION_UNAVAILABLE', message: 'X API endpoint rate-limited or unavailable.' };
-    }
-
-    if (!res.ok) return { verifiable: true, isDone: false, code: 'REPOST_NOT_FOUND', message: 'User has not reposted the required post.' };
-
-    const json = await res.json();
-    const list = json.data || [];
-    const isReposted = list.some(u => u.id === xUserId);
-
-    return {
-      verifiable: true,
-      isDone: isReposted,
-      code: isReposted ? 'SUCCESS' : 'REPOST_NOT_FOUND',
-      message: isReposted ? 'Repost verified.' : 'User has not reposted the required post.',
-    };
-  } catch (err) {
-    return { verifiable: false, code: 'VERIFICATION_UNAVAILABLE', message: err.message };
-  }
+async function verifyFollowByUserId(xUserId, targetUserId) {
+  const result = await xApiGet(`users/${xUserId}/following?max_results=1000`);
+  if (result.status === 403 || result.status === 401) return { verifiable: false, isDone: false, code: 'PLAN_RESTRICTION', message: 'Follow verification requires X Basic API plan.' };
+  if (result.status === 429 || result.status >= 500) return { verifiable: false, isDone: false, code: 'RATE_LIMITED', message: 'X API rate limited. Try again later.' };
+  if (!result.ok) return { verifiable: false, isDone: false, code: 'VERIFICATION_UNAVAILABLE', message: result.error || 'X API unavailable.' };
+  const list = result.data?.data || [];
+  const isFollowing = list.some(u => u.id === targetUserId);
+  return { verifiable: true, isDone: isFollowing, code: isFollowing ? 'SUCCESS' : 'FOLLOW_NOT_FOUND', message: isFollowing ? 'Follow verified.' : 'Not following the required account.' };
 }
 
-/**
- * Main Task Verification Function — Version 2.0 (Structured Error Codes & Rules)
- */
-export async function verifyXTask(telegramId, taskId, taskType, targetId, rewardAmount = 100) {
-  // Fraud Prevention: Rate Limit Check
-  if (!checkRateLimit(telegramId)) {
-    return {
-      success: false,
-      code: 'RATE_LIMITED',
-      message: 'Rate limit exceeded. Please wait 60 seconds before trying again.',
-    };
+async function verifyLikeByUserId(xUserId, targetTweetId) {
+  const result = await xApiGet(`users/${xUserId}/liked_tweets?max_results=100`);
+  if (result.status === 403 || result.status === 401) return { verifiable: false, isDone: false, code: 'PLAN_RESTRICTION', message: 'Like verification requires X Basic API plan.' };
+  if (result.status === 429 || result.status >= 500) return { verifiable: false, isDone: false, code: 'RATE_LIMITED', message: 'X API rate limited. Try again later.' };
+  if (!result.ok) return { verifiable: false, isDone: false, code: 'VERIFICATION_UNAVAILABLE', message: result.error || 'X API unavailable.' };
+  const list = result.data?.data || [];
+  const isLiked = list.some(t => t.id === targetTweetId);
+  return { verifiable: true, isDone: isLiked, code: isLiked ? 'SUCCESS' : 'LIKE_NOT_FOUND', message: isLiked ? 'Like verified.' : 'Tweet not found in liked tweets.' };
+}
+
+async function verifyRepostByTweetId(targetTweetId, xUserId) {
+  const result = await xApiGet(`tweets/${targetTweetId}/retweeted_by?max_results=100`);
+  if (result.status === 403 || result.status === 401) return { verifiable: false, isDone: false, code: 'PLAN_RESTRICTION', message: 'Repost verification unavailable.' };
+  if (result.status === 429 || result.status >= 500) return { verifiable: false, isDone: false, code: 'RATE_LIMITED', message: 'X API rate limited. Try again later.' };
+  if (!result.ok) return { verifiable: false, isDone: false, code: 'VERIFICATION_UNAVAILABLE', message: result.error || 'X API unavailable.' };
+  const list = result.data?.data || [];
+  const isReposted = list.some(u => u.id === xUserId);
+  return { verifiable: true, isDone: isReposted, code: isReposted ? 'SUCCESS' : 'REPOST_NOT_FOUND', message: isReposted ? 'Repost verified.' : 'User has not reposted the required tweet.' };
+}
+
+async function verifyCommentByUsername(twitterUsername, targetTweetId, requiredKeyword) {
+  let query = `from:${twitterUsername} conversation_id:${targetTweetId}`;
+  if (requiredKeyword) query += ` ${requiredKeyword}`;
+  const result = await xApiGet(`tweets/search/recent?query=${encodeURIComponent(query)}&max_results=10`);
+  if (result.status === 403 || result.status === 401) return { verifiable: false, isDone: false, code: 'PLAN_RESTRICTION', message: 'Comment verification unavailable.' };
+  if (!result.ok) return { verifiable: false, isDone: false, code: 'VERIFICATION_UNAVAILABLE', message: result.error || 'X API unavailable.' };
+  const list = result.data?.data || [];
+  const isDone = list.length > 0;
+  return { verifiable: true, isDone, code: isDone ? 'SUCCESS' : 'COMMENT_NOT_FOUND', message: isDone ? 'Comment verified.' : 'No matching comment found.' };
+}
+
+export async function saveXUsername(telegramId, rawUsername) {
+  const numId = Number(telegramId);
+  const username = normalizeUsername(rawUsername);
+  if (!isValidUsername(username)) return { ok: false, error: 'Invalid X username. Use 1–15 letters, numbers, or underscores.' };
+  const existingDoc = await db.collection('xUsers').doc(String(numId)).get();
+  if (existingDoc.exists) {
+    const existing = existingDoc.data();
+    if (existing.locked && existing.twitterUsername !== username) {
+      return { ok: false, error: `Your X account (@${existing.twitterUsername}) is locked. Contact admin to change.`, locked: true, twitterUsername: existing.twitterUsername };
+    }
   }
-
-  // Ensure Authenticated
-  const userTokens = await getValidXAccessToken(telegramId);
-  if (!userTokens || !userTokens.accessToken) {
-    return {
-      success: false,
-      code: 'NOT_AUTHENTICATED',
-      message: 'User is not authenticated with X OAuth 2.0.',
-    };
+  const duplicateSnap = await db.collection('xUsers').where('twitterUsername', '==', username).get();
+  for (const doc of duplicateSnap.docs) {
+    if (doc.data().telegramId !== numId) {
+      await writeLog('fraudLogs', { telegramId: numId, attemptedUsername: username, existingTelegramId: doc.data().telegramId, reason: 'DUPLICATE_USERNAME_ACROSS_ACCOUNTS' });
+      return { ok: false, error: `@${username} is already linked to another account.` };
+    }
   }
+  await db.collection('xUsers').doc(String(numId)).set({
+    telegramId: numId, twitterUsername: username,
+    verified: existingDoc.exists ? (existingDoc.data().verified || false) : false,
+    verifiedAt: existingDoc.exists ? (existingDoc.data().verifiedAt || null) : null,
+    locked: existingDoc.exists ? (existingDoc.data().locked || false) : false,
+    linkedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  await db.collection('users').doc(String(numId)).set({
+    socialConnections: { x: { handle: `@${username}`, connected: true, linkedAt: new Date().toISOString(), verified: existingDoc.exists ? (existingDoc.data().verified || false) : false } },
+  }, { merge: true });
+  await writeLog('authenticationLogs', { telegramId: numId, twitterUsername: username, event: 'USERNAME_SAVED' });
+  console.log(`✅ [X Engine v3.0] @${username} saved for telegramId=${numId}`);
+  return { ok: true, twitterUsername: username, locked: existingDoc.exists ? (existingDoc.data().locked || false) : false };
+}
 
-  const { accessToken, xUserId } = userTokens;
-
-  // Check Duplicate Claim
-  const completionDocId = `${telegramId}_x_${taskId}`;
+export async function verifyXTask(telegramId, taskId, taskType, targetId, rewardAmount = 100, requiredKeyword = '') {
+  const numId = Number(telegramId);
+  if (!checkRateLimit(numId)) return { success: false, code: 'RATE_LIMITED', message: 'Rate limit exceeded. Wait 60 seconds before retrying.' };
+  const xUserDoc = await db.collection('xUsers').doc(String(numId)).get();
+  if (!xUserDoc.exists || !xUserDoc.data().twitterUsername) return { success: false, code: 'NO_USERNAME', message: 'Connect your X account first (Profile → Connections → X).' };
+  const { twitterUsername } = xUserDoc.data();
+  const completionDocId = `${numId}_x_${taskId}`;
   const completionRef = db.collection('taskCompletions').doc(completionDocId);
   const completionSnap = await completionRef.get();
-
-  if (completionSnap.exists && completionSnap.data()?.isCompleted && !completionSnap.data()?.isRevoked) {
-    return {
-      success: false,
-      code: 'DUPLICATE_CLAIM',
-      message: 'Reward has already been claimed for this task.',
-    };
+  if (completionSnap.exists && completionSnap.data()?.isCompleted && !completionSnap.data()?.isRevoked) return { success: false, code: 'DUPLICATE_CLAIM', message: 'Reward already claimed for this task.' };
+  let xUserId;
+  try { xUserId = await resolveXUserId(twitterUsername); }
+  catch (err) {
+    await writeLog('verificationLogs', { telegramId: numId, taskId, taskType, status: 'USERNAME_RESOLVE_FAILED', error: err.message });
+    return { success: false, code: 'USERNAME_NOT_FOUND', message: err.message };
   }
-
-  // Execute Verification
   let checkResult = { verifiable: false, isDone: false, code: 'TASK_NOT_COMPLETED', message: 'Task engagement not found.' };
-
-  if (taskType === 'x_follow' || taskType === 'x') {
-    checkResult = await verifyFollowOnX(accessToken, xUserId, targetId);
-  } else if (taskType === 'x_like') {
-    checkResult = await verifyLikeOnX(accessToken, xUserId, targetId);
-  } else if (taskType === 'x_repost' || taskType === 'x_retweet') {
-    checkResult = await verifyRepostOnX(accessToken, xUserId, targetId);
-  } else {
-    checkResult = await verifyFollowOnX(accessToken, xUserId, targetId);
-  }
-
-  // Handle Verification Unavailable (Rule Compliance)
+  if (taskType === 'x_follow' || taskType === 'x') checkResult = await verifyFollowByUserId(xUserId, targetId);
+  else if (taskType === 'x_like') checkResult = await verifyLikeByUserId(xUserId, targetId);
+  else if (taskType === 'x_repost' || taskType === 'x_retweet') checkResult = await verifyRepostByTweetId(targetId, xUserId);
+  else if (taskType === 'x_comment') checkResult = await verifyCommentByUsername(twitterUsername, targetId, requiredKeyword);
+  else checkResult = await verifyFollowByUserId(xUserId, targetId);
   if (!checkResult.verifiable) {
-    await writeLog('verificationLogs', { telegramId, taskId, taskType, code: checkResult.code, status: 'UNAVAILABLE' });
-    return {
-      success: false,
-      code: 'VERIFICATION_UNAVAILABLE',
-      message: 'X API endpoint is temporarily unavailable or rate-limited. Verification skipped.',
-    };
+    await writeLog('verificationLogs', { telegramId: numId, taskId, taskType, twitterUsername, code: checkResult.code, status: 'UNAVAILABLE' });
+    return { success: false, code: checkResult.code || 'VERIFICATION_UNAVAILABLE', message: checkResult.message || 'X API temporarily unavailable.' };
   }
-
   if (!checkResult.isDone) {
-    await writeLog('verificationLogs', { telegramId, taskId, taskType, code: checkResult.code, status: 'FAILED' });
-    return {
-      success: false,
-      code: checkResult.code || 'TASK_NOT_COMPLETED',
-      message: checkResult.message || 'Required X engagement not found.',
-    };
+    await writeLog('verificationLogs', { telegramId: numId, taskId, taskType, twitterUsername, code: checkResult.code, status: 'FAILED' });
+    return { success: false, code: checkResult.code || 'TASK_NOT_COMPLETED', message: checkResult.message || 'Required X engagement not found.' };
   }
-
-  // Award Points
-  const userRef = db.collection('users').doc(String(telegramId));
+  const userRef = db.collection('users').doc(String(numId));
   await db.runTransaction(async (transaction) => {
     const userDoc = await transaction.get(userRef);
     const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
-    const newPoints = currentPoints + rewardAmount;
-
-    transaction.set(userRef, { points: newPoints }, { merge: true });
-
-    transaction.set(completionRef, {
-      telegramId: Number(telegramId),
-      xUserId,
-      taskId,
-      taskType,
-      targetId,
-      reward: rewardAmount,
-      isCompleted: true,
-      isRevoked: false,
-      verifiedAt: FieldValue.serverTimestamp(),
-    });
-
-    transaction.set(db.collection('pointHistory').doc(), {
-      telegramId: Number(telegramId),
-      amount: rewardAmount,
-      type: 'TASK_REWARD',
-      taskId,
-      taskType,
-      timestamp: FieldValue.serverTimestamp(),
-    });
+    transaction.set(userRef, { points: currentPoints + rewardAmount }, { merge: true });
+    transaction.set(completionRef, { telegramId: numId, twitterUsername, xUserId, taskId, taskType, targetId, reward: rewardAmount, isCompleted: true, isRevoked: false, verifiedAt: FieldValue.serverTimestamp() });
+    transaction.set(db.collection('pointHistory').doc(), { telegramId: numId, amount: rewardAmount, type: 'TASK_REWARD', taskId, taskType, timestamp: FieldValue.serverTimestamp() });
   });
-
-  // Update Last Verification Timestamp
-  await db.collection('xUsers').doc(String(telegramId)).set({
-    lastVerificationTimestamp: FieldValue.serverTimestamp(),
-  }, { merge: true });
-
-  await writeLog('verificationLogs', { telegramId, taskId, taskType, rewardAmount, status: 'SUCCESS' });
-  await writeLog('auditLogs', { telegramId, event: 'POINT_AWARDED', amount: rewardAmount, taskId });
-
-  return {
-    success: true,
-    code: 'SUCCESS',
-    reward: rewardAmount,
-    message: `✅ Task verified on X API! +${rewardAmount} EFC Points awarded!`,
-  };
+  await db.collection('xUsers').doc(String(numId)).set({ verified: true, verifiedAt: FieldValue.serverTimestamp(), locked: true, lastVerificationTimestamp: FieldValue.serverTimestamp() }, { merge: true });
+  await db.collection('users').doc(String(numId)).set({ socialConnections: { x: { verified: true } } }, { merge: true });
+  await writeLog('verificationLogs', { telegramId: numId, taskId, taskType, twitterUsername, rewardAmount, status: 'SUCCESS' });
+  await writeLog('auditLogs', { telegramId: numId, event: 'POINT_AWARDED', amount: rewardAmount, taskId });
+  return { success: true, code: 'SUCCESS', reward: rewardAmount, twitterUsername, message: `✅ Task verified! +${rewardAmount} EFC Points awarded!` };
 }
 
-/**
- * Continuous Periodical Verification & Automatic Point Deduction Scheduler
- */
-/**
- * Universal Reward Reversal & Grace Period Engine v2.0
- * Features:
- * - Admin Configurable (Interval, Grace Period, Deduction Mode, Auto Re-Verification)
- * - 10-Minute Retention Check Rule Integration
- * - 24h Grace Period Warnings & Automatic Point Revocation
- * - Detailed Telegram Audit Notifications
- */
 export async function runXPeriodicMonitoring(sendToUserCallback = null) {
-  console.log('🔄 [Reward Reversal Engine v2.0] Running automated task audit & grace period check...');
-
+  console.log('🔄 [Reward Reversal Engine v3.0] Running automated task audit...');
   try {
-    // 1. Fetch Admin Settings from Firestore
-    let adminSettings = {
-      rewardReversalEnabled: true,
-      gracePeriodHours: 24,
-      reversalDeductionType: 'full',
-      autoReVerificationEnabled: true,
-    };
-
-    try {
-      const configSnap = await db.collection('adminSettings').doc('config').get();
-      if (configSnap.exists) {
-        adminSettings = { ...adminSettings, ...configSnap.data() };
-      }
-    } catch (e) {
-      /* fallback to defaults */
-    }
-
-    if (adminSettings.rewardReversalEnabled === false) {
-      console.log('ℹ️ [Reward Reversal Engine] Reversal system is currently disabled by Admin.');
-      return;
-    }
-
-    const gracePeriodHours = adminSettings.gracePeriodHours ?? 24;
-    const GRACE_PERIOD_MS = gracePeriodHours * 3600 * 1000;
+    let adminSettings = { rewardReversalEnabled: true, gracePeriodHours: 24, reversalDeductionType: 'full', autoReVerificationEnabled: true };
+    try { const snap = await db.collection('adminSettings').doc('config').get(); if (snap.exists) adminSettings = { ...adminSettings, ...snap.data() }; } catch (e) { /* fallback */ }
+    if (adminSettings.rewardReversalEnabled === false) { console.log('ℹ️ Reversal disabled by Admin.'); return; }
+    const GRACE_PERIOD_MS = (adminSettings.gracePeriodHours ?? 24) * 3600 * 1000;
     const TEN_MINUTES_MS = 10 * 60 * 1000;
     const now = Date.now();
-
-    const completionsSnap = await db.collection('taskCompletions')
-      .where('isCompleted', '==', true)
-      .get();
-
-    let checkedCount = 0;
-    let evaluatedCount = 0;
-
+    const completionsSnap = await db.collection('taskCompletions').where('isCompleted', '==', true).get();
+    let checkedCount = 0; let evaluatedCount = 0;
     for (const docSnap of completionsSnap.docs) {
       const data = docSnap.data();
-      const { telegramId, taskId, taskType, targetId, reward, verifiedAt, xUserId, retentionChecked, retentionDeducted } = data;
-
+      const { telegramId, taskId, taskType, targetId, reward, verifiedAt, twitterUsername, xUserId, retentionChecked, retentionDeducted } = data;
       if (!taskType || !taskType.startsWith('x')) continue;
       checkedCount++;
-
       const completionTime = verifiedAt?.toDate ? verifiedAt.toDate().getTime() : (typeof verifiedAt === 'number' ? verifiedAt : now - (11 * 60 * 1000));
       const elapsedTime = now - completionTime;
-
-      // Check current follow status on X API
-      const userTokens = await getValidXAccessToken(telegramId);
-      let isCurrentlyFollowing = true;
-
-      if (userTokens && userTokens.accessToken) {
+      let isCurrentlyValid = true;
+      if (twitterUsername && xUserId && adminSettings.autoReVerificationEnabled !== false) {
         let checkResult = { verifiable: false, isDone: true };
-        if (taskType === 'x_follow' || taskType === 'x') {
-          checkResult = await verifyFollowOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
-        } else if (taskType === 'x_like') {
-          checkResult = await verifyLikeOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
-        } else if (taskType === 'x_repost' || taskType === 'x_retweet') {
-          checkResult = await verifyRepostOnX(userTokens.accessToken, xUserId || userTokens.xUserId, targetId);
-        }
-        if (checkResult.verifiable) {
-          isCurrentlyFollowing = checkResult.isDone;
-        }
+        if (taskType === 'x_follow' || taskType === 'x') checkResult = await verifyFollowByUserId(xUserId, targetId);
+        else if (taskType === 'x_like') checkResult = await verifyLikeByUserId(xUserId, targetId);
+        else if (taskType === 'x_repost' || taskType === 'x_retweet') checkResult = await verifyRepostByTweetId(targetId, xUserId);
+        if (checkResult.verifiable) isCurrentlyValid = checkResult.isDone;
       }
-
       const userRef = db.collection('users').doc(String(telegramId));
-
-      // CASE 3: Unfollowed AFTER 10 minutes (previously deducted -5 points)
-      if (retentionChecked && retentionDeducted) {
-        if (!isCurrentlyFollowing && !data.notifiedLateUnfollow) {
-          await db.runTransaction(async (transaction) => {
-            const userDoc = await transaction.get(userRef);
-            const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
-
-            transaction.set(docSnap.ref, {
-              unfollowedAfter10Min: true,
-              notifiedLateUnfollow: true,
-            }, { merge: true });
-
-            if (typeof sendToUserCallback === 'function') {
-              await sendToUserCallback(
-                telegramId,
-                `📋 <b>টাস্ক ফলো স্ট্যাটাস রিপোর্ট</b>\n\n` +
-                `টাস্ক: <b>Daily Check-in (ID: ${taskId})</b> – সফল ✅\n` +
-                `ফলো স্ট্যাটাস: <b>টাস্কের পরে আনফলো করা হয়েছে, তবে পূর্বের -5 পয়েন্ট বজায় আছে</b>\n` +
-                `বর্তমান ব্যালেন্স: <b>${currentPoints} পয়েন্ট</b>`
-              ).catch(() => {});
-            }
-          });
-          evaluatedCount++;
-        }
-        continue;
-      }
-
-      // Initial 10-Minute Retention Window Evaluation
       if (!retentionChecked && elapsedTime >= TEN_MINUTES_MS) {
-        await db.runTransaction(async (transaction) => {
-          const userDoc = await transaction.get(userRef);
-          const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
-
-          if (!isCurrentlyFollowing) {
-            // CASE 1: Unfollowed WITHIN 10 minutes -> 0 points deducted (No deduction!)
-            transaction.set(docSnap.ref, {
-              retentionChecked: true,
-              unfollowedWithin10Min: true,
-              retentionDeducted: false,
-              checkedAt: FieldValue.serverTimestamp(),
-            }, { merge: true });
-
-            if (typeof sendToUserCallback === 'function') {
-              await sendToUserCallback(
-                telegramId,
-                `📋 <b>টাস্ক ফলো স্ট্যাটাস রিপোর্ট</b>\n\n` +
-                `টাস্ক: <b>Daily Check-in (ID: ${taskId})</b> – সফল ✅\n` +
-                `ফলো স্ট্যাটাস: <b>আনফলো করা হয়েছে → কোন পয়েন্ট কাটা নেই</b>\n` +
-                `বর্তমান ব্যালেন্স: <b>${currentPoints} পয়েন্ট</b>`
-              ).catch(() => {});
-            }
+        await db.runTransaction(async (t) => {
+          const ud = await t.get(userRef);
+          const cur = ud.exists ? (ud.data().points || 0) : 0;
+          if (!isCurrentlyValid) {
+            t.set(docSnap.ref, { retentionChecked: true, unfollowedWithin10Min: true, retentionDeducted: false, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
+            if (typeof sendToUserCallback === 'function') await sendToUserCallback(telegramId, `📋 <b>Task Status</b>\n<b>${taskId}</b> ✅\nAction removed → <b>No deduction</b>\nBalance: <b>${cur} pts</b>`).catch(() => {});
           } else {
-            // CASE 2: Still Following after 10 minutes -> Deduct 5 points!
-            const deduction = 5;
-            const newPoints = Math.max(0, currentPoints - deduction);
-
-            transaction.set(userRef, { points: newPoints }, { merge: true });
-
-            transaction.set(docSnap.ref, {
-              retentionChecked: true,
-              unfollowedWithin10Min: false,
-              retentionDeducted: true,
-              pointsDeducted: deduction,
-              checkedAt: FieldValue.serverTimestamp(),
-            }, { merge: true });
-
-            transaction.set(db.collection('deductionHistory').doc(), {
-              telegramId: Number(telegramId),
-              taskId,
-              taskType,
-              pointsDeducted: deduction,
-              reason: 'Still following after 10 minutes (-5 points retention rule applied)',
-              timestamp: FieldValue.serverTimestamp(),
-            });
-
-            if (typeof sendToUserCallback === 'function') {
-              await sendToUserCallback(
-                telegramId,
-                `📋 <b>টাস্ক ফলো স্ট্যাটাস রিপোর্ট</b>\n\n` +
-                `টাস্ক: <b>Daily Check-in (ID: ${taskId})</b> – সফল ✅\n` +
-                `ফলো স্ট্যাটাস: <b>এখনও ফলো করা আছে → -5 পয়েন্ট</b>\n` +
-                `বর্তমান ব্যালেন্স: <b>${newPoints} পয়েন্ট</b>`
-              ).catch(() => {});
-            }
+            const newPts = Math.max(0, cur - 5);
+            t.set(userRef, { points: newPts }, { merge: true });
+            t.set(docSnap.ref, { retentionChecked: true, unfollowedWithin10Min: false, retentionDeducted: true, pointsDeducted: 5, checkedAt: FieldValue.serverTimestamp() }, { merge: true });
+            t.set(db.collection('deductionHistory').doc(), { telegramId: Number(telegramId), taskId, taskType, pointsDeducted: 5, reason: '10-minute retention rule', timestamp: FieldValue.serverTimestamp() });
+            if (typeof sendToUserCallback === 'function') await sendToUserCallback(telegramId, `📋 <b>Task Status</b>\n<b>${taskId}</b> ✅\nStill following → <b>-5 pts</b>\nBalance: <b>${newPts} pts</b>`).catch(() => {});
           }
         });
-        evaluatedCount++;
-        continue;
+        evaluatedCount++; continue;
       }
-
-      // Universal Grace Period & Action Removal Revocation Protocol
-      if (!isCurrentlyFollowing) {
+      if (retentionChecked && !isCurrentlyValid) {
         if (!data.inGracePeriod) {
-          // Start Grace Period
-          await docSnap.ref.set({
-            inGracePeriod: true,
-            gracePeriodStart: FieldValue.serverTimestamp(),
-          }, { merge: true });
-
-          if (typeof sendToUserCallback === 'function' && gracePeriodHours > 0) {
-            await sendToUserCallback(
-              telegramId,
-              `⚠️ <b>Task Action Removal Detected!</b>\n\n` +
-              `We detected that you removed a required action for <b>${taskId}</b>.\n\n` +
-              `⌛ <b>${gracePeriodHours} Hours Grace Period Active</b>. Please re-follow or restore the action to prevent reward revocation.`
-            ).catch(() => {});
-          }
+          await docSnap.ref.set({ inGracePeriod: true, gracePeriodStart: FieldValue.serverTimestamp() }, { merge: true });
+          if (typeof sendToUserCallback === 'function') await sendToUserCallback(telegramId, `⚠️ <b>Action Removed!</b>\nRestore for <b>${taskId}</b> within ${adminSettings.gracePeriodHours ?? 24}h.`).catch(() => {});
         } else {
-          // Evaluate if Grace Period expired
           const graceStart = data.gracePeriodStart?.toDate ? data.gracePeriodStart.toDate().getTime() : (data.gracePeriodStart || now);
-          const graceElapsed = now - graceStart;
-
-          if (graceElapsed >= GRACE_PERIOD_MS) {
-            // Revoke Reward completely
-            const deductionAmount = adminSettings.reversalDeductionType === 'partial' ? Math.round((reward || 100) / 2) : (reward || 100);
-
-            await db.runTransaction(async (transaction) => {
-              const userDoc = await transaction.get(userRef);
-              const currentPoints = userDoc.exists ? (userDoc.data().points || 0) : 0;
-              const newPoints = Math.max(0, currentPoints - deductionAmount);
-
-              transaction.set(userRef, { points: newPoints }, { merge: true });
-
-              transaction.set(docSnap.ref, {
-                isCompleted: false,
-                isRevoked: true,
-                isInvalid: true,
-                inGracePeriod: false,
-                revokedAt: FieldValue.serverTimestamp(),
-                revocationReason: 'Required task action removed (Grace period expired)',
-              }, { merge: true });
-
-              transaction.set(db.collection('deductionHistory').doc(), {
-                telegramId: Number(telegramId),
-                taskId,
-                taskType,
-                pointsDeducted: deductionAmount,
-                reason: 'Task Verification Failed (Action Removed)',
-                timestamp: FieldValue.serverTimestamp(),
-              });
+          if (now - graceStart >= GRACE_PERIOD_MS) {
+            const ded = adminSettings.reversalDeductionType === 'partial' ? Math.round((reward || 100) / 2) : (reward || 100);
+            await db.runTransaction(async (t) => {
+              const ud = await t.get(userRef);
+              const cur = ud.exists ? (ud.data().points || 0) : 0;
+              t.set(userRef, { points: Math.max(0, cur - ded) }, { merge: true });
+              t.set(docSnap.ref, { isCompleted: false, isRevoked: true, isInvalid: true, inGracePeriod: false, revokedAt: FieldValue.serverTimestamp(), revocationReason: 'Action removed — grace expired' }, { merge: true });
+              t.set(db.collection('deductionHistory').doc(), { telegramId: Number(telegramId), taskId, taskType, pointsDeducted: ded, reason: 'Task Verification Failed', timestamp: FieldValue.serverTimestamp() });
             });
-
-            if (typeof sendToUserCallback === 'function') {
-              await sendToUserCallback(
-                telegramId,
-                `⚠️ <b>Task Verification Failed</b>\n\n` +
-                `We detected that you removed a required task.\n\n` +
-                `<b>Task:</b> ${taskId}\n\n` +
-                `<b>Reward Deducted:</b>\n` +
-                `🔻 <b>-${deductionAmount} EFP</b>\n\n` +
-                `Complete the task again to restore eligibility.`
-              ).catch(() => {});
-            }
+            if (typeof sendToUserCallback === 'function') await sendToUserCallback(telegramId, `⚠️ <b>Reward Revoked</b>\n<b>${taskId}</b>\n🔻 -${ded} EFP`).catch(() => {});
           }
         }
-      } else if (data.inGracePeriod) {
-        // User restored action during Grace Period -> Clear Grace Period flag!
-        await docSnap.ref.set({
-          inGracePeriod: false,
-          gracePeriodStart: null,
-        }, { merge: true });
+      } else if (data.inGracePeriod && isCurrentlyValid) {
+        await docSnap.ref.set({ inGracePeriod: false, gracePeriodStart: null }, { merge: true });
       }
-
       await new Promise(r => setTimeout(r, 150));
     }
-
-    console.log(`✅ [Reward Reversal Engine v2.0] Check complete. Evaluated: ${evaluatedCount}/${checkedCount}`);
+    console.log(`✅ [Reward Reversal Engine v3.0] Done. Evaluated: ${evaluatedCount}/${checkedCount}`);
   } catch (err) {
-    console.error('❌ [Reward Reversal Engine] Error during periodical monitoring:', err.message);
+    console.error('❌ [Reward Reversal Engine v3.0] Error:', err.message);
   }
-}
-
-/**
- * Verify one-time OAuth session token (called by Mini App after startapp deep link return).
- * This is a one-time-use token: it is deleted immediately after verification.
- *
- * @param {string} sessionToken  - The token returned by handleXOAuthCallback
- * @returns {{ telegramId: number, xUsername: string, xUserId: string } | null}
- */
-export function verifyOAuthSession(sessionToken) {
-  if (!sessionToken) return null;
-
-  const session = oauthSessions.get(sessionToken);
-  if (!session) {
-    console.warn('[X Engine] verifyOAuthSession: token not found or already consumed.');
-    return null;
-  }
-
-  if (Date.now() > session.expiresAt) {
-    oauthSessions.delete(sessionToken);
-    console.warn('[X Engine] verifyOAuthSession: token expired.');
-    return null;
-  }
-
-  // One-time use — delete immediately
-  oauthSessions.delete(sessionToken);
-
-  console.log(`✅ [X Engine] OAuth session verified: telegramId=${session.telegramId} xUsername=@${session.xUsername}`);
-  return {
-    telegramId: session.telegramId,
-    xUsername: session.xUsername,
-    xUserId: session.xUserId,
-  };
 }
