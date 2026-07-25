@@ -1,8 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, ChevronLeft, ChevronRight, Plus, ImagePlus,
-  AlertTriangle, CheckCircle2, Loader2,
+  X, ChevronLeft, ChevronRight, Plus,
+  CheckCircle2, Loader2,
 } from 'lucide-react';
 import {
   PLATFORMS, PLATFORM_ACTIONS, calculateTaskCost, createMarketTask,
@@ -41,9 +41,18 @@ const INPUT_FIELD_OPTIONS = [
   { id: 'tx_hash', label: 'Transaction Hash', icon: '🔗' },
 ];
 
+interface ActionConfig {
+  actionLabel: string;
+  url?: string;
+  minChars?: number;
+  requiredKeywords?: string;
+  minWatchSeconds?: number;
+}
+
 interface TaskForm {
   platform: string;
   actions: string[];         // multi-select actions
+  actionConfigs: Record<string, ActionConfig>; // per-action dynamic inputs
   targetUrl: string;
   title: string;
   description: string;        // "what should workers do"
@@ -63,6 +72,7 @@ interface TaskForm {
 const DEFAULT_FORM: TaskForm = {
   platform: '',
   actions: [],
+  actionConfigs: {},
   targetUrl: '',
   title: '',
   description: '',
@@ -85,14 +95,25 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<TaskForm>(DEFAULT_FORM);
   const [newChecklistItem, setNewChecklistItem] = useState('');
-  const [newCustomField, setNewCustomField] = useState('');
-  const [showCustomField, setShowCustomField] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [direction, setDirection] = useState(1);
 
   const update = useCallback(<K extends keyof TaskForm>(key: K, value: TaskForm[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   }, []);
+
+  const updateActionConfig = (actionLabel: string, field: keyof ActionConfig, val: any) => {
+    setForm(prev => ({
+      ...prev,
+      actionConfigs: {
+        ...prev.actionConfigs,
+        [actionLabel]: {
+          ...(prev.actionConfigs[actionLabel] || { actionLabel }),
+          [field]: val,
+        },
+      },
+    }));
+  };
 
   const allActions = PLATFORM_ACTIONS[form.platform] || [];
   const multiActions = allActions.filter(a =>
@@ -105,16 +126,16 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   const cost = form.reward && form.workerLimit
     ? calculateTaskCost(form.reward, form.workerLimit, form.verificationType, form.expiryDays)
     : null;
-  const canAfford = cost ? efcBalance >= cost.escrowTotal : true;
+  const deficit = cost ? Math.max(0, cost.escrowTotal - efcBalance) : 0;
+  const canAfford = deficit === 0;
 
   const toggleAction = (label: string) => {
     const inMulti = (MULTI_SELECT_ACTIONS[form.platform] || []).includes(label);
     if (inMulti) {
-      // toggle multi-select
       const has = form.actions.includes(label);
-      update('actions', has ? form.actions.filter(a => a !== label) : [...form.actions, label]);
+      const nextActions = has ? form.actions.filter(a => a !== label) : [...form.actions, label];
+      update('actions', nextActions);
     } else {
-      // single-select: replace any single actions with this one (keep multi)
       const multi = form.actions.filter(a => (MULTI_SELECT_ACTIONS[form.platform] || []).includes(a));
       const alreadySelected = form.actions.includes(label);
       update('actions', alreadySelected ? multi : [...multi, label]);
@@ -312,43 +333,17 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                         </div>
                       </div>
                     )}
-
-                    {/* If only single actions exist (no multi) */}
-                    {multiActions.length === 0 && singleActions.length === 0 && allActions.length > 0 && (
-                      <div className="space-y-1.5">
-                        {allActions.map(a => {
-                          const selected = form.actions.includes(a.label);
-                          return (
-                            <button
-                              key={a.label}
-                              onClick={() => update('actions', [a.label])}
-                              className="w-full flex items-center justify-between px-4 py-3 rounded-[16px] cursor-pointer transition-all"
-                              style={{
-                                background: selected ? 'rgba(255,138,0,0.12)' : 'rgba(255,255,255,0.04)',
-                                border: selected ? '1px solid rgba(255,138,0,0.45)' : '1px solid rgba(255,255,255,0.07)',
-                              }}
-                            >
-                              <div className="flex items-center gap-2.5">
-                                <ActionIcon action={a.label} size={15} color={selected ? '#FF8A00' : '#64748b'} />
-                                <span className="text-sm font-bold" style={{ color: selected ? '#FF8A00' : '#cbd5e1' }}>{a.label}</span>
-                              </div>
-                              <span className="text-[10px] font-bold text-slate-500">from {a.baseReward}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
                   </motion.div>
                 )}
               </>
             )}
 
-            {/* ── STEP 2: Task Details ────────────────────────────────────────── */}
+            {/* ── STEP 2: Task Details + Dynamic Actions Config ───────────────── */}
             {step === 2 && (
               <div className="space-y-4">
-                {/* Target URL */}
+                {/* Main Target URL */}
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Target</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Primary Target URL</p>
                   <input
                     type="text"
                     value={form.targetUrl}
@@ -364,10 +359,86 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                   />
                 </div>
 
+                {/* Per-Action Dynamic Configuration Cards */}
+                {form.actions.length > 0 && (
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                      Action Configurations ({form.actions.length} Selected)
+                    </p>
+
+                    {form.actions.map(actionLabel => {
+                      const config = form.actionConfigs[actionLabel] || {};
+                      const isReply = actionLabel.toLowerCase().includes('reply') || actionLabel.toLowerCase().includes('comment');
+                      const isWatch = actionLabel.toLowerCase().includes('watch');
+
+                      return (
+                        <div key={actionLabel} className="p-3.5 rounded-[18px] space-y-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,138,0,0.25)' }}>
+                          <div className="flex items-center gap-2">
+                            <ActionIcon action={actionLabel} size={15} color="#FF8A00" />
+                            <span className="text-xs font-black text-[#FF8A00]">{actionLabel}</span>
+                          </div>
+
+                          {/* URL input */}
+                          <input
+                            type="text"
+                            value={config.url || form.targetUrl}
+                            onChange={e => updateActionConfig(actionLabel, 'url', e.target.value)}
+                            placeholder={`Specific URL for ${actionLabel}...`}
+                            className="w-full px-3 py-2 rounded-[12px] text-xs placeholder-slate-600 focus:outline-none"
+                            style={inputStyle}
+                          />
+
+                          {/* Extra fields for reply/comment */}
+                          {isReply && (
+                            <div className="grid grid-cols-2 gap-2 pt-1">
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 block mb-1">Min Characters</label>
+                                <input
+                                  type="number"
+                                  min={5}
+                                  value={config.minChars || 20}
+                                  onChange={e => updateActionConfig(actionLabel, 'minChars', Number(e.target.value))}
+                                  className="w-full px-3 py-2 rounded-[10px] text-xs font-bold focus:outline-none text-white"
+                                  style={inputStyle}
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] font-bold text-slate-500 block mb-1">Required Keywords</label>
+                                <input
+                                  type="text"
+                                  value={config.requiredKeywords || ''}
+                                  onChange={e => updateActionConfig(actionLabel, 'requiredKeywords', e.target.value)}
+                                  placeholder="#GOMINE, @Elite..."
+                                  className="w-full px-3 py-2 rounded-[10px] text-xs focus:outline-none text-white"
+                                  style={inputStyle}
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Extra fields for Watch Video */}
+                          {isWatch && (
+                            <div className="pt-1">
+                              <label className="text-[9px] font-bold text-slate-500 block mb-1">Min Watch Seconds</label>
+                              <input
+                                type="number"
+                                min={10}
+                                value={config.minWatchSeconds || 60}
+                                onChange={e => updateActionConfig(actionLabel, 'minWatchSeconds', Number(e.target.value))}
+                                className="w-full px-3 py-2 rounded-[10px] text-xs font-bold focus:outline-none text-white"
+                                style={inputStyle}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
                 {/* Task Title */}
                 <div>
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Task Title</p>
-                  <p className="text-[9px] text-slate-600 mb-2">A clear, short name for the task, shown on the Market card and in messages.</p>
                   <input
                     type="text"
                     value={form.title}
@@ -383,7 +454,6 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                 {/* What should workers do */}
                 <div>
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">What should workers do?</p>
-                  <p className="text-[9px] text-slate-600 mb-2">Describe the exact steps. e.g. Open the link, read the post, and reply with your honest feedback. Take a screenshot of your reply as proof.</p>
                   <textarea
                     value={form.description}
                     onChange={e => update('description', e.target.value)}
@@ -392,25 +462,11 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                     className="w-full px-4 py-3 rounded-[16px] text-sm placeholder-slate-600 focus:outline-none resize-none"
                     style={inputStyle}
                   />
-                  <p className="text-[9px] text-slate-600 mt-1">Be specific. Workers see this and upload a screenshot of what they did.</p>
-                </div>
-
-                {/* Example Screenshots */}
-                <div>
-                  <button
-                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[16px] cursor-pointer transition-all"
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '1.5px dashed rgba(255,255,255,0.12)' }}
-                  >
-                    <ImagePlus size={15} className="text-slate-500" />
-                    <span className="text-[11px] font-semibold text-slate-500">Add example screenshots (optional, up to 3)</span>
-                  </button>
-                  <p className="text-[9px] text-slate-600 mt-1">Optional. Shown to workers and reviewers as an example of a valid submission.</p>
                 </div>
 
                 {/* Steps Checklist */}
                 <div>
                   <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Steps Checklist <span className="normal-case font-normal text-slate-600">(Optional)</span></p>
-                  <p className="text-[9px] text-slate-600 mb-2">Add the steps a worker must complete, in order. They tick each one off and can't submit until every box is checked.</p>
 
                   {form.checklist.map((item, idx) => (
                     <div key={idx} className="flex items-center gap-2 mb-1.5 px-3 py-2 rounded-[12px]"
@@ -447,10 +503,6 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                             update('checklist', updated);
                             setNewChecklistItem('');
                           }
-                          if (e.key === 'Escape') {
-                            update('checklist', form.checklist.slice(0, -1));
-                            setNewChecklistItem('');
-                          }
                         }}
                         placeholder="Describe step... (Enter to add)"
                         className="flex-1 px-3 py-2 rounded-[10px] text-xs placeholder-slate-600 focus:outline-none"
@@ -463,84 +515,39 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                             updated[updated.length - 1] = newChecklistItem.trim();
                             update('checklist', updated);
                             setNewChecklistItem('');
-                          } else {
-                            update('checklist', form.checklist.slice(0, -1));
                           }
                         }}
                         className="px-3 py-2 rounded-[10px] cursor-pointer text-xs font-bold"
                         style={{ background: 'rgba(255,138,0,0.15)', border: '1px solid rgba(255,138,0,0.3)', color: '#FF8A00' }}
-                      >
-                        Add
-                      </button>
+                      >Add</button>
                     </div>
                   )}
                 </div>
 
-                {/* Input Fields */}
+                {/* Input Fields Picker */}
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Input Fields <span className="normal-case font-normal text-slate-600">(Optional)</span></p>
-                  <p className="text-[9px] text-slate-600 mb-2">Fields the worker fills in when submitting (e.g. their UID or email). The values appear on the proof for you to review.</p>
-
-                  {form.inputFields.map((field, idx) => {
-                    const opt = INPUT_FIELD_OPTIONS.find(o => o.id === field);
-                    return (
-                      <div key={idx} className="flex items-center gap-2 mb-1.5 px-3 py-2.5 rounded-[12px]"
-                        style={{ background: 'rgba(255,138,0,0.08)', border: '1px solid rgba(255,138,0,0.2)' }}>
-                        <span className="text-sm">{opt?.icon || '📋'}</span>
-                        <span className="text-xs font-bold text-[#FF8A00] flex-1">{opt?.label || field}</span>
-                        <button onClick={() => update('inputFields', form.inputFields.filter((_, i) => i !== idx))}
-                          className="text-slate-600 hover:text-red-400 transition-colors cursor-pointer">
-                          <X size={12} />
-                        </button>
-                      </div>
-                    );
-                  })}
-
-                  {/* Field picker */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {INPUT_FIELD_OPTIONS.filter(o => !form.inputFields.includes(o.id)).map(o => (
-                      <button
-                        key={o.id}
-                        onClick={() => update('inputFields', [...form.inputFields, o.id])}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-[10px] text-[10px] font-bold cursor-pointer transition-all"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b' }}
-                      >
-                        <span>{o.icon}</span><span>{o.label}</span>
-                      </button>
-                    ))}
-                    {/* Custom field */}
-                    {!showCustomField ? (
-                      <button
-                        onClick={() => setShowCustomField(true)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-[10px] text-[10px] font-bold cursor-pointer transition-all"
-                        style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', color: '#64748b' }}
-                      >
-                        <Plus size={11} /> + Add field
-                      </button>
-                    ) : (
-                      <div className="flex gap-2 w-full mt-1">
-                        <input
-                          autoFocus
-                          type="text"
-                          value={newCustomField}
-                          onChange={e => setNewCustomField(e.target.value)}
-                          placeholder="Custom field name..."
-                          className="flex-1 px-3 py-1.5 rounded-[10px] text-xs placeholder-slate-600 focus:outline-none"
-                          style={inputStyle}
-                        />
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Input Fields Required from Workers</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {INPUT_FIELD_OPTIONS.map(o => {
+                      const selected = form.inputFields.includes(o.id);
+                      return (
                         <button
+                          key={o.id}
                           onClick={() => {
-                            if (newCustomField.trim()) {
-                              update('inputFields', [...form.inputFields, newCustomField.trim()]);
-                              setNewCustomField('');
-                            }
-                            setShowCustomField(false);
+                            const has = form.inputFields.includes(o.id);
+                            update('inputFields', has ? form.inputFields.filter(f => f !== o.id) : [...form.inputFields, o.id]);
                           }}
-                          className="px-3 py-1.5 rounded-[10px] text-xs font-bold cursor-pointer"
-                          style={{ background: 'rgba(255,138,0,0.15)', border: '1px solid rgba(255,138,0,0.3)', color: '#FF8A00' }}
-                        >Add</button>
-                      </div>
-                    )}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-xs font-bold cursor-pointer transition-all"
+                          style={{
+                            background: selected ? 'rgba(255,138,0,0.15)' : 'rgba(255,255,255,0.04)',
+                            border: selected ? '1.5px solid rgba(255,138,0,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                            color: selected ? '#FF8A00' : '#64748b',
+                          }}
+                        >
+                          <span>{o.icon}</span><span>{o.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -555,184 +562,122 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                     className="w-full px-4 py-3 rounded-[16px] text-xs placeholder-slate-600 focus:outline-none resize-none"
                     style={inputStyle}
                   />
-                  <p className="text-[9px] text-slate-600 mt-1">🔒 Only visible to screenshot reviewers. Tell them how to recognize a valid submission — workers never see this.</p>
-                </div>
-
-                {/* Start paused toggle */}
-                <button
-                  onClick={() => update('startPaused', !form.startPaused)}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-[16px] cursor-pointer transition-all"
-                  style={{
-                    background: form.startPaused ? 'rgba(255,138,0,0.1)' : 'rgba(255,255,255,0.04)',
-                    border: form.startPaused ? '1px solid rgba(255,138,0,0.4)' : '1px solid rgba(255,255,255,0.08)',
-                  }}
-                >
-                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-all ${form.startPaused ? 'bg-[#FF8A00] border-[#FF8A00]' : 'border-slate-600'}`}>
-                    {form.startPaused && <CheckCircle2 size={13} className="text-black" />}
-                  </div>
-                  <span className="text-xs font-bold" style={{ color: form.startPaused ? '#FF8A00' : '#94a3b8' }}>
-                    Start paused after approval
-                  </span>
-                </button>
-
-                {/* Reviewed before going live */}
-                <div className="p-4 rounded-[16px]" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p className="text-xs font-black text-white mb-2">Reviewed before going live</p>
-                  <p className="text-[10px] text-slate-400 leading-relaxed">
-                    Custom tasks are checked by a moderator first. Not allowed: anything involving wallets, seed phrases, or signing transactions; sending money; paid or fake reviews and ratings; mass-reporting or harassment; creating accounts or impersonation; adult or illegal content. Violations are rejected and may suspend your account.
-                  </p>
+                  <p className="text-[9px] text-slate-600 mt-1">🔒 Only visible to screenshot reviewers.</p>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 3: Reward + Workers + Expiry + Submit ─────────────────── */}
+            {/* ── STEP 3: Reward, Capacity & Itemized Escrow Summary Card ────── */}
             {step === 3 && (
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-base font-black text-white mb-1">Reward & Budget</h3>
-                  <p className="text-[10px] text-slate-500 mb-4">Set how much each worker earns and your total capacity.</p>
-                </div>
-
-                {/* Reward / Each — How Many — Expires */}
+                {/* Reward / Each (MIN 10) | How Many | Expires */}
                 <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 text-center">Reward / Each</p>
-                    <div className="text-center mb-1 text-[8px] text-slate-600">(Min 10)</div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        min={2}
-                        value={form.reward}
-                        onChange={e => update('reward', Math.max(2, Number(e.target.value)))}
-                        className="w-full px-3 py-3 rounded-[14px] text-sm font-black text-center text-[#FF8A00] focus:outline-none"
-                        style={{ background: 'rgba(255,138,0,0.1)', border: '1px solid rgba(255,138,0,0.3)' }}
-                      />
-                      <div className="text-center text-[9px] text-slate-600 mt-1">GOMINE</div>
-                    </div>
+                  <div className="p-3 rounded-[16px] text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">REWARD / EACH</p>
+                    <p className="text-[8px] text-slate-600 mb-1">(MIN 10)</p>
+                    <input
+                      type="number"
+                      min={10}
+                      value={form.reward}
+                      onChange={e => update('reward', Math.max(10, Number(e.target.value)))}
+                      className="w-full text-center text-sm font-black text-[#FF8A00] bg-transparent focus:outline-none"
+                    />
+                    <span className="text-[9px] font-bold text-slate-500">GOMINE</span>
                   </div>
-                  <div>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 text-center">How Many</p>
-                    <div className="text-center mb-1 text-[8px] text-transparent">-</div>
+
+                  <div className="p-3 rounded-[16px] text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">HOW MANY</p>
+                    <p className="text-[8px] text-transparent mb-1">-</p>
                     <input
                       type="number"
                       min={1}
                       value={form.workerLimit}
                       onChange={e => update('workerLimit', Math.max(1, Number(e.target.value)))}
-                      className="w-full px-3 py-3 rounded-[14px] text-sm font-black text-center text-white focus:outline-none"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      className="w-full text-center text-sm font-black text-white bg-transparent focus:outline-none"
                     />
+                    <span className="text-[9px] font-bold text-slate-500">Workers</span>
                   </div>
-                  <div>
-                    <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-1.5 text-center">Expires (Days)</p>
-                    <div className="text-center mb-1 text-[8px] text-transparent">-</div>
+
+                  <div className="p-3 rounded-[16px] text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">EXPIRES (DAYS)</p>
+                    <p className="text-[8px] text-transparent mb-1">-</p>
                     <input
                       type="number"
                       min={1}
                       max={30}
                       value={form.expiryDays}
                       onChange={e => update('expiryDays', Math.max(1, Math.min(30, Number(e.target.value))))}
-                      className="w-full px-3 py-3 rounded-[14px] text-sm font-black text-center text-white focus:outline-none"
-                      style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}
+                      className="w-full text-center text-sm font-black text-white bg-transparent focus:outline-none"
                     />
+                    <span className="text-[9px] font-bold text-slate-500">Days</span>
                   </div>
                 </div>
 
-                {/* Verification */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Verification</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'automatic', label: 'Automatic', icon: '⚡', color: '#00FF88' },
-                      { id: 'manual', label: 'Manual Review', icon: '👁️', color: '#FFC857' },
-                      { id: 'hybrid', label: 'Hybrid', icon: '🔀', color: '#B388FF' },
-                    ].map(v => (
-                      <button
-                        key={v.id}
-                        onClick={() => update('verificationType', v.id as TaskForm['verificationType'])}
-                        className="flex flex-col items-center gap-1 p-3 rounded-[14px] cursor-pointer transition-all"
-                        style={{
-                          background: form.verificationType === v.id ? `${v.color}15` : 'rgba(255,255,255,0.04)',
-                          border: form.verificationType === v.id ? `1.5px solid ${v.color}60` : '1px solid rgba(255,255,255,0.08)',
-                        }}
-                      >
-                        <span className="text-lg">{v.icon}</span>
-                        <span className="text-[9px] font-bold text-center leading-tight" style={{ color: form.verificationType === v.id ? v.color : '#64748b' }}>
-                          {v.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Cost breakdown */}
-                {cost && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-[20px] p-4 space-y-2"
-                    style={{
-                      background: canAfford ? 'rgba(255,215,0,0.06)' : 'rgba(255,77,109,0.08)',
-                      border: canAfford ? '1px solid rgba(255,215,0,0.2)' : '1px solid rgba(255,77,109,0.3)',
-                    }}
+                {/* Who can do this task */}
+                <div className="flex items-center justify-between p-3.5 rounded-[16px]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span className="text-xs font-bold text-slate-300">Who can do this task</span>
+                  <select
+                    value={form.audienceType}
+                    onChange={e => update('audienceType', e.target.value)}
+                    className="bg-transparent text-xs font-bold text-[#FF8A00] focus:outline-none cursor-pointer text-right"
                   >
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-slate-400">Reward Pool ({form.reward} × {form.workerLimit})</span>
-                      <span className="font-bold text-white">{cost.rewardPool.toFixed(1)} EFC</span>
+                    <option value="everyone" className="bg-slate-900">Anyone</option>
+                    <option value="premium" className="bg-slate-900">Premium Only</option>
+                    <option value="level" className="bg-slate-900">Level 5+</option>
+                  </select>
+                </div>
+
+                {/* Itemized Cost Summary Card (Matches Reference Screenshot 2) */}
+                {cost && (
+                  <div className="p-4 rounded-[20px] space-y-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400">{form.reward} GOMINE × {form.workerLimit}</span>
+                      <span className="font-bold text-white">{cost.rewardPool.toFixed(0)} GOMINE</span>
                     </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-slate-400">Platform Fee (25%)</span>
-                      <span className="font-bold text-slate-300">{cost.platformFee.toFixed(1)} EFC</span>
+
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400">Service fee (25%)</span>
+                      <span className="font-bold text-slate-300">{cost.platformFee.toFixed(0)} GOMINE</span>
                     </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-slate-400">Verification Fee</span>
-                      <span className="font-bold text-slate-300">{cost.verificationFee.toFixed(1)} EFC</span>
+
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400">Verification × {form.workerLimit}</span>
+                      <span className="font-bold text-slate-300">{cost.verificationFee.toFixed(0)} GOMINE</span>
                     </div>
-                    <div className="h-px bg-white/8 my-1" />
-                    <div className="flex justify-between text-[12px]">
-                      <span className="font-black text-white">Total Escrow</span>
-                      <span className="font-black text-[#FFD700]">{cost.escrowTotal.toFixed(1)} EFC</span>
+
+                    <div className="flex justify-between text-xs">
+                      <span className="text-slate-400">Review fee (one-time)</span>
+                      <span className="font-bold text-slate-300">{cost.reviewFee.toFixed(0)} GOMINE</span>
                     </div>
-                    <div className="flex justify-between text-[11px]">
-                      <span className="text-slate-400">Your Balance</span>
-                      <span className={`font-bold ${canAfford ? 'text-[#00FF88]' : 'text-[#FF4D6D]'}`}>{efcBalance.toFixed(1)} EFC</span>
+
+                    <div className="h-px bg-white/10 my-2" />
+
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="font-black text-white">Total escrowed</span>
+                      <span className="font-black text-white">{cost.escrowTotal.toFixed(0)} GOMINE</span>
                     </div>
-                    {!canAfford && (
-                      <div className="flex items-center gap-1.5 pt-1">
-                        <AlertTriangle size={12} className="text-[#FF4D6D]" />
-                        <span className="text-[10px] font-bold text-[#FF4D6D]">
-                          Need {(cost.escrowTotal - efcBalance).toFixed(1)} more EFC.
-                        </span>
-                      </div>
-                    )}
-                    <p className="text-[9px] text-slate-600 pt-1 leading-relaxed">
-                      Unused slots are refunded in full if the task expires or you cancel.
+
+                    {/* Balance & Deficit */}
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-[#FF8A00] underline">
+                        {canAfford ? 'Available Balance' : 'Insufficient - top up'}
+                      </span>
+                      <span className={`font-black ${canAfford ? 'text-[#00FF88]' : 'text-[#FF8A00]'}`}>
+                        {canAfford ? `${efcBalance.toFixed(0)} GOMINE` : `-${deficit.toFixed(0)} GOMINE`}
+                      </span>
+                    </div>
+
+                    <p className="text-[9px] text-slate-500 pt-1 leading-relaxed">
+                      Unfinished units are refunded in full (reward + fee + verification) if the task expires or you cancel.
                     </p>
-                  </motion.div>
+                  </div>
                 )}
 
-                {/* Task summary */}
-                <div className="rounded-[18px] p-4 space-y-2" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Summary</p>
-                  {[
-                    ['Platform', form.platform],
-                    ['Action(s)', form.actions.join(', ') || '—'],
-                    ['Title', form.title || '—'],
-                    ['Expires', `${form.expiryDays} days`],
-                    ['Verification', form.verificationType],
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex justify-between text-[11px]">
-                      <span className="text-slate-500">{label}</span>
-                      <span className="font-bold text-white text-right max-w-[55%] truncate">{value}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Moderation notice */}
-                <div className="flex items-start gap-2.5 px-4 py-3 rounded-[14px]"
-                  style={{ background: 'rgba(255,200,87,0.08)', border: '1px solid rgba(255,200,87,0.2)' }}>
-                  <AlertTriangle size={13} className="text-[#FFC857] shrink-0 mt-0.5" />
-                  <p className="text-[10px] text-slate-400 leading-relaxed">
-                    Tasks are reviewed before going live. Violations will be rejected and may result in account suspension.
+                {/* Moderation policy summary */}
+                <div className="p-3.5 rounded-[16px]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <p className="text-xs font-black text-white mb-1">Reviewed before going live</p>
+                  <p className="text-[9px] text-slate-400 leading-relaxed">
+                    Custom tasks are checked by a moderator first. Not allowed: anything involving wallets, seed phrases, or signing transactions; sending money; paid or fake reviews; mass-reporting; creating accounts or adult content.
                   </p>
                 </div>
               </div>
@@ -741,7 +686,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
         </AnimatePresence>
       </div>
 
-      {/* Footer */}
+      {/* Footer / Submit or Top Up */}
       <div className="px-4 pb-6 pt-3 shrink-0 flex gap-3" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {step > 1 && (
           <button
@@ -760,28 +705,35 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
             className="flex-1 h-11 rounded-[14px] text-sm font-bold text-white flex items-center justify-center gap-2 cursor-pointer transition-all"
             style={{
               background: stepValid() ? 'linear-gradient(135deg, #FF8A00, #FFD700)' : 'rgba(255,255,255,0.06)',
-              boxShadow: stepValid() ? '0 0 20px rgba(255,138,0,0.3)' : 'none',
               color: stepValid() ? 'white' : '#475569',
             }}
           >
             Continue <ChevronRight size={16} />
           </button>
+        ) : !canAfford ? (
+          <button
+            onClick={() => showToast(`Deposit at least ${deficit.toFixed(0)} GOMINE to fund this task.`, 'warning')}
+            className="flex-1 h-11 rounded-[14px] text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
+            style={{
+              background: 'rgba(255,138,0,0.15)',
+              border: '1.5px solid #FF8A00',
+              color: '#FF8A00',
+            }}
+          >
+            Top up ↗
+          </button>
         ) : (
           <button
             onClick={handleSubmit}
-            disabled={submitting || !canAfford}
+            disabled={submitting}
             className="flex-1 h-11 rounded-[14px] text-sm font-bold text-white flex items-center justify-center gap-2 cursor-pointer transition-all"
             style={{
-              background: !canAfford ? 'rgba(255,77,109,0.15)' : 'linear-gradient(135deg, #FF8A00, #FFD700)',
-              border: !canAfford ? '1px solid rgba(255,77,109,0.4)' : 'none',
-              boxShadow: canAfford && !submitting ? '0 0 24px rgba(255,138,0,0.4)' : 'none',
-              color: canAfford ? 'white' : '#FF4D6D',
+              background: 'linear-gradient(135deg, #FF8A00, #FFD700)',
+              boxShadow: '0 0 24px rgba(255,138,0,0.4)',
             }}
           >
             {submitting ? (
               <><Loader2 size={15} className="animate-spin" /> Creating Task...</>
-            ) : !canAfford ? (
-              'Insufficient Balance'
             ) : (
               '✨ Create Task'
             )}

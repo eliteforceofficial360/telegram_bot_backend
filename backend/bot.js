@@ -1184,9 +1184,10 @@ const server = http.createServer(async (req, res) => {
         const rewardPool = rewardNum * limitNum;
         const platformFee = rewardPool * 0.25;
         const verificationFee = (verificationType === 'manual' ? 1.5 : 0.5) * limitNum;
-        const totalEscrow = rewardPool + platformFee + verificationFee;
+        const reviewFee = 10; // one-time review fee
+        const totalEscrow = rewardPool + platformFee + verificationFee + reviewFee;
 
-        // Check user balance
+        // Check user balance and create task in atomic transaction
         const userRef = db.collection('users').doc(String(numId));
         const userSnap = await userRef.get();
         if (!userSnap.exists) {
@@ -1204,60 +1205,87 @@ const server = http.createServer(async (req, res) => {
           });
         }
 
-        // Deduct balance
-        await userRef.update({
-          points: FieldValue.increment(-totalEscrow),
-        });
-
-        // Create Task Document in Firestore
         const now = new Date();
         const expiresAt = new Date(now.getTime() + expDays * 24 * 60 * 60 * 1000).toISOString();
+        const taskDocRef = db.collection('marketTasks').doc();
+        const txDocRef = db.collection('transactions').doc();
+        const escrowDocRef = db.collection('taskEscrow').doc(taskDocRef.id);
 
-        const taskRef = await db.collection('marketTasks').add({
-          creatorTelegramId: numId,
-          creatorName: userData.firstName || `@${userData.username || 'user'}`,
-          platform,
-          action,
-          targetUrl,
-          title,
-          description: description || '',
-          instructions: instructions || '',
-          checklist: checklist || [],
-          inputFields: inputFields || ['screenshot'],
-          reward: rewardNum,
-          workerLimit: limitNum,
-          dailyLimit: Number(dailyLimit || 0),
-          cooldownHours: Number(cooldownHours || 0),
-          expiryDays: expDays,
-          budget: totalEscrow,
-          totalEscrow,
-          platformFee,
-          verificationFee,
-          verificationType: verificationType || 'automatic',
-          audience: audience || { type: 'everyone' },
-          status: 'pending_review',
-          completedCount: 0,
-          remainingSlots: limitNum,
-          featured: false,
-          trending: false,
-          views: 0,
-          completionRate: 100,
-          difficulty: rewardNum <= 5 ? 'easy' : rewardNum <= 15 ? 'medium' : 'hard',
-          createdAt: now.toISOString(),
-          expiresAt,
-        });
+        await db.runTransaction(async (transaction) => {
+          const freshUserSnap = await transaction.get(userRef);
+          const freshBalance = freshUserSnap.data()?.points || 0;
+          if (freshBalance < totalEscrow) {
+            throw new Error(`Insufficient balance during checkout. Available: ${freshBalance} EFC`);
+          }
 
-        // Escrow ledger record
-        await db.collection('taskEscrow').doc(taskRef.id).set({
-          taskId: taskRef.id,
-          creatorTelegramId: numId,
-          totalEscrow,
-          remainingEscrow: totalEscrow,
-          rewardPool,
-          platformFee,
-          verificationFee,
-          status: 'held',
-          createdAt: now.toISOString(),
+          // Atomic deduction from user wallet + record escrow points
+          transaction.update(userRef, {
+            points: FieldValue.increment(-totalEscrow),
+            escrow_points: FieldValue.increment(totalEscrow),
+            spent_points: FieldValue.increment(totalEscrow),
+          });
+
+          // Create Task Document
+          transaction.set(taskDocRef, {
+            creatorTelegramId: numId,
+            creatorName: userData.firstName || `@${userData.username || 'user'}`,
+            platform,
+            action,
+            targetUrl,
+            title,
+            description: description || '',
+            instructions: instructions || '',
+            checklist: checklist || [],
+            inputFields: inputFields || ['screenshot'],
+            reward: rewardNum,
+            workerLimit: limitNum,
+            dailyLimit: Number(dailyLimit || 0),
+            cooldownHours: Number(cooldownHours || 0),
+            expiryDays: expDays,
+            budget: totalEscrow,
+            totalEscrow,
+            platformFee,
+            verificationFee,
+            reviewFee,
+            verificationType: verificationType || 'automatic',
+            audience: audience || { type: 'everyone' },
+            status: 'pending_review',
+            completedCount: 0,
+            remainingSlots: limitNum,
+            featured: false,
+            trending: false,
+            views: 0,
+            completionRate: 100,
+            difficulty: rewardNum <= 5 ? 'easy' : rewardNum <= 15 ? 'medium' : 'hard',
+            createdAt: now.toISOString(),
+            expiresAt,
+          });
+
+          // Escrow ledger record
+          transaction.set(escrowDocRef, {
+            taskId: taskDocRef.id,
+            creatorTelegramId: numId,
+            totalEscrow,
+            remainingEscrow: totalEscrow,
+            rewardPool,
+            platformFee,
+            verificationFee,
+            reviewFee,
+            status: 'held',
+            createdAt: now.toISOString(),
+          });
+
+          // Transaction log
+          transaction.set(txDocRef, {
+            transactionId: txDocRef.id,
+            userId: numId,
+            taskId: taskDocRef.id,
+            amount: totalEscrow,
+            type: 'task_escrow',
+            status: 'completed',
+            date: now.toISOString(),
+            reason: `Task creation escrow deposit for "${title}"`,
+          });
         });
 
         // Send Telegram Notification to Creator

@@ -242,17 +242,20 @@ export async function fetchTaskAnalytics(taskId: string, telegramId: number): Pr
 export function calculateTaskCost(reward: number, workers: number, verificationType: string, expiryDays: number) {
   const PLATFORM_FEE_RATE = 0.25;
   const VERIFICATION_FEE_PER_WORKER = verificationType === 'manual' ? 1.5 : verificationType === 'hybrid' ? 1.0 : 0.5;
+  const REVIEW_FEE_ONE_TIME = 10;
 
   const rewardPool = reward * workers;
   const platformFee = rewardPool * PLATFORM_FEE_RATE;
   const verificationFee = VERIFICATION_FEE_PER_WORKER * workers;
-  const escrowTotal = rewardPool + platformFee + verificationFee;
+  const reviewFee = REVIEW_FEE_ONE_TIME;
+  const escrowTotal = rewardPool + platformFee + verificationFee + reviewFee;
   const dailyCost = escrowTotal / Math.max(1, expiryDays);
 
   return {
     rewardPool,
     platformFee,
     verificationFee,
+    reviewFee,
     escrowTotal,
     dailyCost,
     platformFeeRate: PLATFORM_FEE_RATE,
