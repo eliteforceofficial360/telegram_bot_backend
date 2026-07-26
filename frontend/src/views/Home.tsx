@@ -838,8 +838,8 @@ export const Home: React.FC<HomeProps> = ({
             onClick={claimDailyReward}
             disabled={dailyClaimed || claimingDaily}
             className={`h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 ${dailyClaimed
-                ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
-                : 'bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_14px_rgba(255,138,0,0.3)]'
+              ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
+              : 'bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[0_0_14px_rgba(255,138,0,0.3)]'
               }`}
           >
             {claimingDaily ? (
@@ -861,10 +861,10 @@ export const Home: React.FC<HomeProps> = ({
               <div
                 key={i}
                 className={`flex-1 flex flex-col items-center gap-0.5 py-1.5 rounded-xl border transition-all ${isCurrent && !dailyClaimed
-                    ? 'border-[#FF8A00]/50 bg-[#FF8A00]/10'
-                    : isPast
-                      ? 'border-accent-success/30 bg-accent-success/5'
-                      : 'border-white/5 bg-white/[0.02]'
+                  ? 'border-[#FF8A00]/50 bg-[#FF8A00]/10'
+                  : isPast
+                    ? 'border-accent-success/30 bg-accent-success/5'
+                    : 'border-white/5 bg-white/[0.02]'
                   }`}
               >
                 <span className="text-[7px] text-slate-500 font-bold">D{dayNum}</span>
@@ -900,8 +900,8 @@ export const Home: React.FC<HomeProps> = ({
             onClick={handleWatchAdClick}
             disabled={watchingAd || adWatchesToday >= effectiveAdDailyLimit}
             className={`h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${adWatchesToday >= effectiveAdDailyLimit
-                ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
-                : 'bg-[#E5A338] text-black border border-[#FFD700]/30 hover:brightness-110 active:scale-95 shadow-[0_0_12px_rgba(229,163,56,0.3)]'
+              ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
+              : 'bg-[#E5A338] text-black border border-[#FFD700]/30 hover:brightness-110 active:scale-95 shadow-[0_0_12px_rgba(229,163,56,0.3)]'
               }`}
           >
             {watchingAd ? (
