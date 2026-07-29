@@ -2269,6 +2269,111 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   );
                 })}
               </SectionCard>
+
+              {/* 📥 BEP-20 DEPOSIT VERIFICATION QUEUE */}
+              <SectionCard accentColor="#00FF8888">
+                <div className="p-5 flex flex-col gap-4">
+                  <div className="flex items-center justify-between flex-wrap gap-3">
+                    <div>
+                      <h2 className="text-base font-black text-white flex items-center gap-2">
+                        📥 Deposit Verification Queue <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">{depositRequests.length} total</span>
+                      </h2>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Verify user BEP-20 TxHash on BscScan and approve deposit credits to user wallets</p>
+                    </div>
+                  </div>
+
+                  {/* Deposit Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs font-mono">
+                      <thead>
+                        <tr className="border-b border-white/10 text-slate-400 text-[10px] uppercase tracking-wider">
+                          <th className="pb-3 font-bold">User</th>
+                          <th className="pb-3 font-bold">USDT Deposited</th>
+                          <th className="pb-3 font-bold">EFC Bonus</th>
+                          <th className="pb-3 font-bold">TxHash (BEP-20)</th>
+                          <th className="pb-3 font-bold">Status</th>
+                          <th className="pb-3 font-bold text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {depositRequests.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="py-6 text-center text-slate-500 text-xs">
+                              No deposit requests submitted yet.
+                            </td>
+                          </tr>
+                        ) : (
+                          depositRequests.map((req) => (
+                            <tr key={req.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3 pr-2">
+                                <span className="text-white font-bold block">@{req.username || `User_${req.telegramId}`}</span>
+                                <span className="text-[9px] text-slate-500 font-mono">ID: {req.telegramId}</span>
+                              </td>
+                              <td className="py-3 font-bold text-emerald-400">
+                                +${req.amountUsdt.toFixed(2)} USDT
+                              </td>
+                              <td className="py-3 font-bold text-[#FF8A00]">
+                                +{req.efcGranted.toLocaleString()} EFC
+                              </td>
+                              <td className="py-3 font-mono">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-cyan-400 text-[10px] truncate max-w-[140px]">{req.txHash}</span>
+                                  <a
+                                    href={`https://bscscan.com/tx/${req.txHash}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    title="Verify on BscScan"
+                                    className="p-1 hover:bg-white/10 rounded text-slate-400 hover:text-emerald-400 transition-all shrink-0"
+                                  >
+                                    <ExternalLink size={12} />
+                                  </a>
+                                </div>
+                              </td>
+                              <td className="py-3">
+                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase border ${
+                                  req.status === 'Approved' ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' :
+                                  req.status === 'Rejected' ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' :
+                                  'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                                }`}>
+                                  {req.status}
+                                </span>
+                              </td>
+                              <td className="py-3 text-right">
+                                {req.status === 'Pending' ? (
+                                  <div className="flex items-center gap-1.5 justify-end">
+                                    <button
+                                      onClick={async () => {
+                                        const ok = await updateDepositRequest(req.id, 'Approved');
+                                        if (ok) showToast(`Deposit approved! Credited $${req.amountUsdt} USDT & ${req.efcGranted} EFC to user.`, 'success');
+                                        else showToast('Failed to approve deposit.', 'error');
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1"
+                                    >
+                                      <Check size={11} /> Approve
+                                    </button>
+                                    <button
+                                      onClick={async () => {
+                                        const ok = await updateDepositRequest(req.id, 'Rejected');
+                                        if (ok) showToast('Deposit request rejected.', 'info');
+                                        else showToast('Failed to reject deposit.', 'error');
+                                      }}
+                                      className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1"
+                                    >
+                                      <X size={11} /> Reject
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-slate-500">Processed</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </SectionCard>
             </div>
           )}
 
@@ -3668,12 +3773,40 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       <label className="text-xs text-slate-400">Bot Username (Ref Links)</label>
                       <input type="text" value={settings.botUsername} onChange={e => setSettings(prev => ({ ...prev, botUsername: e.target.value }))} className="w-36 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
                     </div>
-                    <div className="flex items-center justify-between py-3 gap-4">
+                    <div className="flex items-center justify-between py-3 border-t border-white/5">
                       <div>
-                        <label className="text-xs text-slate-400 block">Bot API URL</label>
-                        <span className="text-[9px] text-slate-600">Your running backend URL (for notifications)</span>
+                        <label className="text-xs text-emerald-400 font-bold block">Admin BEP-20 Deposit Wallet (USDT)</label>
+                        <span className="text-[9px] text-slate-500">Address shown to users for USDT deposits</span>
                       </div>
-                      <input type="text" placeholder="http://your-server:4000" value={settings.botApiUrl || ''} onChange={e => setSettings(prev => ({ ...prev, botApiUrl: e.target.value }))} className="w-48 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono" style={inputStyle} />
+                      <input
+                        type="text"
+                        placeholder="0x..."
+                        value={settings.bep20DepositAddress || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, bep20DepositAddress: e.target.value.trim() }))}
+                        className="w-56 h-8 rounded-xl px-3 text-xs text-cyan-300 outline-none text-right font-mono border border-emerald-500/30"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between py-3">
+                      <label className="text-xs text-slate-400">Deposit Conversion Rate (1 USDT = X EFC)</label>
+                      <input
+                        type="number"
+                        value={settings.bep20DepositRate ?? 100}
+                        onChange={e => setSettings(prev => ({ ...prev, bep20DepositRate: Number(e.target.value) }))}
+                        className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between py-3">
+                      <label className="text-xs text-slate-400">Min Deposit Amount ($ USDT)</label>
+                      <input
+                        type="number"
+                        step="0.5"
+                        value={settings.bep20DepositMinAmount ?? 1.0}
+                        onChange={e => setSettings(prev => ({ ...prev, bep20DepositMinAmount: Number(e.target.value) }))}
+                        className="w-28 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono"
+                        style={inputStyle}
+                      />
                     </div>
                   </div>
                 </SectionCard>
