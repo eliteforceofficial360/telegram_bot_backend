@@ -55,7 +55,7 @@ export const Tasks = ({
   adminSettings,
   dbUser,
   setActiveTab,
-  navigateToMarket,
+  navigateToMarket: _navigateToMarket,
 }: TasksProps) => {
   const [tasks, setTasks] = useState<EForceTask[]>([]);
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());
@@ -628,14 +628,6 @@ export const Tasks = ({
             </h1>
             <p className="text-xs text-slate-400 mt-0.5">Complete social missions & video ads to earn EFC points</p>
           </div>
-          {navigateToMarket && (
-            <button
-              onClick={() => navigateToMarket('discover', false)}
-              className="text-[10px] font-black text-[#FFD700] bg-[#FFD700]/10 border border-[#FFD700]/30 px-3 py-1.5 rounded-xl hover:bg-[#FFD700]/20 transition-all cursor-pointer flex items-center gap-1"
-            >
-              Task Market ↗
-            </button>
-          )}
         </div>
       </div>
 

@@ -1,15 +1,12 @@
-import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
 import {
-  X, ChevronLeft, ChevronRight, Plus,
-  CheckCircle2, Loader2,
+  X, Check, AlertTriangle, Loader2, ShieldCheck,
 } from 'lucide-react';
 import {
-  PLATFORMS, PLATFORM_ACTIONS, calculateTaskCost, createMarketTask,
+  PLATFORMS, PLATFORM_ACTIONS, createMarketTask,
   type CreateTaskPayload,
 } from '../../lib/marketService';
 import { type TelegramUser } from '../../lib/telegramUser';
-import { PlatformIcon, ActionIcon } from './components/PlatformIcons';
 
 interface TaskBuilderProps {
   onClose: () => void;
@@ -19,726 +16,461 @@ interface TaskBuilderProps {
   onCreated: () => void;
 }
 
-const TOTAL_STEPS = 3;
-
-// Actions that support multi-select (checkboxes)
-const MULTI_SELECT_ACTIONS: Record<string, string[]> = {
-  X: ['Like', 'Repost', 'Bookmark', 'Reply', 'Views (20/1k)'],
-  Instagram: ['Like', 'Comment', 'Share Story', 'Reel View'],
-  YouTube: ['Like Video', 'Comment', 'Watch Video'],
-  TikTok: ['Like Video', 'Comment', 'Share'],
-  Reddit: ['Upvote Post', 'Comment'],
-  Discord: ['React to Message', 'Send Message'],
-};
-
-const INPUT_FIELD_OPTIONS = [
-  { id: 'screenshot', label: 'Screenshot', icon: '📷' },
-  { id: 'telegram_username', label: 'Telegram Username', icon: '✈️' },
-  { id: 'x_username', label: 'X (Twitter) Username', icon: '𝕏' },
-  { id: 'wallet_address', label: 'Wallet Address', icon: '💳' },
-  { id: 'email', label: 'Email Address', icon: '✉️' },
-  { id: 'uid', label: 'User ID / UID', icon: '🔑' },
-  { id: 'tx_hash', label: 'Transaction Hash', icon: '🔗' },
-];
-
-interface ActionConfig {
-  actionLabel: string;
-  url?: string;
-  minChars?: number;
-  requiredKeywords?: string;
-  minWatchSeconds?: number;
-}
-
-interface TaskForm {
-  platform: string;
-  actions: string[];         // multi-select actions
-  actionConfigs: Record<string, ActionConfig>; // per-action dynamic inputs
-  targetUrl: string;
-  title: string;
-  description: string;        // "what should workers do"
-  noteToReviewers: string;    // private note visible only to reviewers
-  checklist: string[];
-  inputFields: string[];
-  exampleImages: string[];
-  reward: number;
-  workerLimit: number;
-  expiryDays: number;
-  startPaused: boolean;
-  verificationType: 'automatic' | 'manual' | 'hybrid';
-  audienceType: string;
-  minLevel: number;
-}
-
-const DEFAULT_FORM: TaskForm = {
-  platform: '',
-  actions: [],
-  actionConfigs: {},
-  targetUrl: '',
-  title: '',
-  description: '',
-  noteToReviewers: '',
-  checklist: [],
-  inputFields: ['screenshot'],
-  exampleImages: [],
-  reward: 10,
-  workerLimit: 10,
-  expiryDays: 7,
-  startPaused: false,
-  verificationType: 'manual',
-  audienceType: 'everyone',
-  minLevel: 1,
-};
-
 export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   onClose, telegramUser, efcBalance, showToast, onCreated,
 }) => {
-  const [step, setStep] = useState(1);
-  const [form, setForm] = useState<TaskForm>(DEFAULT_FORM);
-  const [newChecklistItem, setNewChecklistItem] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [direction, setDirection] = useState(1);
+  const [selectedPlatform, setSelectedPlatform] = useState<string>('X');
+  const [selectedActions, setSelectedActions] = useState<Record<string, boolean>>({ Like: true });
+  const [targetUrl, setTargetUrl] = useState<string>('');
+  const [customTitle, setCustomTitle] = useState<string>('');
+  const [customDescription, setCustomDescription] = useState<string>('');
+  const [customNoteToReviewers, setCustomNoteToReviewers] = useState<string>('');
+  const [rewardPerEach, setRewardPerEach] = useState<number>(5);
+  const [quantity, setQuantity] = useState<number>(10);
+  const [expiresDays, setExpiresDays] = useState<number>(7);
+  const [minTier, setMinTier] = useState<'anyone' | 'bronze' | 'silver' | 'gold'>('anyone');
+  const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false);
+  const [startPaused, setStartPaused] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
 
-  const update = useCallback(<K extends keyof TaskForm>(key: K, value: TaskForm[K]) => {
-    setForm(prev => ({ ...prev, [key]: value }));
-  }, []);
+  // Available actions for selected platform
+  const currentPlatformActions = PLATFORM_ACTIONS[selectedPlatform] || PLATFORM_ACTIONS['Custom'] || [];
 
-  const updateActionConfig = (actionLabel: string, field: keyof ActionConfig, val: any) => {
-    setForm(prev => ({
+  const toggleAction = (label: string) => {
+    setSelectedActions(prev => ({
       ...prev,
-      actionConfigs: {
-        ...prev.actionConfigs,
-        [actionLabel]: {
-          ...(prev.actionConfigs[actionLabel] || { actionLabel }),
-          [field]: val,
-        },
-      },
+      [label]: !prev[label],
     }));
   };
 
-  const allActions = PLATFORM_ACTIONS[form.platform] || [];
-  const multiActions = allActions.filter(a =>
-    (MULTI_SELECT_ACTIONS[form.platform] || []).includes(a.label)
-  );
-  const singleActions = allActions.filter(a =>
-    !(MULTI_SELECT_ACTIONS[form.platform] || []).includes(a.label)
-  );
+  // Escrow Calculations
+  const rewardEach = Math.max(1, Number(rewardPerEach) || 1);
+  const howMany = Math.max(1, Number(quantity) || 1);
+  const baseSubtotal = rewardEach * howMany;
+  const serviceFee = Math.round(baseSubtotal * 0.25 * 10) / 10;
+  const tierCost = minTier === 'silver' ? 1 * howMany : minTier === 'gold' ? 2 * howMany : 0;
+  const verificationCost = verifiedOnly ? 1.5 * howMany : 0;
+  const reviewFee = selectedPlatform === 'Custom' ? 10 : 0;
+  const totalEscrowRequired = Math.ceil(baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee);
 
-  const cost = form.reward && form.workerLimit
-    ? calculateTaskCost(form.reward, form.workerLimit, form.verificationType, form.expiryDays)
-    : null;
-  const deficit = cost ? Math.max(0, cost.escrowTotal - efcBalance) : 0;
-  const canAfford = deficit === 0;
-
-  const toggleAction = (label: string) => {
-    const inMulti = (MULTI_SELECT_ACTIONS[form.platform] || []).includes(label);
-    if (inMulti) {
-      const has = form.actions.includes(label);
-      const nextActions = has ? form.actions.filter(a => a !== label) : [...form.actions, label];
-      update('actions', nextActions);
-    } else {
-      const multi = form.actions.filter(a => (MULTI_SELECT_ACTIONS[form.platform] || []).includes(a));
-      const alreadySelected = form.actions.includes(label);
-      update('actions', alreadySelected ? multi : [...multi, label]);
-    }
-  };
-
-  const goNext = () => { if (step < TOTAL_STEPS) { setDirection(1); setStep(s => s + 1); } };
-  const goPrev = () => { if (step > 1) { setDirection(-1); setStep(s => s - 1); } };
-
-  const stepValid = () => {
-    switch (step) {
-      case 1: return !!form.platform && form.actions.length > 0;
-      case 2: return !!form.targetUrl.trim() && !!form.title.trim() && !!form.description.trim();
-      case 3: return form.reward >= 2 && form.workerLimit >= 1;
-      default: return true;
-    }
-  };
+  const balanceAfter = efcBalance - totalEscrowRequired;
+  const isInsufficientBalance = balanceAfter < 0;
 
   const handleSubmit = async () => {
-    if (!telegramUser) return showToast('Not logged in', 'error');
-    if (!canAfford) return showToast('Insufficient EFC balance', 'error');
-    if (form.actions.length === 0) return showToast('Please select at least one action', 'warning');
+    if (!telegramUser) {
+      showToast('Please open in Telegram to create tasks.', 'warning');
+      return;
+    }
+
+    const activeActions = Object.keys(selectedActions).filter(k => selectedActions[k]);
+    if (activeActions.length === 0) {
+      showToast('Please select at least one action.', 'warning');
+      return;
+    }
+
+    if (selectedPlatform !== 'Custom' && !targetUrl.trim()) {
+      showToast('Please enter a target URL for your task.', 'warning');
+      return;
+    }
+
+    if (selectedPlatform === 'Custom' && !customTitle.trim()) {
+      showToast('Please enter a short title for your custom task.', 'warning');
+      return;
+    }
+
+    if (isInsufficientBalance) {
+      showToast(`Insufficient balance. Needed: ${totalEscrowRequired} EFC, Available: ${efcBalance} EFC`, 'error');
+      return;
+    }
 
     setSubmitting(true);
+    const actionLabel = activeActions.join(', ');
+    const finalTitle =
+      selectedPlatform === 'Custom'
+        ? customTitle.trim()
+        : `${selectedPlatform.toUpperCase()} ${actionLabel} Campaign`;
+
+    const finalDescription =
+      selectedPlatform === 'Custom'
+        ? customDescription.trim()
+        : `Complete ${actionLabel} on ${targetUrl.trim()}`;
+
     const payload: CreateTaskPayload = {
       telegramId: telegramUser.id,
-      platform: form.platform,
-      action: form.actions.join(', '),
-      targetUrl: form.targetUrl,
-      title: form.title,
-      description: form.description,
-      instructions: form.noteToReviewers || '',
-      exampleImages: form.exampleImages,
-      checklist: form.checklist,
-      inputFields: form.inputFields,
-      reward: form.reward,
-      workerLimit: form.workerLimit,
+      platform: selectedPlatform,
+      action: actionLabel,
+      targetUrl: targetUrl.trim() || 'https://telegram.org',
+      title: finalTitle,
+      description: finalDescription || `Complete ${actionLabel} task`,
+      instructions: customNoteToReviewers.trim(),
+      exampleImages: [],
+      checklist: [],
+      inputFields: ['screenshot'],
+      reward: rewardEach,
+      workerLimit: howMany,
       dailyLimit: 0,
       cooldownHours: 0,
-      expiryDays: form.expiryDays,
-      audience: { type: form.audienceType as CreateTaskPayload['audience']['type'], minLevel: form.minLevel },
-      verificationType: form.verificationType,
+      expiryDays: Number(expiresDays) || 7,
+      audience: {
+        type: minTier === 'anyone' ? 'everyone' : 'level',
+        minLevel: minTier === 'bronze' ? 2 : minTier === 'silver' ? 5 : minTier === 'gold' ? 10 : 1,
+      },
+      verificationType: 'manual',
     };
 
     const result = await createMarketTask(payload);
     setSubmitting(false);
 
     if (result.ok) {
-      showToast('🎉 Task created! Pending review.', 'success');
+      showToast('🎉 Task Created! Pending review.', 'success');
       onCreated();
       onClose();
     } else {
-      showToast(result.error || 'Failed to create task', 'error');
+      showToast(result.error || 'Failed to create task.', 'error');
     }
   };
 
   const inputStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.05)',
-    border: '1px solid rgba(255,255,255,0.1)',
-    color: '#fff',
+    background: '#121212',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    color: '#ffffff',
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col h-full max-h-screen overflow-hidden" style={{ background: '#0A0D1A', touchAction: 'pan-y' }}>
+    <div className="fixed inset-0 z-50 flex flex-col h-full max-h-screen overflow-hidden bg-[#0D0E12] select-none">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-5 pb-3 shrink-0 border-b border-white/[0.06]">
-        <button onClick={onClose} className="w-8 h-8 rounded-2xl bg-white/6 flex items-center justify-center cursor-pointer">
-          <X size={16} className="text-slate-400" />
-        </button>
-        {/* Step dots */}
-        <div className="flex items-center gap-1.5">
-          {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-full transition-all duration-300"
-              style={{
-                width: i + 1 === step ? 22 : 6, height: 6,
-                background: i + 1 <= step
-                  ? 'linear-gradient(90deg, #FF8A00, #FFD700)'
-                  : 'rgba(255,255,255,0.1)',
-              }}
-            />
-          ))}
+      <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/10 shrink-0 bg-[#16171B]">
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-black text-white uppercase tracking-wider">Create Task Campaign</h2>
+          <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-[#FF8A00]/20 text-[#FF8A00] border border-[#FF8A00]/30">
+            PRO
+          </span>
         </div>
-        <div className="w-8" />
+        <button
+          onClick={onClose}
+          className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer"
+        >
+          <X size={16} />
+        </button>
       </div>
 
-      {/* Info banner */}
-      <div className="mx-4 mt-3 p-3 rounded-2xl text-[10px] text-slate-400 leading-relaxed shrink-0" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
-        Fund a task from your balance and real users complete it, verified like any sponsored task. A <span className="text-[#FF8A00] font-bold">25% fee</span> applies per completed action, plus verification costs where shown.
-      </div>
+      {/* Main Single-Screen Scrollable Container */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+        {/* Info Banner */}
+        <div className="p-3.5 rounded-2xl bg-[#16171B] border border-white/10 text-xs text-slate-300 leading-relaxed font-medium">
+          Fund a task from your balance and real users complete it, verified like any sponsored task. A <span className="text-[#FF8A00] font-bold">25% fee</span> applies per completed action, plus verification costs where shown.
+        </div>
 
-      {/* Step content */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-6 mt-3" style={{ WebkitOverflowScrolling: 'touch', touchAction: 'pan-y' }}>
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={step}
-            custom={direction}
-            initial={{ opacity: 0, x: direction * 28 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: direction * -28 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="space-y-5"
-          >
+        {/* PLATFORM SELECTOR */}
+        <div className="space-y-2">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">PLATFORM</span>
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-wrap">
+            {PLATFORMS.map(p => {
+              const isSel = selectedPlatform === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPlatform(p.id);
+                    setSelectedActions({ [PLATFORM_ACTIONS[p.id]?.[0]?.label || 'Do task']: true });
+                  }}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 shrink-0 ${
+                    isSel
+                      ? 'bg-white text-black border-white shadow-md font-extrabold scale-105'
+                      : 'bg-[#16171B] text-slate-300 border-white/10 hover:border-white/20'
+                  }`}
+                >
+                  <span>{p.icon}</span>
+                  <span>{p.id}</span>
+                  {isSel && <Check size={12} strokeWidth={3} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-            {/* ── STEP 1: Platform + Action ──────────────────────────────────── */}
-            {step === 1 && (
-              <>
-                {/* Platform */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2.5">Platform</p>
-                  <div className="flex flex-wrap gap-2">
-                    {PLATFORMS.map(p => (
-                      <button
-                        key={p.id}
-                        onClick={() => { update('platform', p.id); update('actions', []); }}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-[20px] text-xs font-bold cursor-pointer transition-all"
-                        style={{
-                          background: form.platform === p.id ? `${p.color}20` : 'rgba(255,255,255,0.05)',
-                          border: form.platform === p.id ? `1.5px solid ${p.color}70` : '1px solid rgba(255,255,255,0.1)',
-                          color: form.platform === p.id ? p.color : '#64748b',
-                        }}
-                      >
-                        <PlatformIcon platformId={p.id} size={15} color={form.platform === p.id ? p.color : '#64748b'} />
-                        {p.id}
-                      </button>
-                    ))}
+        {/* ACTION SELECTOR */}
+        <div className="space-y-2 pt-2 border-t border-white/5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">ACTION</span>
+          </div>
+          <p className="text-[10px] text-slate-500">Tick several to order them all on one post.</p>
+
+          <div className="grid grid-cols-2 gap-2">
+            {currentPlatformActions.map(act => {
+              const checked = !!selectedActions[act.label];
+              return (
+                <button
+                  key={act.label}
+                  type="button"
+                  onClick={() => toggleAction(act.label)}
+                  className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer ${
+                    checked
+                      ? 'bg-[#FF8A00]/15 border-[#FF8A00] text-white font-bold shadow-md'
+                      : 'bg-[#16171B] border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center text-[9px] shrink-0 ${checked ? 'bg-[#FF8A00] border-[#FF8A00] text-black font-black' : 'border-white/30'}`}>
+                      {checked ? '✓' : ''}
+                    </span>
+                    <span className="text-xs font-bold text-white truncate">{act.label}</span>
                   </div>
-                </div>
+                  <span className="text-[10px] font-mono text-slate-400 shrink-0">from {act.baseReward}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-                {/* Actions */}
-                {form.platform && (
-                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Action</p>
-
-                    {/* Multi-select actions (checkboxes) */}
-                    {multiActions.length > 0 && (
-                      <div className="space-y-1">
-                        {multiActions.length > 1 && (
-                          <p className="text-[9px] text-slate-600 mb-2">Tick several to order them all on one post.</p>
-                        )}
-                        {multiActions.map(a => {
-                          const checked = form.actions.includes(a.label);
-                          return (
-                            <button
-                              key={a.label}
-                              onClick={() => toggleAction(a.label)}
-                              className="w-full flex items-center gap-3 px-4 py-3 rounded-[16px] cursor-pointer transition-all text-left"
-                              style={{
-                                background: checked ? 'rgba(255,138,0,0.1)' : 'rgba(255,255,255,0.03)',
-                                border: checked ? '1px solid rgba(255,138,0,0.4)' : '1px solid rgba(255,255,255,0.07)',
-                              }}
-                            >
-                              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${checked ? 'bg-[#FF8A00] border-[#FF8A00]' : 'border-slate-600'}`}>
-                                {checked && <CheckCircle2 size={13} className="text-black" />}
-                              </div>
-                              <div className="flex items-center gap-2 flex-1 min-w-0">
-                                <ActionIcon action={a.label} size={15} color={checked ? '#FF8A00' : '#64748b'} />
-                                <span className="text-sm font-bold" style={{ color: checked ? '#FF8A00' : '#cbd5e1' }}>
-                                  {a.label}
-                                </span>
-                              </div>
-                              <span className="text-[10px] font-bold text-slate-500 shrink-0">from {a.baseReward}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-
-                    {/* Single-select actions */}
-                    {singleActions.length > 0 && (
-                      <div>
-                        {multiActions.length > 0 && (
-                          <p className="text-[9px] text-slate-500 mb-2 mt-1">Or pick one:</p>
-                        )}
-                        <div className="flex flex-wrap gap-2">
-                          {singleActions.map(a => {
-                            const selected = form.actions.includes(a.label);
-                            return (
-                              <button
-                                key={a.label}
-                                onClick={() => toggleAction(a.label)}
-                                className="flex items-center gap-1.5 px-3.5 py-2 rounded-[20px] text-xs font-bold cursor-pointer transition-all"
-                                style={{
-                                  background: selected ? 'rgba(255,138,0,0.15)' : 'rgba(255,255,255,0.04)',
-                                  border: selected ? '1.5px solid rgba(255,138,0,0.55)' : '1px solid rgba(255,255,255,0.1)',
-                                  color: selected ? '#FF8A00' : '#64748b',
-                                }}
-                              >
-                                <ActionIcon action={a.label} size={13} color={selected ? '#FF8A00' : '#64748b'} />
-                                {a.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
-                )}
-              </>
-            )}
-
-            {/* ── STEP 2: Task Details + Dynamic Actions Config ───────────────── */}
-            {step === 2 && (
-              <div className="space-y-4">
-                {/* Main Target URL */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Primary Target URL</p>
-                  <input
-                    type="text"
-                    value={form.targetUrl}
-                    onChange={e => update('targetUrl', e.target.value)}
-                    placeholder={
-                      form.platform === 'X' ? 'https://x.com/EliteForceOFC' :
-                      form.platform === 'Telegram' ? 'https://t.me/YourChannel' :
-                      form.platform === 'Instagram' ? 'https://instagram.com/yourprofile' :
-                      'https://...'
-                    }
-                    className="w-full px-4 py-3 rounded-[16px] text-sm placeholder-slate-600 focus:outline-none"
-                    style={inputStyle}
-                  />
-                </div>
-
-                {/* Per-Action Dynamic Configuration Cards */}
-                {form.actions.length > 0 && (
-                  <div className="space-y-3">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                      Action Configurations ({form.actions.length} Selected)
-                    </p>
-
-                    {form.actions.map(actionLabel => {
-                      const config = form.actionConfigs[actionLabel] || {};
-                      const isReply = actionLabel.toLowerCase().includes('reply') || actionLabel.toLowerCase().includes('comment');
-                      const isWatch = actionLabel.toLowerCase().includes('watch');
-
-                      return (
-                        <div key={actionLabel} className="p-3.5 rounded-[18px] space-y-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,138,0,0.25)' }}>
-                          <div className="flex items-center gap-2">
-                            <ActionIcon action={actionLabel} size={15} color="#FF8A00" />
-                            <span className="text-xs font-black text-[#FF8A00]">{actionLabel}</span>
-                          </div>
-
-                          {/* URL input */}
-                          <input
-                            type="text"
-                            value={config.url || form.targetUrl}
-                            onChange={e => updateActionConfig(actionLabel, 'url', e.target.value)}
-                            placeholder={`Specific URL for ${actionLabel}...`}
-                            className="w-full px-3 py-2 rounded-[12px] text-xs placeholder-slate-600 focus:outline-none"
-                            style={inputStyle}
-                          />
-
-                          {/* Extra fields for reply/comment */}
-                          {isReply && (
-                            <div className="grid grid-cols-2 gap-2 pt-1">
-                              <div>
-                                <label className="text-[9px] font-bold text-slate-500 block mb-1">Min Characters</label>
-                                <input
-                                  type="number"
-                                  min={5}
-                                  value={config.minChars || 20}
-                                  onChange={e => updateActionConfig(actionLabel, 'minChars', Number(e.target.value))}
-                                  className="w-full px-3 py-2 rounded-[10px] text-xs font-bold focus:outline-none text-white"
-                                  style={inputStyle}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-[9px] font-bold text-slate-500 block mb-1">Required Keywords</label>
-                                <input
-                                  type="text"
-                                  value={config.requiredKeywords || ''}
-                                  onChange={e => updateActionConfig(actionLabel, 'requiredKeywords', e.target.value)}
-                                  placeholder="#GOMINE, @Elite..."
-                                  className="w-full px-3 py-2 rounded-[10px] text-xs focus:outline-none text-white"
-                                  style={inputStyle}
-                                />
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Extra fields for Watch Video */}
-                          {isWatch && (
-                            <div className="pt-1">
-                              <label className="text-[9px] font-bold text-slate-500 block mb-1">Min Watch Seconds</label>
-                              <input
-                                type="number"
-                                min={10}
-                                value={config.minWatchSeconds || 60}
-                                onChange={e => updateActionConfig(actionLabel, 'minWatchSeconds', Number(e.target.value))}
-                                className="w-full px-3 py-2 rounded-[10px] text-xs font-bold focus:outline-none text-white"
-                                style={inputStyle}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Task Title */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Task Title</p>
-                  <input
-                    type="text"
-                    value={form.title}
-                    onChange={e => update('title', e.target.value)}
-                    placeholder="Short title, e.g. Sign up on Invent"
-                    maxLength={60}
-                    className="w-full px-4 py-3 rounded-[16px] text-sm placeholder-slate-600 focus:outline-none"
-                    style={inputStyle}
-                  />
-                  <div className="text-right text-[9px] text-slate-600 mt-1">{form.title.length}/60</div>
-                </div>
-
-                {/* What should workers do */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">What should workers do?</p>
-                  <textarea
-                    value={form.description}
-                    onChange={e => update('description', e.target.value)}
-                    placeholder={"Describe the exact steps. e.g.\nOpen the link, read the post, and reply with\nyour honest feedback. Take a screenshot of\nyour reply as proof."}
-                    rows={4}
-                    className="w-full px-4 py-3 rounded-[16px] text-sm placeholder-slate-600 focus:outline-none resize-none"
-                    style={inputStyle}
-                  />
-                </div>
-
-                {/* Steps Checklist */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Steps Checklist <span className="normal-case font-normal text-slate-600">(Optional)</span></p>
-
-                  {form.checklist.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 mb-1.5 px-3 py-2 rounded-[12px]"
-                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                      <span className="w-4 h-4 rounded flex items-center justify-center text-[9px] font-black text-[#FF8A00] shrink-0 border border-[#FF8A00]/40">{idx + 1}</span>
-                      <span className="text-xs text-slate-300 flex-1">{item}</span>
-                      <button onClick={() => update('checklist', form.checklist.filter((_, i) => i !== idx))}
-                        className="text-slate-600 hover:text-red-400 transition-colors cursor-pointer shrink-0">
-                        <X size={12} />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => {
-                      setNewChecklistItem('');
-                      update('checklist', [...form.checklist, '']);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-[12px] text-xs font-bold cursor-pointer transition-all mt-1"
-                    style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed rgba(255,255,255,0.1)', color: '#64748b' }}
-                  >
-                    <Plus size={13} /> + Add step
-                  </button>
-                  {form.checklist.length > 0 && form.checklist[form.checklist.length - 1] === '' && (
-                    <div className="flex gap-2 mt-2">
-                      <input
-                        type="text"
-                        autoFocus
-                        value={newChecklistItem}
-                        onChange={e => setNewChecklistItem(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' && newChecklistItem.trim()) {
-                            const updated = [...form.checklist];
-                            updated[updated.length - 1] = newChecklistItem.trim();
-                            update('checklist', updated);
-                            setNewChecklistItem('');
-                          }
-                        }}
-                        placeholder="Describe step... (Enter to add)"
-                        className="flex-1 px-3 py-2 rounded-[10px] text-xs placeholder-slate-600 focus:outline-none"
-                        style={inputStyle}
-                      />
-                      <button
-                        onClick={() => {
-                          if (newChecklistItem.trim()) {
-                            const updated = [...form.checklist];
-                            updated[updated.length - 1] = newChecklistItem.trim();
-                            update('checklist', updated);
-                            setNewChecklistItem('');
-                          }
-                        }}
-                        className="px-3 py-2 rounded-[10px] cursor-pointer text-xs font-bold"
-                        style={{ background: 'rgba(255,138,0,0.15)', border: '1px solid rgba(255,138,0,0.3)', color: '#FF8A00' }}
-                      >Add</button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Input Fields Picker */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Input Fields Required from Workers</p>
-                  <div className="flex flex-wrap gap-1.5 mt-1.5">
-                    {INPUT_FIELD_OPTIONS.map(o => {
-                      const selected = form.inputFields.includes(o.id);
-                      return (
-                        <button
-                          key={o.id}
-                          onClick={() => {
-                            const has = form.inputFields.includes(o.id);
-                            update('inputFields', has ? form.inputFields.filter(f => f !== o.id) : [...form.inputFields, o.id]);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-[12px] text-xs font-bold cursor-pointer transition-all"
-                          style={{
-                            background: selected ? 'rgba(255,138,0,0.15)' : 'rgba(255,255,255,0.04)',
-                            border: selected ? '1.5px solid rgba(255,138,0,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                            color: selected ? '#FF8A00' : '#64748b',
-                          }}
-                        >
-                          <span>{o.icon}</span><span>{o.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Note to reviewers */}
-                <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Note to Reviewers <span className="normal-case font-normal text-slate-600">(Optional)</span></p>
-                  <textarea
-                    value={form.noteToReviewers}
-                    onChange={e => update('noteToReviewers', e.target.value)}
-                    placeholder="e.g. A valid screenshot shows the dashboard with a green checkmark"
-                    rows={3}
-                    className="w-full px-4 py-3 rounded-[16px] text-xs placeholder-slate-600 focus:outline-none resize-none"
-                    style={inputStyle}
-                  />
-                  <p className="text-[9px] text-slate-600 mt-1">🔒 Only visible to screenshot reviewers.</p>
-                </div>
-              </div>
-            )}
-
-            {/* ── STEP 3: Reward, Capacity & Itemized Escrow Summary Card ────── */}
-            {step === 3 && (
-              <div className="space-y-4">
-                {/* Reward / Each (MIN 10) | How Many | Expires */}
-                <div className="grid grid-cols-3 gap-2">
-                  <div className="p-3 rounded-[16px] text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">REWARD / EACH</p>
-                    <p className="text-[8px] text-slate-600 mb-1">(MIN 10)</p>
-                    <input
-                      type="number"
-                      min={10}
-                      value={form.reward}
-                      onChange={e => update('reward', Math.max(10, Number(e.target.value)))}
-                      className="w-full text-center text-sm font-black text-[#FF8A00] bg-transparent focus:outline-none"
-                    />
-                    <span className="text-[9px] font-bold text-slate-500">GOMINE</span>
-                  </div>
-
-                  <div className="p-3 rounded-[16px] text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">HOW MANY</p>
-                    <p className="text-[8px] text-transparent mb-1">-</p>
-                    <input
-                      type="number"
-                      min={1}
-                      value={form.workerLimit}
-                      onChange={e => update('workerLimit', Math.max(1, Number(e.target.value)))}
-                      className="w-full text-center text-sm font-black text-white bg-transparent focus:outline-none"
-                    />
-                    <span className="text-[9px] font-bold text-slate-500">Workers</span>
-                  </div>
-
-                  <div className="p-3 rounded-[16px] text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">EXPIRES (DAYS)</p>
-                    <p className="text-[8px] text-transparent mb-1">-</p>
-                    <input
-                      type="number"
-                      min={1}
-                      max={30}
-                      value={form.expiryDays}
-                      onChange={e => update('expiryDays', Math.max(1, Math.min(30, Number(e.target.value))))}
-                      className="w-full text-center text-sm font-black text-white bg-transparent focus:outline-none"
-                    />
-                    <span className="text-[9px] font-bold text-slate-500">Days</span>
-                  </div>
-                </div>
-
-                {/* Who can do this task */}
-                <div className="flex items-center justify-between p-3.5 rounded-[16px]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span className="text-xs font-bold text-slate-300">Who can do this task</span>
-                  <select
-                    value={form.audienceType}
-                    onChange={e => update('audienceType', e.target.value)}
-                    className="bg-transparent text-xs font-bold text-[#FF8A00] focus:outline-none cursor-pointer text-right"
-                  >
-                    <option value="everyone" className="bg-slate-900">Anyone</option>
-                    <option value="premium" className="bg-slate-900">Premium Only</option>
-                    <option value="level" className="bg-slate-900">Level 5+</option>
-                  </select>
-                </div>
-
-                {/* Itemized Cost Summary Card (Matches Reference Screenshot 2) */}
-                {cost && (
-                  <div className="p-4 rounded-[20px] space-y-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400">{form.reward} EFC × {form.workerLimit}</span>
-                      <span className="font-bold text-white">{cost.rewardPool.toFixed(0)} EFC</span>
-                    </div>
-
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400">Service fee (25%)</span>
-                      <span className="font-bold text-slate-300">{cost.platformFee.toFixed(1)} EFC</span>
-                    </div>
-
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400">Verification × {form.workerLimit}</span>
-                      <span className="font-bold text-slate-300">{cost.verificationFee.toFixed(1)} EFC</span>
-                    </div>
-
-                    <div className="flex justify-between text-xs">
-                      <span className="text-slate-400">Review fee (one-time)</span>
-                      <span className="font-bold text-slate-300">{cost.reviewFee.toFixed(0)} EFC</span>
-                    </div>
-
-                    <div className="h-px bg-white/10 my-2" />
-
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="font-black text-white">Total escrowed</span>
-                      <span className="font-black text-white">{cost.escrowTotal.toFixed(0)} EFC</span>
-                    </div>
-
-                    {/* Balance & Deficit */}
-                    <div className="flex justify-between items-center text-xs">
-                      <span className="font-bold text-[#FF8A00] underline">
-                        {canAfford ? 'Available Balance' : 'Insufficient - deposit BEP-20'}
-                      </span>
-                      <span className={`font-black ${canAfford ? 'text-[#00FF88]' : 'text-[#FF8A00]'}`}>
-                        {canAfford ? `${efcBalance.toFixed(0)} EFC` : `-${deficit.toFixed(0)} EFC`}
-                      </span>
-                    </div>
-
-                    <p className="text-[9px] text-slate-500 pt-1 leading-relaxed">
-                      Unfinished units are refunded in full (reward + fee + verification) if the task expires or you cancel.
-                    </p>
-                  </div>
-                )}
-
-                {/* Moderation policy summary */}
-                <div className="p-3.5 rounded-[16px]" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <p className="text-xs font-black text-white mb-1">Reviewed before going live</p>
-                  <p className="text-[9px] text-slate-400 leading-relaxed">
-                    Custom tasks are checked by a moderator first. Not allowed: anything involving wallets, seed phrases, or signing transactions; sending money; paid or fake reviews; mass-reporting; creating accounts or adult content.
-                  </p>
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
-
-      {/* Footer / Submit or Top Up */}
-      <div className="px-4 pb-6 pt-3 shrink-0 flex gap-3 z-10 bg-[#0A0D1A]" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        {step > 1 && (
-          <button
-            onClick={goPrev}
-            className="w-11 h-11 rounded-[14px] flex items-center justify-center cursor-pointer shrink-0"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            <ChevronLeft size={18} className="text-slate-400" />
-          </button>
+        {/* TARGET LINK INPUT */}
+        {selectedPlatform !== 'Custom' && (
+          <div className="space-y-1.5 pt-2 border-t border-white/5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">TARGET LINK</span>
+            <input
+              type="url"
+              value={targetUrl}
+              onChange={e => setTargetUrl(e.target.value)}
+              placeholder={`https://${selectedPlatform.toLowerCase()}.com/...`}
+              className="w-full h-11 rounded-xl px-3.5 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00] font-mono transition-all"
+              style={inputStyle}
+            />
+          </div>
         )}
 
-        {step < TOTAL_STEPS ? (
-          <button
-            onClick={goNext}
-            disabled={!stepValid()}
-            className="flex-1 h-11 rounded-[14px] text-sm font-bold text-white flex items-center justify-center gap-2 cursor-pointer transition-all"
-            style={{
-              background: stepValid() ? 'linear-gradient(135deg, #FF8A00, #FFD700)' : 'rgba(255,255,255,0.06)',
-              color: stepValid() ? 'white' : '#475569',
-            }}
-          >
-            Continue <ChevronRight size={16} />
-          </button>
-        ) : !canAfford ? (
-          <button
-            onClick={() => showToast(`Deposit at least ${deficit.toFixed(0)} EFC via BEP-20 in Wallet to fund this task.`, 'warning')}
-            className="flex-1 h-11 rounded-[14px] text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
-            style={{
-              background: 'rgba(255,138,0,0.15)',
-              border: '1.5px solid #FF8A00',
-              color: '#FF8A00',
-            }}
-          >
-            Deposit BEP-20 ↗
-          </button>
-        ) : (
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="flex-1 h-11 rounded-[14px] text-sm font-bold text-white flex items-center justify-center gap-2 cursor-pointer transition-all"
-            style={{
-              background: 'linear-gradient(135deg, #FF8A00, #FFD700)',
-              boxShadow: '0 0 24px rgba(255,138,0,0.4)',
-            }}
-          >
-            {submitting ? (
-              <><Loader2 size={15} className="animate-spin" /> Creating Task...</>
-            ) : (
-              '✨ Create Task'
-            )}
-          </button>
+        {/* CUSTOM MISSION EXTRA FIELDS */}
+        {selectedPlatform === 'Custom' && (
+          <div className="space-y-3 pt-2 border-t border-white/5">
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">TARGET LINK (OPTIONAL)</span>
+              <input
+                type="url"
+                value={targetUrl}
+                onChange={e => setTargetUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full h-11 rounded-xl px-3.5 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00] font-mono"
+                style={inputStyle}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">TASK TITLE</span>
+              <input
+                type="text"
+                value={customTitle}
+                onChange={e => setCustomTitle(e.target.value)}
+                placeholder="e.g. Test WebApp & Send Feedback"
+                className="w-full h-11 rounded-xl px-3.5 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00]"
+                style={inputStyle}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">WHAT SHOULD WORKERS DO?</span>
+              <textarea
+                rows={3}
+                value={customDescription}
+                onChange={e => setCustomDescription(e.target.value)}
+                placeholder="Describe exact steps. e.g. Open link, read post, reply with feedback. Upload screenshot proof."
+                className="w-full rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00] resize-none"
+                style={inputStyle}
+              />
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">NOTE TO REVIEWERS (OPTIONAL)</span>
+              <textarea
+                rows={2}
+                value={customNoteToReviewers}
+                onChange={e => setCustomNoteToReviewers(e.target.value)}
+                placeholder="e.g. A valid screenshot shows the dashboard with a green checkmark"
+                className="w-full rounded-xl p-3 text-xs text-white placeholder-slate-500 outline-none focus:border-[#FF8A00] resize-none"
+                style={inputStyle}
+              />
+            </div>
+
+            <label className="flex items-center gap-2.5 p-3 rounded-xl bg-[#16171B] border border-white/10 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={startPaused}
+                onChange={e => setStartPaused(e.target.checked)}
+                className="w-4 h-4 rounded accent-[#FF8A00]"
+              />
+              <span className="text-xs font-bold text-white">Start paused after approval</span>
+            </label>
+          </div>
         )}
+
+        {/* REWARD, WORKER LIMIT & EXPIRES GRID */}
+        <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-white/5">
+          <div className="space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">REWARD / EACH</span>
+            <div className="relative">
+              <input
+                type="number"
+                min={1}
+                value={rewardPerEach}
+                onChange={e => setRewardPerEach(Number(e.target.value))}
+                className="w-full h-11 rounded-xl pl-3 pr-10 text-xs text-white font-mono outline-none focus:border-[#FF8A00]"
+                style={inputStyle}
+              />
+              <span className="absolute right-2.5 top-3.5 text-[9px] font-bold text-slate-400">EFC</span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">HOW MANY</span>
+            <input
+              type="number"
+              min={1}
+              value={quantity}
+              onChange={e => setQuantity(Number(e.target.value))}
+              className="w-full h-11 rounded-xl px-3 text-xs text-white font-mono outline-none focus:border-[#FF8A00]"
+              style={inputStyle}
+            />
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 block">EXPIRES (DAYS)</span>
+            <input
+              type="number"
+              min={1}
+              max={30}
+              value={expiresDays}
+              onChange={e => setExpiresDays(Number(e.target.value))}
+              className="w-full h-11 rounded-xl px-3 text-xs text-white font-mono outline-none focus:border-[#FF8A00]"
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        {/* MINIMUM USER TIER SELECTOR */}
+        <div className="space-y-1.5 pt-2 border-t border-white/5">
+          <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">MINIMUM USER TIER</span>
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { id: 'anyone', label: 'Anyone', fee: '+0' },
+              { id: 'bronze', label: 'Bronze+', fee: '+0' },
+              { id: 'silver', label: 'Silver+', fee: '+1/ea' },
+              { id: 'gold', label: 'Gold+', fee: '+2/ea' },
+            ].map(tier => (
+              <button
+                key={tier.id}
+                type="button"
+                onClick={() => setMinTier(tier.id as any)}
+                className={`p-2 rounded-xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
+                  minTier === tier.id
+                    ? 'bg-[#FF8A00]/20 border-[#FF8A00] text-white font-bold shadow-sm'
+                    : 'bg-[#16171B] border-white/10 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className="text-[10px]">{tier.label}</span>
+                <span className="text-[8px] font-mono text-slate-500">{tier.fee}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* REQUIRE VERIFIED USERS CHECKBOX */}
+        <label className="flex items-center justify-between p-3 rounded-xl bg-[#16171B] border border-white/10 cursor-pointer">
+          <div className="flex items-center gap-2.5">
+            <input
+              type="checkbox"
+              checked={verifiedOnly}
+              onChange={e => setVerifiedOnly(e.target.checked)}
+              className="w-4 h-4 rounded accent-[#FF8A00]"
+            />
+            <div>
+              <span className="text-xs font-bold text-white block">Require Verified Miners</span>
+              <span className="text-[9px] text-slate-400">Only users with completed verification can work</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-mono font-bold text-[#FF8A00]">+1.5 EFC/ea</span>
+        </label>
+
+        {/* COST BREAKDOWN CARD */}
+        <div className="p-4 rounded-xl bg-[#121212] border border-white/10 space-y-2 font-mono text-xs">
+          <div className="flex justify-between text-slate-400">
+            <span>{rewardEach} EFC × {howMany} workers</span>
+            <span className="text-white font-bold">{baseSubtotal} EFC</span>
+          </div>
+
+          <div className="flex justify-between text-slate-400">
+            <span>Service fee (25%)</span>
+            <span>{serviceFee} EFC</span>
+          </div>
+
+          {tierCost > 0 && (
+            <div className="flex justify-between text-slate-400">
+              <span>Tier requirement cost</span>
+              <span>+{tierCost} EFC</span>
+            </div>
+          )}
+
+          {verificationCost > 0 && (
+            <div className="flex justify-between text-slate-400">
+              <span>Verification cost</span>
+              <span>+{verificationCost} EFC</span>
+            </div>
+          )}
+
+          {reviewFee > 0 && (
+            <div className="flex justify-between text-slate-400">
+              <span>Review fee (one-time)</span>
+              <span>+{reviewFee} EFC</span>
+            </div>
+          )}
+
+          <div className="w-full h-[1px] bg-white/10 my-1" />
+
+          <div className="flex justify-between text-sm font-black">
+            <span className="text-white">Total escrowed</span>
+            <span className="text-[#FF8A00]">{totalEscrowRequired} EFC</span>
+          </div>
+
+          <div className="flex justify-between text-[10px] pt-0.5">
+            <span className="text-slate-400">Balance after task</span>
+            <span className={isInsufficientBalance ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
+              {balanceAfter} EFC
+            </span>
+          </div>
+        </div>
+
+        {/* Moderation Note */}
+        <div className="p-3 rounded-xl bg-[#16171B] border border-white/10 flex flex-col gap-1 text-[11px] text-slate-300">
+          <span className="font-bold text-white flex items-center gap-1.5">
+            <ShieldCheck size={14} className="text-[#FF8A00]" /> Reviewed before going live
+          </span>
+          <p className="text-slate-400 leading-relaxed text-[10px]">
+            Custom tasks are checked by a moderator first. Not allowed: wallets, seed phrases, private keys, signing transactions, fake reviews, harassment.
+          </p>
+        </div>
+      </div>
+
+      {/* Footer / Submit CTA */}
+      <div className="p-4 border-t border-white/10 bg-[#16171B] shrink-0">
+        <button
+          onClick={handleSubmit}
+          disabled={submitting}
+          className={`w-full h-12 rounded-xl font-black text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center justify-center gap-2 shadow-lg ${
+            isInsufficientBalance
+              ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30'
+              : 'bg-[#FF8A00] hover:bg-[#FF8A00]/90 text-white shadow-[#FF8A00]/25'
+          }`}
+        >
+          {submitting ? (
+            <>
+              <Loader2 size={16} className="animate-spin" /> Escrowing & Creating...
+            </>
+          ) : isInsufficientBalance ? (
+            <>
+              <AlertTriangle size={16} /> Insufficient Balance ({balanceAfter} EFC)
+            </>
+          ) : (
+            'Fund Escrow & Create Task'
+          )}
+        </button>
       </div>
     </div>
   );
