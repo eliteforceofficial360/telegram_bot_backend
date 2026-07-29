@@ -81,6 +81,7 @@ export interface CreateTaskPayload {
   checklist: string[];
   inputFields: string[];
   reward: number;
+  rewardCurrency?: 'EFC' | 'USDT';
   workerLimit: number;
   dailyLimit: number;
   cooldownHours: number;

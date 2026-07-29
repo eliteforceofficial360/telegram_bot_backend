@@ -682,6 +682,8 @@ export default function App() {
           <Market
             efcBalance={efcBalance}
             setEfcBalance={setEfcBalance}
+            usdtBalance={usdtBalance}
+            setUsdtBalance={setUsdtBalance}
             telegramUser={telegramUser}
             adminSettings={adminSettings}
             showToast={showToast}

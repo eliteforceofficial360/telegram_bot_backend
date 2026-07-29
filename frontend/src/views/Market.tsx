@@ -15,6 +15,8 @@ import { type TelegramUser } from '../lib/telegramUser';
 interface MarketProps {
   efcBalance: number;
   setEfcBalance: React.Dispatch<React.SetStateAction<number>>;
+  usdtBalance?: number;
+  setUsdtBalance?: React.Dispatch<React.SetStateAction<number>>;
   telegramUser: TelegramUser | null;
   adminSettings: any;
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -165,7 +167,9 @@ const MarketMaintenanceOverlay: React.FC<{
 
 export const Market: React.FC<MarketProps> = ({
   efcBalance,
-  setEfcBalance: _setEfcBalance,
+  setEfcBalance,
+  usdtBalance,
+  setUsdtBalance,
   telegramUser,
   showToast,
   adminSettings,
@@ -523,6 +527,9 @@ export const Market: React.FC<MarketProps> = ({
             onClose={() => setTaskBuilderOpen(false)}
             telegramUser={telegramUser}
             efcBalance={efcBalance}
+            setEfcBalance={setEfcBalance}
+            usdtBalance={usdtBalance ?? 0}
+            setUsdtBalance={setUsdtBalance}
             showToast={showToast}
             onCreated={() => { loadDiscover(); loadCreated(); }}
           />

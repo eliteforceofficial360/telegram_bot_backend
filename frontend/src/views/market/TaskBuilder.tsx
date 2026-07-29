@@ -13,12 +13,15 @@ interface TaskBuilderProps {
   onClose: () => void;
   telegramUser: TelegramUser | null;
   efcBalance: number;
+  setEfcBalance?: React.Dispatch<React.SetStateAction<number>>;
+  usdtBalance?: number;
+  setUsdtBalance?: React.Dispatch<React.SetStateAction<number>>;
   showToast: (msg: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onCreated: () => void;
 }
 
 export const TaskBuilder: React.FC<TaskBuilderProps> = ({
-  onClose, telegramUser, efcBalance, showToast, onCreated,
+  onClose, telegramUser, efcBalance, setEfcBalance, usdtBalance = 0, setUsdtBalance, showToast, onCreated,
 }) => {
   const [selectedPlatform, setSelectedPlatform] = useState<string>('X');
   const [selectedActions, setSelectedActions] = useState<Record<string, boolean>>({ Like: true });
@@ -26,6 +29,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   const [customTitle, setCustomTitle] = useState<string>('');
   const [customDescription, setCustomDescription] = useState<string>('');
   const [customNoteToReviewers, setCustomNoteToReviewers] = useState<string>('');
+  const [rewardCurrency, setRewardCurrency] = useState<'EFC' | 'USDT'>('EFC');
   const [rewardPerEach, setRewardPerEach] = useState<number>(5);
   const [quantity, setQuantity] = useState<number>(10);
   const [expiresDays, setExpiresDays] = useState<number>(7);
@@ -45,16 +49,22 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   };
 
   // Escrow Calculations
-  const rewardEach = Math.max(1, Number(rewardPerEach) || 1);
+  const isUsdt = rewardCurrency === 'USDT';
+  const currencySymbol = isUsdt ? 'USDT' : 'EFC';
+  const rewardEach = isUsdt ? Math.max(0.01, Number(rewardPerEach) || 0.01) : Math.max(1, Number(rewardPerEach) || 1);
   const howMany = Math.max(1, Number(quantity) || 1);
-  const baseSubtotal = rewardEach * howMany;
-  const serviceFee = Math.round(baseSubtotal * 0.25 * 10) / 10;
-  const tierCost = minTier === 'silver' ? 1 * howMany : minTier === 'gold' ? 2 * howMany : 0;
-  const verificationCost = verifiedOnly ? 1.5 * howMany : 0;
-  const reviewFee = selectedPlatform === 'Custom' ? 10 : 0;
-  const totalEscrowRequired = Math.ceil(baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee);
+  const baseSubtotal = isUsdt ? Number((rewardEach * howMany).toFixed(3)) : rewardEach * howMany;
+  const serviceFee = isUsdt ? Number((baseSubtotal * 0.25).toFixed(3)) : Math.round(baseSubtotal * 0.25 * 10) / 10;
+  const tierCost = minTier === 'silver' ? (isUsdt ? 0.01 * howMany : 1 * howMany) : minTier === 'gold' ? (isUsdt ? 0.02 * howMany : 2 * howMany) : 0;
+  const verificationCost = verifiedOnly ? (isUsdt ? 0.015 * howMany : 1.5 * howMany) : 0;
+  const reviewFee = selectedPlatform === 'Custom' ? (isUsdt ? 0.2 : 10) : 0;
 
-  const balanceAfter = efcBalance - totalEscrowRequired;
+  const totalEscrowRequired = isUsdt
+    ? Number((baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee).toFixed(3))
+    : Math.ceil(baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee);
+
+  const availableBalance = isUsdt ? usdtBalance : efcBalance;
+  const balanceAfter = Number((availableBalance - totalEscrowRequired).toFixed(3));
   const isInsufficientBalance = balanceAfter < 0;
 
   const handleSubmit = async () => {
@@ -80,7 +90,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
     }
 
     if (isInsufficientBalance) {
-      showToast(`Insufficient balance. Needed: ${totalEscrowRequired} EFC, Available: ${efcBalance} EFC`, 'error');
+      showToast(`Insufficient balance. Needed: ${totalEscrowRequired} ${currencySymbol}, Available: ${availableBalance} ${currencySymbol}`, 'error');
       return;
     }
 
@@ -108,6 +118,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       checklist: [],
       inputFields: ['screenshot'],
       reward: rewardEach,
+      rewardCurrency: rewardCurrency,
       workerLimit: howMany,
       dailyLimit: 0,
       cooldownHours: 0,
@@ -123,7 +134,12 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
     setSubmitting(false);
 
     if (result.ok) {
-      showToast('🎉 Task Created! Pending review.', 'success');
+      if (isUsdt && setUsdtBalance) {
+        setUsdtBalance(prev => Math.max(0, Number((prev - totalEscrowRequired).toFixed(3))));
+      } else if (!isUsdt && setEfcBalance) {
+        setEfcBalance(prev => Math.max(0, Math.round(prev - totalEscrowRequired)));
+      }
+      showToast(`🎉 Task Created & ${totalEscrowRequired} ${currencySymbol} escrowed! Pending review.`, 'success');
       onCreated();
       onClose();
     } else {
@@ -305,6 +321,47 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
           </div>
         )}
 
+        {/* REWARD CURRENCY SELECTOR */}
+        <div className="space-y-1.5 pt-2 border-t border-white/5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">PAYMENT CURRENCY</span>
+            <span className="text-[9px] font-mono text-emerald-400">BEP-20 Supported</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setRewardCurrency('EFC');
+                setRewardPerEach(5);
+              }}
+              className={`p-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all cursor-pointer text-xs font-bold ${
+                rewardCurrency === 'EFC'
+                  ? 'bg-[#FF8A00]/20 border-[#FF8A00] text-white shadow-md'
+                  : 'bg-[#16171B] border-white/10 text-slate-400 hover:text-white'
+              }`}
+            >
+              <span className="text-sm">⚡</span>
+              <span>EFC Points</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setRewardCurrency('USDT');
+                setRewardPerEach(0.05);
+              }}
+              className={`p-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all cursor-pointer text-xs font-bold ${
+                rewardCurrency === 'USDT'
+                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-md'
+                  : 'bg-[#16171B] border-white/10 text-slate-400 hover:text-white'
+              }`}
+            >
+              <span className="text-sm">💵</span>
+              <span>USDT (BEP-20)</span>
+            </button>
+          </div>
+        </div>
+
         {/* REWARD, WORKER LIMIT & EXPIRES GRID */}
         <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-white/5">
           <div className="space-y-1">
@@ -312,13 +369,14 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
             <div className="relative">
               <input
                 type="number"
-                min={1}
+                step={isUsdt ? "0.01" : "1"}
+                min={isUsdt ? 0.01 : 1}
                 value={rewardPerEach}
                 onChange={e => setRewardPerEach(Number(e.target.value))}
                 className="w-full h-11 rounded-xl pl-3 pr-10 text-xs text-white font-mono outline-none focus:border-[#FF8A00]"
                 style={inputStyle}
               />
-              <span className="absolute right-2.5 top-3.5 text-[9px] font-bold text-slate-400">EFC</span>
+              <span className="absolute right-2 top-3.5 text-[8px] font-bold text-slate-400">{currencySymbol}</span>
             </div>
           </div>
 
@@ -355,8 +413,8 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
             {[
               { id: 'anyone', label: 'Anyone', fee: '+0' },
               { id: 'bronze', label: 'Bronze+', fee: '+0' },
-              { id: 'silver', label: 'Silver+', fee: '+1/ea' },
-              { id: 'gold', label: 'Gold+', fee: '+2/ea' },
+              { id: 'silver', label: 'Silver+', fee: isUsdt ? '+$0.01/ea' : '+1/ea' },
+              { id: 'gold', label: 'Gold+', fee: isUsdt ? '+$0.02/ea' : '+2/ea' },
             ].map(tier => (
               <button
                 key={tier.id}
@@ -389,39 +447,39 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
               <span className="text-[9px] text-slate-400">Only users with completed verification can work</span>
             </div>
           </div>
-          <span className="text-[10px] font-mono font-bold text-[#FF8A00]">+1.5 EFC/ea</span>
+          <span className="text-[10px] font-mono font-bold text-[#FF8A00]">{isUsdt ? '+$0.015 USDT/ea' : '+1.5 EFC/ea'}</span>
         </label>
 
         {/* COST BREAKDOWN CARD */}
         <div className="p-4 rounded-xl bg-[#121212] border border-white/10 space-y-2 font-mono text-xs">
           <div className="flex justify-between text-slate-400">
-            <span>{rewardEach} EFC × {howMany} workers</span>
-            <span className="text-white font-bold">{baseSubtotal} EFC</span>
+            <span>{rewardEach} {currencySymbol} × {howMany} workers</span>
+            <span className="text-white font-bold">{baseSubtotal} {currencySymbol}</span>
           </div>
 
           <div className="flex justify-between text-slate-400">
             <span>Service fee (25%)</span>
-            <span>{serviceFee} EFC</span>
+            <span>{serviceFee} {currencySymbol}</span>
           </div>
 
           {tierCost > 0 && (
             <div className="flex justify-between text-slate-400">
               <span>Tier requirement cost</span>
-              <span>+{tierCost} EFC</span>
+              <span>+{tierCost} {currencySymbol}</span>
             </div>
           )}
 
           {verificationCost > 0 && (
             <div className="flex justify-between text-slate-400">
               <span>Verification cost</span>
-              <span>+{verificationCost} EFC</span>
+              <span>+{verificationCost} {currencySymbol}</span>
             </div>
           )}
 
           {reviewFee > 0 && (
             <div className="flex justify-between text-slate-400">
               <span>Review fee (one-time)</span>
-              <span>+{reviewFee} EFC</span>
+              <span>+{reviewFee} {currencySymbol}</span>
             </div>
           )}
 
@@ -429,13 +487,13 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
 
           <div className="flex justify-between text-sm font-black">
             <span className="text-white">Total escrowed</span>
-            <span className="text-[#FF8A00]">{totalEscrowRequired} EFC</span>
+            <span className={isUsdt ? "text-emerald-400" : "text-[#FF8A00]"}>{totalEscrowRequired} {currencySymbol}</span>
           </div>
 
           <div className="flex justify-between text-[10px] pt-0.5">
             <span className="text-slate-400">Balance after task</span>
             <span className={isInsufficientBalance ? 'text-rose-400 font-bold' : 'text-emerald-400 font-bold'}>
-              {balanceAfter} EFC
+              {balanceAfter} {currencySymbol}
             </span>
           </div>
         </div>
@@ -468,10 +526,10 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
             </>
           ) : isInsufficientBalance ? (
             <>
-              <AlertTriangle size={16} /> Insufficient Balance ({balanceAfter} EFC)
+              <AlertTriangle size={16} /> Insufficient Balance ({balanceAfter} {currencySymbol})
             </>
           ) : (
-            'Fund Escrow & Create Task'
+            `Fund Escrow & Create Task (${totalEscrowRequired} ${currencySymbol})`
           )}
         </button>
       </div>
