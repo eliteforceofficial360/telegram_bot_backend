@@ -137,7 +137,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col h-full max-h-screen overflow-hidden bg-[#0D0E12] select-none">
+    <div className="fixed inset-0 z-[99999] flex flex-col h-full max-h-screen overflow-hidden bg-[#0D0E12] select-none">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/10 shrink-0 bg-[#16171B]">
         <div className="flex items-center gap-2">
@@ -155,7 +155,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       </div>
 
       {/* Main Single-Screen Scrollable Container */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin">
+      <div className="flex-1 overflow-y-auto p-4 pb-12 space-y-4 scrollbar-thin">
         {/* Info Banner */}
         <div className="p-3.5 rounded-2xl bg-[#16171B] border border-white/10 text-xs text-slate-300 leading-relaxed font-medium">
           Fund a task from your balance and real users complete it, verified like any sponsored task. A <span className="text-[#FF8A00] font-bold">25% fee</span> applies per completed action, plus verification costs where shown.
@@ -449,7 +449,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       </div>
 
       {/* Footer / Submit CTA */}
-      <div className="p-4 border-t border-white/10 bg-[#16171B] shrink-0">
+      <div className="p-4 pb-8 border-t border-white/10 bg-[#16171B] shrink-0 z-20 shadow-[0_-10px_25px_rgba(0,0,0,0.8)]">
         <button
           onClick={handleSubmit}
           disabled={submitting}
