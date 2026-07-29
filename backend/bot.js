@@ -1211,7 +1211,6 @@ const server = http.createServer(async (req, res) => {
         }
 
         const userData = userSnap.data();
-        const isUsdt = rewardCurrency === 'USDT';
         const currentBalance = isUsdt ? (userData.wallet || 0) : (userData.points || 0);
 
         if (currentBalance < totalEscrow) {
