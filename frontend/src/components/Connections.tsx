@@ -176,7 +176,7 @@ export const Connections = ({
       return;
     }
 
-    // ── X username: validate & save via /api/x/save-username ─────────────────
+    // ── X username: basic validation & manual save ─────────────────
     if (activeModal === 'x') {
       const normalized = rawValue.replace(/^@/, '').replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//, '').split('?')[0].split('/')[0].trim().toLowerCase();
       const usernameRegex = /^[A-Za-z0-9_]{1,15}$/;
@@ -185,34 +185,15 @@ export const Connections = ({
         return;
       }
       setUsernameError(null);
-      setSaving(true);
-      try {
-        const botApiUrl = (adminSettings.botApiUrl || 'https://elite-force-telegram-app.onrender.com').replace(/\/$/, '');
-        const res = await fetch(`${botApiUrl}/api/x/save-username`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ telegramId: telegramUser.id, username: normalized }),
-        });
-        const data = await res.json();
-        if (data.ok) {
-          showToast(`✅ @${data.twitterUsername} connected!${data.locked ? ' (Locked after verification)' : ''}`, 'success');
-          setActiveModal(null);
-        } else {
-          setUsernameError(data.error || 'Failed to save X username.');
-          showToast(data.error || 'Failed to save X username.', 'error');
-        }
-      } catch (err) {
-        console.error('[Connections] save-username error:', err);
-        showToast('Network error. Check connection and try again.', 'error');
-      } finally {
-        setSaving(false);
-      }
-      return;
+      // Fall through to standard manual saving for X
     }
 
     // ── Other platforms: save via server API ──────────────────────────
     setSaving(true);
-    const success = await saveSocialConnection(telegramUser.id, activeModal, rawValue, adminSettings.botApiUrl);
+    const finalValue = activeModal === 'x' 
+      ? rawValue.replace(/^@/, '').replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//, '').split('?')[0].split('/')[0].trim().toLowerCase()
+      : rawValue;
+    const success = await saveSocialConnection(telegramUser.id, activeModal, finalValue, adminSettings.botApiUrl);
     setSaving(false);
 
     if (success) {
@@ -394,8 +375,7 @@ export const Connections = ({
                   <div className="flex items-start gap-2 bg-white/5 border border-white/10 rounded-xl p-3">
                     <span className="text-[#FF8A00] text-sm mt-0.5">ℹ️</span>
                     <p className="text-[11px] text-slate-300 leading-relaxed">
-                      Enter your X (Twitter) <b>@username</b>. Your account will be verified server-side when you complete X tasks.
-                      After first successful verification, your username will be <b>locked</b> for security.
+                      Enter your X (Twitter) <b>@username</b> manually.
                     </p>
                   </div>
                 )}

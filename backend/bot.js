@@ -1168,7 +1168,7 @@ const server = http.createServer(async (req, res) => {
       let body;
       try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { ok: false, error: 'Invalid JSON' }); }
 
-      const { telegramId, platform, action, targetUrl, title, description, instructions, checklist, inputFields, reward, workerLimit, dailyLimit, cooldownHours, expiryDays, audience, verificationType } = body;
+      const { telegramId, platform, action, targetUrl, title, description, instructions, checklist, inputFields, reward, rewardCurrency, workerLimit, dailyLimit, cooldownHours, expiryDays, audience, verificationType } = body;
 
       if (!isValidTelegramId(telegramId) || !platform || !action || !targetUrl || !title || !reward || !workerLimit) {
         return sendJson(res, 400, { ok: false, error: 'Required fields missing' });
@@ -1195,13 +1195,14 @@ const server = http.createServer(async (req, res) => {
         }
 
         const userData = userSnap.data();
-        const currentBalance = userData.points || 0;
+        const isUsdt = rewardCurrency === 'USDT';
+        const currentBalance = isUsdt ? (userData.wallet || 0) : (userData.points || 0);
 
         if (currentBalance < totalEscrow) {
           return sendJson(res, 400, {
             ok: false,
             insufficientBalance: true,
-            error: `Insufficient balance. Required: ${totalEscrow} EFC, Available: ${currentBalance} EFC`,
+            error: `Insufficient balance. Required: ${totalEscrow} ${isUsdt ? 'USDT' : 'EFC'}, Available: ${currentBalance} ${isUsdt ? 'USDT' : 'EFC'}`,
           });
         }
 
@@ -1213,17 +1214,25 @@ const server = http.createServer(async (req, res) => {
 
         await db.runTransaction(async (transaction) => {
           const freshUserSnap = await transaction.get(userRef);
-          const freshBalance = freshUserSnap.data()?.points || 0;
+          const freshBalance = isUsdt ? (freshUserSnap.data()?.wallet || 0) : (freshUserSnap.data()?.points || 0);
           if (freshBalance < totalEscrow) {
-            throw new Error(`Insufficient balance during checkout. Available: ${freshBalance} EFC`);
+            throw new Error(`Insufficient balance during checkout. Available: ${freshBalance} ${isUsdt ? 'USDT' : 'EFC'}`);
           }
 
           // Atomic deduction from user wallet + record escrow points
-          transaction.update(userRef, {
-            points: FieldValue.increment(-totalEscrow),
-            escrow_points: FieldValue.increment(totalEscrow),
-            spent_points: FieldValue.increment(totalEscrow),
-          });
+          if (isUsdt) {
+            transaction.update(userRef, {
+              wallet: FieldValue.increment(-totalEscrow),
+              escrow_usdt: FieldValue.increment(totalEscrow),
+              spent_usdt: FieldValue.increment(totalEscrow),
+            });
+          } else {
+            transaction.update(userRef, {
+              points: FieldValue.increment(-totalEscrow),
+              escrow_points: FieldValue.increment(totalEscrow),
+              spent_points: FieldValue.increment(totalEscrow),
+            });
+          }
 
           // Create Task Document
           transaction.set(taskDocRef, {
@@ -1238,6 +1247,7 @@ const server = http.createServer(async (req, res) => {
             checklist: checklist || [],
             inputFields: inputFields || ['screenshot'],
             reward: rewardNum,
+            rewardCurrency: rewardCurrency || 'EFC',
             workerLimit: limitNum,
             dailyLimit: Number(dailyLimit || 0),
             cooldownHours: Number(cooldownHours || 0),
@@ -1538,9 +1548,18 @@ const server = http.createServer(async (req, res) => {
 
         if (autoApprove) {
           // Pay worker immediately
-          await db.collection('users').doc(String(numId)).update({
-            points: FieldValue.increment(task.reward),
-          });
+          const isUsdt = task.rewardCurrency === 'USDT';
+          
+          if (isUsdt) {
+            await db.collection('users').doc(String(numId)).update({
+              wallet: FieldValue.increment(task.reward), // USDT
+              points: FieldValue.increment(100), // Default EFC bonus for USDT tasks
+            });
+          } else {
+            await db.collection('users').doc(String(numId)).update({
+              points: FieldValue.increment(task.reward), // EFC Points
+            });
+          }
 
           // Decrement task remaining slots
           await taskRef.update({
