@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, Share2, Users, Check, Award, Lock, Sparkles } from 'lucide-react';
+import { Copy, Share2, Users, Check, Award, Lock, Sparkles, Zap, Medal, Diamond, Crown, Flame } from 'lucide-react';
 import { UsdtIcon } from '../components/UsdtIcon';
 import { getReferralLink, getUserReferrals, type ReferralRecord } from '../lib/referralService';
 import { type AdminSettings } from '../lib/adminSettingsService';
@@ -41,6 +41,19 @@ export const Referral: React.FC<ReferralProps> = ({
     const unsub = subscribeToReferralTiers(setLiveTiers);
     return unsub;
   }, []);
+
+  const renderPremiumIcon = (badge: string) => {
+    if (!badge) return <Award size={14} className="text-[#FF8A00]" />;
+    const name = badge.toLowerCase();
+    if (name.includes('starter')) return <Zap size={14} className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" />;
+    if (name.includes('bronze')) return <Medal size={14} className="text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.6)]" />;
+    if (name.includes('silver')) return <Medal size={14} className="text-slate-300 drop-shadow-[0_0_8px_rgba(203,213,225,0.6)]" />;
+    if (name.includes('gold')) return <Award size={14} className="text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" />;
+    if (name.includes('platinum')) return <Diamond size={14} className="text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]" />;
+    if (name.includes('diamond')) return <Crown size={14} className="text-fuchsia-400 drop-shadow-[0_0_8px_rgba(232,121,249,0.6)]" />;
+    if (name.includes('master')) return <Flame size={14} className="text-[#FF8A00] drop-shadow-[0_0_8px_rgba(255,138,0,0.6)]" />;
+    return <Award size={14} className="text-[#FF8A00]" />;
+  };
 
   const settings = adminSettings;
   const botUser = settings.botUsername || 'EliteForceBot';
@@ -152,10 +165,12 @@ export const Referral: React.FC<ReferralProps> = ({
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3 relative overflow-hidden bg-gradient-to-br from-[#12182C] via-[#0E1325] to-[#0A0D1B]">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{unlockedTier?.badge?.split(' ')?.[0] || '🏆'}</span>
+            <div className="flex items-center justify-center bg-white/5 rounded-xl p-2 border border-white/10 shadow-[0_0_15px_rgba(255,138,0,0.15)]">
+              {renderPremiumIcon(unlockedTier?.badge || '')}
+            </div>
             <div>
               <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest block">Active Unlocked Tier</span>
-              <h3 className="text-sm font-black text-white">{unlockedTier?.badge || `Tier (${unlockedTier?.requiredReferrals} Referrals)`}</h3>
+              <h3 className="text-sm font-black text-white">{unlockedTier?.badge ? unlockedTier.badge.replace(/[^\\x00-\\x7F]/g, '').trim() : `Tier (${unlockedTier?.requiredReferrals} Referrals)`}</h3>
             </div>
           </div>
           <div className="text-right">
@@ -268,7 +283,10 @@ export const Referral: React.FC<ReferralProps> = ({
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-black text-white">{tier.badge || `${tier.requiredReferrals} Referrals`}</span>
+                      {renderPremiumIcon(tier.badge || '')}
+                      <span className="text-xs font-black text-white">
+                        {tier.badge ? tier.badge.replace(/[^\\x00-\\x7F]/g, '').trim() : `${tier.requiredReferrals} Referrals`}
+                      </span>
                       {isCurrentTier && (
                         <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FF8A00] text-black">
                           ACTIVE

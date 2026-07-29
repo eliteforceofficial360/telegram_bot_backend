@@ -31,8 +31,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // 6. Withdraw requests
+    // 6. Withdraw and Deposit requests
     match /withdrawRequests/{document=**} {
+      allow read, write: if true;
+    }
+    match /depositRequests/{document=**} {
       allow read, write: if true;
     }
 

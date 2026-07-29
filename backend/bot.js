@@ -37,7 +37,7 @@ const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || '';
 const RECAPTCHA_PROJECT_ID = process.env.RECAPTCHA_PROJECT_ID; // e.g. 'balmy-access-465013-m7'
 const RECAPTCHA_SITE_KEY = process.env.RECAPTCHA_SITE_KEY;
 
-const bot = new Telegraf(token);
+export const bot = new Telegraf(token);
 const db = getFirestore();
 
 // ── Dynamic Admin Settings Cache & Firestore Real-time Listener ──────────────
@@ -515,7 +515,7 @@ function sendJson(res, status, payload) {
 // ── Bot commands ──────────────────────────────────────────────────────────────
 
 bot.start(async (ctx) => {
-  await syncAdminSettingsFromRest().catch(() => {});
+  await syncAdminSettingsFromRest().catch(() => { });
   const username = ctx.from.first_name || 'Force Agent';
   const payload = ctx.startPayload || '';
   const currentAppUrl = getEffectiveAppUrl();
@@ -550,7 +550,7 @@ bot.start(async (ctx) => {
 
         await ctx.replyWithHTML(
           `🔗 <b>Referral Linked!</b>\n\nYou joined under sponsor <b>${escapeHTML(inviterName)}</b> (${inviterDisplay}). Welcome to the Elite Force team!\n\n⛏️ Start mining to activate your account!`
-        ).catch(() => {});
+        ).catch(() => { });
       } catch (err) {
         console.error('Referral notification error:', err);
       }
@@ -652,7 +652,7 @@ const server = http.createServer(async (req, res) => {
         uploadData = await readJsonBody(req);
       } catch (e) {
         const code = e.code || 'INVALID_JSON';
-        const msg  = e.code === 'BODY_TOO_LARGE' ? e.message : 'Invalid JSON body';
+        const msg = e.code === 'BODY_TOO_LARGE' ? e.message : 'Invalid JSON body';
         return sendJson(res, 400, { success: false, code, message: msg });
       }
 
@@ -671,19 +671,19 @@ const server = http.createServer(async (req, res) => {
         });
         return sendJson(res, 200, {
           success: true,
-          secureUrl:    result.secureUrl,
-          publicId:     result.publicId,
+          secureUrl: result.secureUrl,
+          publicId: result.publicId,
           resourceType: result.resourceType,
-          width:        result.width,
-          height:       result.height,
-          bytes:        result.bytes,
-          format:       result.format,
+          width: result.width,
+          height: result.height,
+          bytes: result.bytes,
+          format: result.format,
         });
       } catch (err) {
         console.error('[upload-profile-photo] Error:', err.message);
         return sendJson(res, 500, {
           success: false,
-          code:    err.code || 'UPLOAD_FAILED',
+          code: err.code || 'UPLOAD_FAILED',
           message: err.message || 'Cloudinary upload failed',
         });
       }
@@ -873,7 +873,7 @@ const server = http.createServer(async (req, res) => {
         }, { merge: true });
 
         // Auth log
-        await db.collection('authenticationLogs').add({ telegramId: numId, twitterUsername: normalized, event: 'USERNAME_SAVED', timestamp: FieldValue.serverTimestamp() }).catch(() => {});
+        await db.collection('authenticationLogs').add({ telegramId: numId, twitterUsername: normalized, event: 'USERNAME_SAVED', timestamp: FieldValue.serverTimestamp() }).catch(() => { });
 
         console.log(`✅ [API] X username @${normalized} saved for telegramId=${numId}`);
 
@@ -883,7 +883,7 @@ const server = http.createServer(async (req, res) => {
           eventType: 'SOCIAL_CONNECTED',
           eventId: `social_connect_${numId}_x_${Date.now()}`,
           params: { platformName: 'X', handle: cleanHandle },
-        }).catch(() => {});
+        }).catch(() => { });
 
         return sendJson(res, 200, { ok: true, twitterUsername: normalized, locked: isLocked });
       } catch (err) {
@@ -932,7 +932,7 @@ const server = http.createServer(async (req, res) => {
             platformName: pName,
             handle: cleanHandle,
           },
-        }).catch(() => {});
+        }).catch(() => { });
 
         return sendJson(res, 200, { ok: true, message: `${pName} connected successfully.` });
       } catch (err) {
@@ -979,7 +979,7 @@ const server = http.createServer(async (req, res) => {
           params: {
             platformName: pName,
           },
-        }).catch(() => {});
+        }).catch(() => { });
 
         return sendJson(res, 200, { ok: true, message: `${pName} disconnected successfully.` });
       } catch (err) {
@@ -1052,7 +1052,7 @@ const server = http.createServer(async (req, res) => {
                 taskTitle: taskData.title || 'Mission Task',
                 reason: 'Incorrect answer provided.',
               },
-            }).catch(() => {});
+            }).catch(() => { });
             return sendJson(res, 200, { success: false, error: '❌ Incorrect Answer. Please check your answer and try again.' });
           }
         }
@@ -1088,7 +1088,7 @@ const server = http.createServer(async (req, res) => {
                 taskTitle: taskData.title || 'Mission Task',
                 reason: `${requiredPlatform.toUpperCase()} account not connected in Profile.`,
               },
-            }).catch(() => {});
+            }).catch(() => { });
             return sendJson(res, 403, {
               success: false,
               error: `HTTP 403 Forbidden: Social Account Not Connected. Please connect your ${requiredPlatform.toUpperCase()} account in Profile → Connections first!`,
@@ -1145,7 +1145,7 @@ const server = http.createServer(async (req, res) => {
             tokenRewardText: tokenReward > 0 ? ` & +${tokenReward} EST` : '',
             newBalance: newBal.toLocaleString(),
           },
-        }).catch(() => {});
+        }).catch(() => { });
 
         return sendJson(res, 200, {
           success: true,
@@ -1297,7 +1297,7 @@ const server = http.createServer(async (req, res) => {
           reward: rewardNum,
           workers: limitNum,
           budget: totalEscrow,
-        }).catch(() => {});
+        }).catch(() => { });
 
         console.log(`✅ [Market] Task created id=${taskRef.id} by telegramId=${numId}, escrow=${totalEscrow} EFC`);
 
@@ -1555,14 +1555,14 @@ const server = http.createServer(async (req, res) => {
             type: 'WORKER_APPROVED',
             title: task.title,
             reward: task.reward,
-          }).catch(() => {});
+          }).catch(() => { });
         } else {
           sendMarketNotification({
             telegramId: numId,
             botToken: token,
             type: 'WORKER_SUBMITTED',
             title: task.title,
-          }).catch(() => {});
+          }).catch(() => { });
         }
 
         return sendJson(res, 200, { ok: true, status: finalStatus, reward: task.reward });
@@ -1614,15 +1614,15 @@ const server = http.createServer(async (req, res) => {
           });
           return sendJson(res, 200, {
             success: true,
-            secureUrl:    result.secureUrl,
-            publicId:     result.publicId,
+            secureUrl: result.secureUrl,
+            publicId: result.publicId,
             resourceType: result.resourceType,
-            width:        result.width,
-            height:       result.height,
-            bytes:        result.bytes,
-            format:       result.format,
-            duration:     result.duration,
-            createdAt:    result.createdAt,
+            width: result.width,
+            height: result.height,
+            bytes: result.bytes,
+            format: result.format,
+            duration: result.duration,
+            createdAt: result.createdAt,
           });
         } catch (err) {
           console.error('[upload-branding] Cloudinary failed, trying fallback:', err.message);
@@ -1697,6 +1697,20 @@ const server = http.createServer(async (req, res) => {
       );
       return sendJson(res, 200, { ok });
     }
+    // ── POST /api/notify ─────────────────────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/notify') {
+      const { telegramId, message } = data;
+      if (!telegramId || !message) {
+        return sendJson(res, 400, { error: 'telegramId and message required' });
+      }
+      try {
+        await bot.telegram.sendMessage(telegramId, message, { parse_mode: 'HTML' });
+        return sendJson(res, 200, { success: true });
+      } catch (err) {
+        console.error(`[API] /api/notify error for ${telegramId}:`, err.message);
+        return sendJson(res, 500, { success: false, error: err.message });
+      }
+    }
 
     // ── POST /notify/announcement ────────────────────────────────────────────
     if (req.method === 'POST' && url === '/notify/announcement') {
@@ -1730,7 +1744,7 @@ const server = http.createServer(async (req, res) => {
           params: {
             amount: `${amount} ${assetLabel}`,
           },
-        }).catch(() => {});
+        }).catch(() => { });
       } else if (status === 'Rejected') {
         sendEventNotification({
           telegramId: numId,
@@ -1740,7 +1754,7 @@ const server = http.createServer(async (req, res) => {
             amount: `${amount} ${assetLabel}`,
             reason: reason || adminNote || 'Insufficient verification.',
           },
-        }).catch(() => {});
+        }).catch(() => { });
       }
 
       return sendJson(res, 200, { ok: true });
@@ -1761,7 +1775,7 @@ const server = http.createServer(async (req, res) => {
           refUsername: display,
           reward: (rewardAmount || 200).toLocaleString(),
         },
-      }).catch(() => {});
+      }).catch(() => { });
       return sendJson(res, 200, { ok: true });
     }
 

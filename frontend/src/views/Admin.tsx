@@ -34,6 +34,7 @@ import {
 } from '../lib/referralTierService';
 import {
   sendWithdrawNotification,
+  sendDepositNotification,
 } from '../lib/notificationService';
 import { uploadFile } from '../lib/uploadService';
 import {
@@ -2344,8 +2345,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                     <button
                                       onClick={async () => {
                                         const ok = await updateDepositRequest(req.id, 'Approved');
-                                        if (ok) showToast(`Deposit approved! Credited $${req.amountUsdt} USDT & ${req.efcGranted} EFC to user.`, 'success');
-                                        else showToast('Failed to approve deposit.', 'error');
+                                        if (ok) {
+                                          showToast(`Deposit approved! Credited $${req.amountUsdt} USDT & ${req.efcGranted} EFC to user.`, 'success');
+                                          sendDepositNotification(settings.botApiUrl, Number(req.telegramId), 'Approved', req.amountUsdt).catch(() => {});
+                                        } else {
+                                          showToast('Failed to approve deposit.', 'error');
+                                        }
                                       }}
                                       className="px-2.5 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1"
                                     >
@@ -2354,8 +2359,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                     <button
                                       onClick={async () => {
                                         const ok = await updateDepositRequest(req.id, 'Rejected');
-                                        if (ok) showToast('Deposit request rejected.', 'info');
-                                        else showToast('Failed to reject deposit.', 'error');
+                                        if (ok) {
+                                          showToast('Deposit request rejected.', 'info');
+                                          sendDepositNotification(settings.botApiUrl, Number(req.telegramId), 'Rejected', req.amountUsdt).catch(() => {});
+                                        } else {
+                                          showToast('Failed to reject deposit.', 'error');
+                                        }
                                       }}
                                       className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-400 border border-rose-500/30 text-[10px] font-bold cursor-pointer transition-all flex items-center gap-1"
                                     >
@@ -2706,8 +2715,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 <button
                                   onClick={async () => {
                                     const ok = await updateDepositRequest(d.id, 'Approved');
-                                    if (ok) showToast(`✅ Approved! Credited +${d.efcGranted} EFC & +$${d.amountUsdt} USDT to user.`, 'success');
-                                    else showToast('Failed to approve deposit.', 'error');
+                                    if (ok) {
+                                      showToast(`✅ Approved! Credited +${d.efcGranted} EFC & +$${d.amountUsdt} USDT to user.`, 'success');
+                                      sendDepositNotification(settings.botApiUrl, Number(d.telegramId), 'Approved', d.amountUsdt).catch(() => {});
+                                    } else {
+                                      showToast('Failed to approve deposit.', 'error');
+                                    }
                                   }}
                                   className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all cursor-pointer"
                                 >
@@ -2716,8 +2729,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 <button
                                   onClick={async () => {
                                     const ok = await updateDepositRequest(d.id, 'Rejected', 'Invalid TxHash or deposit not received');
-                                    if (ok) showToast('❌ Deposit request rejected.', 'info');
-                                    else showToast('Failed to reject deposit.', 'error');
+                                    if (ok) {
+                                      showToast('❌ Deposit request rejected.', 'info');
+                                      sendDepositNotification(settings.botApiUrl, Number(d.telegramId), 'Rejected', d.amountUsdt, 'Invalid TxHash or deposit not received').catch(() => {});
+                                    } else {
+                                      showToast('Failed to reject deposit.', 'error');
+                                    }
                                   }}
                                   className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 transition-all cursor-pointer"
                                 >

@@ -108,6 +108,23 @@ export const sendWithdrawNotification = (
   postToApi(botApiUrl, '/notify/withdraw', { telegramId, status, amount, asset, adminNote }, secret);
 
 /**
+ * Notify a user about their deposit verification status (Approved / Rejected).
+ */
+export const sendDepositNotification = (
+  botApiUrl: string,
+  telegramId: number,
+  status: 'Approved' | 'Rejected',
+  amountUsdt: number,
+  adminNote = '',
+  secret?: string
+): Promise<NotifyResult> => {
+  const emoji = status === 'Approved' ? '✅' : '❌';
+  const reasonText = adminNote ? `\\n\\nReason: ${adminNote}` : '';
+  const message = `${emoji} <b>Deposit ${status}</b>\\n\\nYour deposit request for <b>$${amountUsdt.toFixed(2)} USDT</b> has been ${status.toLowerCase()}.${reasonText}`;
+  return postToApi(botApiUrl, '/api/notify', { telegramId, message }, secret);
+};
+
+/**
  * Notify a referrer that their referral just started mining.
  */
 export const sendReferralNotification = (
