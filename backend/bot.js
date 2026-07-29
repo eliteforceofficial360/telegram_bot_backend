@@ -380,11 +380,95 @@ const DEFAULT_NOTIFICATION_TEMPLATES = {
     buttonText: 'Contact Support',
     buttonTab: 'support',
   },
+  DEPOSIT_SUBMITTED: {
+    enabled: true,
+    template: `📥 <b>Deposit Request Submitted</b>\n\n<b>Amount:</b>\n{amountUsdt} USDT\n\n<b>EFC Bonus:</b>\n+{efcGranted} EFC\n\n<b>TxHash:</b>\n<code>{txHash}</code>\n\nYour deposit is pending verification.`,
+    buttonText: 'Open Wallet',
+    buttonTab: 'wallet',
+  },
+  DEPOSIT_APPROVED: {
+    enabled: true,
+    template: `✅ <b>Deposit Approved</b>\n\nYour deposit of <b>{amountUsdt} USDT</b> (+{efcGranted} EFC) has been verified and added to your balance.\n\n<b>TxHash:</b>\n<code>{txHash}</code>`,
+    buttonText: 'Open Wallet',
+    buttonTab: 'wallet',
+  },
+  DEPOSIT_REJECTED: {
+    enabled: true,
+    template: `❌ <b>Deposit Rejected</b>\n\nYour deposit request for <b>{amountUsdt} USDT</b> was rejected.\n\n<b>Reason:</b>\n{reason}`,
+    buttonText: 'Contact Support',
+    buttonTab: 'support',
+  },
+  MARKET_TASK_CREATED: {
+    enabled: true,
+    template: `📌 <b>Market Campaign Created</b>\n\n<b>Task:</b>\n{taskTitle}\n\n<b>Escrow Budget:</b>\n{budget} EFC\n\n<b>Status:</b>\nPending Moderation Review`,
+    buttonText: 'Open Market',
+    buttonTab: 'market',
+  },
+  MARKET_TASK_LIVE: {
+    enabled: true,
+    template: `🚀 <b>Market Campaign Live!</b>\n\n<b>Task:</b>\n{taskTitle}\n\nWorkers can now submit proofs for your campaign.`,
+    buttonText: 'Open Market',
+    buttonTab: 'market',
+  },
+  WORKER_APPROVED: {
+    enabled: true,
+    template: `✅ <b>Task Proof Approved!</b>\n\n<b>Task:</b>\n{taskTitle}\n\n<b>Reward:</b>\n+{reward} EFC`,
+    buttonText: 'Open Market',
+    buttonTab: 'market',
+  },
+  WORKER_REJECTED: {
+    enabled: true,
+    template: `❌ <b>Task Submission Rejected</b>\n\n<b>Task:</b>\n{taskTitle}\n\n<b>Reason:</b>\n{reason}`,
+    buttonText: 'Open Market',
+    buttonTab: 'market',
+  },
+  LEVEL_UP: {
+    enabled: true,
+    template: `⚡ <b>Level Up!</b>\n\nCongratulations! You reached <b>Level {newLevel}</b>.\n\n<b>Reward:</b>\n+{reward} EFC`,
+    buttonText: 'View Profile',
+    buttonTab: 'profile',
+  },
+  STREAK_BONUS: {
+    enabled: true,
+    template: `🔥 <b>Streak Milestone!</b>\n\nYou hit a <b>{streakDays}-Day</b> login streak!\n\n<b>Bonus Reward:</b>\n+{reward} EFC`,
+    buttonText: 'Claim Reward',
+    buttonTab: 'home',
+  },
+  SPIN_WIN: {
+    enabled: true,
+    template: `🎡 <b>Lucky Spin Winner</b>\n\nCongratulations! You won <b>+{reward} EFC</b> from the Lucky Wheel!`,
+    buttonText: 'Spin Again',
+    buttonTab: 'home',
+  },
+  PROMO_CODE_REDEEMED: {
+    enabled: true,
+    template: `🎟 <b>Promo Code Redeemed</b>\n\n<b>Code:</b>\n{code}\n\n<b>Reward:</b>\n+{reward} EFC`,
+    buttonText: 'Open App',
+    buttonTab: 'home',
+  },
+  PASS_PURCHASED: {
+    enabled: true,
+    template: `👑 <b>VIP Pass Activated</b>\n\nYour <b>{passType}</b> pass has been activated!\n\nEnjoy exclusive multipliers and features.`,
+    buttonText: 'Open Profile',
+    buttonTab: 'profile',
+  },
+  KYC_VERIFIED: {
+    enabled: true,
+    template: `🛡 <b>Account Verified</b>\n\nYour identity verification has been successfully approved!`,
+    buttonText: 'Open Profile',
+    buttonTab: 'profile',
+  },
   SECURITY_ALERT: {
     enabled: true,
     template: `🔒 <b>Security Alert</b>\n\nA new login was detected.\n\n<b>Device:</b>\n{device}\n\n<b>Location:</b>\n{location}\n\n<b>Time:</b>\n{time}\n\nIf this wasn't you, contact support immediately.`,
     buttonText: 'Contact Support',
     buttonTab: 'support',
+  },
+  ADMIN_BROADCAST: {
+    enabled: true,
+    template: `📢 <b>Announcement</b>\n\n{message}`,
+    buttonText: 'Open Elite Force',
+    buttonTab: 'home',
   },
 };
 
@@ -1193,7 +1277,7 @@ const server = http.createServer(async (req, res) => {
         const isUsdt = rewardCurrency === 'USDT';
         const rewardPool = isUsdt ? Number((rewardNum * limitNum).toFixed(3)) : rewardNum * limitNum;
         const platformFee = isUsdt ? Number((rewardPool * 0.25).toFixed(3)) : Math.round(rewardPool * 0.25 * 10) / 10;
-        
+
         let tierCost = 0;
         if (audience && audience.type === 'level') {
           if (audience.minLevel === 5) tierCost = isUsdt ? 0.01 * limitNum : 1 * limitNum;
@@ -1206,7 +1290,7 @@ const server = http.createServer(async (req, res) => {
         // Wait, the frontend doesn't send verifiedOnly. I will just set verificationFee to 0 for now unless verifiedOnly is present in body.
         const verifiedOnly = body.verifiedOnly || false;
         const verificationFee = verifiedOnly ? (isUsdt ? 0.015 * limitNum : 1.5 * limitNum) : 0;
-        
+
         const reviewFee = platform === 'Custom' ? (isUsdt ? 0.2 : 10) : 0;
 
         const rawTotalEscrow = rewardPool + platformFee + tierCost + verificationFee + reviewFee;
@@ -1581,7 +1665,7 @@ const server = http.createServer(async (req, res) => {
         if (autoApprove) {
           // Pay worker immediately
           const isUsdt = task.rewardCurrency === 'USDT';
-          
+
           if (isUsdt) {
             await db.collection('users').doc(String(numId)).update({
               wallet: FieldValue.increment(task.reward), // USDT

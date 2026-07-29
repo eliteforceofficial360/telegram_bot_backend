@@ -3209,7 +3209,21 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         { id: 'REFERRAL_BONUS', label: '👥 Referral Bonus' },
                         { id: 'WITHDRAW_APPROVED', label: '💸 Payout Approved' },
                         { id: 'WITHDRAW_REJECTED', label: '🚫 Payout Rejected' },
+                        { id: 'DEPOSIT_SUBMITTED', label: '📥 Deposit Submitted' },
+                        { id: 'DEPOSIT_APPROVED', label: '✅ Deposit Approved' },
+                        { id: 'DEPOSIT_REJECTED', label: '❌ Deposit Rejected' },
+                        { id: 'MARKET_TASK_CREATED', label: '📌 Market Task Created' },
+                        { id: 'MARKET_TASK_LIVE', label: '🚀 Market Task Live' },
+                        { id: 'WORKER_APPROVED', label: '✅ Worker Approved' },
+                        { id: 'WORKER_REJECTED', label: '❌ Worker Rejected' },
+                        { id: 'LEVEL_UP', label: '⚡ Level Up' },
+                        { id: 'STREAK_BONUS', label: '🔥 Streak Bonus' },
+                        { id: 'SPIN_WIN', label: '🎡 Lucky Spin' },
+                        { id: 'PROMO_CODE_REDEEMED', label: '🎟 Promo Code' },
+                        { id: 'PASS_PURCHASED', label: '👑 VIP Pass' },
+                        { id: 'KYC_VERIFIED', label: '🛡 Identity Verified' },
                         { id: 'SECURITY_ALERT', label: '🔒 Security Alert' },
+                        { id: 'ADMIN_BROADCAST', label: '📢 Admin Broadcast' },
                       ].map((ev) => (
                         <button
                           key={ev.id}
