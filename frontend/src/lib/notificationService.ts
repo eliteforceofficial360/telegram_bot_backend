@@ -118,10 +118,18 @@ export const sendDepositNotification = (
   adminNote = '',
   secret?: string
 ): Promise<NotifyResult> => {
-  const emoji = status === 'Approved' ? '✅' : '❌';
-  const reasonText = adminNote ? `\\n\\nReason: ${adminNote}` : '';
-  const message = `${emoji} <b>Deposit ${status}</b>\\n\\nYour deposit request for <b>$${amountUsdt.toFixed(2)} USDT</b> has been ${status.toLowerCase()}.${reasonText}`;
-  return postToApi(botApiUrl, '/api/notify', { telegramId, message }, secret);
+  return postToApi(
+    botApiUrl,
+    '/notify/deposit',
+    {
+      telegramId,
+      status,
+      amountUsdt,
+      efcGranted: Math.round(amountUsdt * 100),
+      adminNote,
+    },
+    secret
+  );
 };
 
 /**
