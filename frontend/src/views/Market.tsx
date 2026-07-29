@@ -19,6 +19,9 @@ interface MarketProps {
   adminSettings: any;
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   setActiveTab: (tab: string) => void;
+  initialTab?: MarketTab;
+  autoOpenCreate?: boolean;
+  resetAutoOpenCreate?: () => void;
 }
 
 type MarketTab = 'discover' | 'my_tasks' | 'created' | 'completed' | 'history';
@@ -400,11 +403,10 @@ export const Market: React.FC<MarketProps> = ({
               <div key={sub.id} className="p-4 rounded-[20px] bg-white/[0.04] border border-white/8 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-[#FF8A00] uppercase">{sub.platform}</span>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                    sub.status === 'approved' ? 'bg-[#00FF88]/15 text-[#00FF88] border border-[#00FF88]/30' :
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${sub.status === 'approved' ? 'bg-[#00FF88]/15 text-[#00FF88] border border-[#00FF88]/30' :
                     sub.status === 'rejected' ? 'bg-[#FF4D6D]/15 text-[#FF4D6D] border border-[#FF4D6D]/30' :
-                    'bg-[#FFC857]/15 text-[#FFC857] border border-[#FFC857]/30'
-                  }`}>
+                      'bg-[#FFC857]/15 text-[#FFC857] border border-[#FFC857]/30'
+                    }`}>
                     {sub.status}
                   </span>
                 </div>
@@ -445,10 +447,9 @@ export const Market: React.FC<MarketProps> = ({
               <div key={ct.id} className="p-4 rounded-[20px] bg-white/[0.04] border border-white/8 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold text-[#FF8A00] uppercase">{ct.platform} · {ct.action}</span>
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                    ct.status === 'active' ? 'bg-[#00FF88]/15 text-[#00FF88]' :
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${ct.status === 'active' ? 'bg-[#00FF88]/15 text-[#00FF88]' :
                     ct.status === 'paused' ? 'bg-[#FFC857]/15 text-[#FFC857]' : 'bg-slate-700 text-slate-300'
-                  }`}>
+                    }`}>
                     {ct.status}
                   </span>
                 </div>

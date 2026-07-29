@@ -227,6 +227,29 @@ export async function cancelTask(taskId: string, telegramId: number): Promise<{ 
   } catch { return { ok: false, error: 'Network error' }; }
 }
 
+export async function fetchPendingMarketTasks(): Promise<MarketTask[]> {
+  try {
+    const res = await fetch(`${BOT_API()}/api/market/tasks/pending`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.tasks || [];
+  } catch { return []; }
+}
+
+export async function approveMarketTask(taskId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${BOT_API()}/api/market/tasks/${taskId}/approve`, { method: 'POST' });
+    return await res.json();
+  } catch { return { ok: false, error: 'Network error' }; }
+}
+
+export async function rejectMarketTask(taskId: string): Promise<{ ok: boolean; refundedAmount?: number; error?: string }> {
+  try {
+    const res = await fetch(`${BOT_API()}/api/market/tasks/${taskId}/reject`, { method: 'POST' });
+    return await res.json();
+  } catch { return { ok: false, error: 'Network error' }; }
+}
+
 export async function fetchTaskAnalytics(taskId: string, telegramId: number): Promise<{
   views: number; clicks: number; starts: number; completed: number; failed: number;
   conversionRate: number; avgCompletionTime: number; rewardDistributed: number; remaining: number;

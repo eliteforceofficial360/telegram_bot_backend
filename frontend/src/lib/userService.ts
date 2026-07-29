@@ -1238,6 +1238,138 @@ export const subscribeToWithdrawRequests = (
   });
 };
 
+export interface DepositRecord {
+  id: string;
+  telegramId: number;
+  username: string;
+  amountUsdt: number;
+  efcGranted: number;
+  txHash: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  createdAt: any;
+  processedAt?: any;
+  adminNote?: string;
+}
+
+export const submitDepositRequest = async (
+  telegramId: number,
+  username: string,
+  amountUsdt: number,
+  txHash: string,
+  efcGranted: number
+): Promise<{ success: boolean; reason?: string }> => {
+  if (!isFirebaseConfigured()) return { success: true };
+  if (!amountUsdt || isNaN(amountUsdt) || amountUsdt <= 0) {
+    return { success: false, reason: 'Invalid deposit amount.' };
+  }
+  const cleanTxHash = (txHash || '').trim();
+  if (!cleanTxHash.startsWith('0x') || cleanTxHash.length < 20) {
+    return { success: false, reason: 'Invalid BEP-20 Transaction Hash (must start with 0x).' };
+  }
+
+  const reqId = `dep_${telegramId}_${Date.now()}`;
+  const depRef = doc(db, 'depositRequests', reqId);
+
+  try {
+    const q = query(collection(db, 'depositRequests'), where('txHash', '==', cleanTxHash));
+    const dupSnap = await getDocs(q);
+    if (!dupSnap.empty) {
+      return { success: false, reason: 'This Transaction Hash (TxHash) has already been submitted!' };
+    }
+
+    await setDoc(depRef, {
+      telegramId,
+      username: username || 'User',
+      amountUsdt,
+      efcGranted,
+      txHash: cleanTxHash,
+      status: 'Pending',
+      createdAt: serverTimestamp(),
+      processedAt: null,
+      adminNote: '',
+    });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('[submitDepositRequest] Error:', err);
+    return { success: false, reason: err?.message || 'Failed to submit deposit request.' };
+  }
+};
+
+export const subscribeToDepositRequests = (
+  callback: (reqs: DepositRecord[]) => void
+): (() => void) => {
+  if (!isFirebaseConfigured()) return () => {};
+  const q = query(collection(db, 'depositRequests'), orderBy('createdAt', 'desc'));
+  return onSnapshot(q, (snap) => {
+    const list: DepositRecord[] = [];
+    snap.forEach((d) => list.push({ id: d.id, ...d.data() } as DepositRecord));
+    callback(list);
+  }, () => callback([]));
+};
+
+export const subscribeToUserDepositRequests = (
+  telegramId: number,
+  callback: (reqs: DepositRecord[]) => void
+): (() => void) => {
+  if (!isFirebaseConfigured()) return () => {};
+  const q = query(collection(db, 'depositRequests'), where('telegramId', '==', telegramId));
+  return onSnapshot(q, (snap) => {
+    const list: DepositRecord[] = [];
+    snap.forEach((d) => list.push({ id: d.id, ...d.data() } as DepositRecord));
+    list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+    callback(list);
+  }, () => callback([]));
+};
+
+export const updateDepositRequest = async (
+  reqId: string,
+  status: 'Approved' | 'Rejected',
+  adminNote = ''
+): Promise<boolean> => {
+  if (!isFirebaseConfigured()) return false;
+  const depRef = doc(db, 'depositRequests', reqId);
+
+  try {
+    await runTransaction(db, async (transaction) => {
+      const depSnap = await transaction.get(depRef);
+      if (!depSnap.exists()) {
+        throw new Error('Deposit request not found.');
+      }
+      const data = depSnap.data() as DepositRecord;
+      if (data.status !== 'Pending') {
+        throw new Error('Deposit request already processed.');
+      }
+
+      if (status === 'Approved') {
+        const userRef = doc(db, USERS_COLLECTION, String(data.telegramId));
+        const userSnap = await transaction.get(userRef);
+        if (userSnap.exists()) {
+          const uData = userSnap.data();
+          const currentPoints = Number(uData.points || 0);
+          const currentWalletUsdt = Number(uData.wallet || 0);
+
+          transaction.update(userRef, {
+            points: currentPoints + (data.efcGranted || 0),
+            wallet: Number((currentWalletUsdt + (data.amountUsdt || 0)).toFixed(4)),
+          });
+        }
+      }
+
+      transaction.update(depRef, {
+        status,
+        adminNote,
+        processedAt: serverTimestamp(),
+      });
+    });
+
+    return true;
+  } catch (err) {
+    console.error('[updateDepositRequest] Error:', err);
+    return false;
+  }
+};
+
 /**
  * Log admin administrative actions.
  */

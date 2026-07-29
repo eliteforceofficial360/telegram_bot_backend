@@ -1316,7 +1316,7 @@ const server = http.createServer(async (req, res) => {
         const search = urlObj.searchParams.get('search');
         const minReward = Number(urlObj.searchParams.get('minReward') || 0);
 
-        let query = db.collection('marketTasks').where('status', 'in', ['active', 'pending_review']);
+        let query = db.collection('marketTasks').where('status', '==', 'active');
 
         const snap = await query.get();
         let tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -1338,6 +1338,67 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         console.error('[Market] Discover error:', err.message);
         return sendJson(res, 200, { tasks: [], total: 0, hasMore: false });
+      }
+    }
+
+    // ── GET /api/market/tasks/pending (Admin) ──────────────────────────────────
+    if (req.method === 'GET' && url.startsWith('/api/market/tasks/pending')) {
+      try {
+        const snap = await db.collection('marketTasks')
+          .where('status', '==', 'pending_review')
+          .get();
+
+        const tasks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        tasks.sort((a, b) => (b.createdAt > a.createdAt ? 1 : -1));
+        return sendJson(res, 200, { ok: true, tasks });
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message });
+      }
+    }
+
+    // ── POST /api/market/tasks/:id/approve (Admin) ────────────────────────────
+    if (req.method === 'POST' && url.match(/^\/api\/market\/tasks\/[^/]+\/approve$/)) {
+      const taskId = url.split('/')[4];
+      try {
+        const taskRef = db.collection('marketTasks').doc(taskId);
+        const taskDoc = await taskRef.get();
+        if (!taskDoc.exists) return sendJson(res, 404, { ok: false, error: 'Task not found' });
+
+        await taskRef.update({ status: 'active', approvedAt: new Date().toISOString() });
+        console.log(`✅ [Market Admin] Approved task id=${taskId}`);
+        return sendJson(res, 200, { ok: true, message: 'Task approved and published to Market' });
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message });
+      }
+    }
+
+    // ── POST /api/market/tasks/:id/reject (Admin) ─────────────────────────────
+    if (req.method === 'POST' && url.match(/^\/api\/market\/tasks\/[^/]+\/reject$/)) {
+      const taskId = url.split('/')[4];
+      try {
+        const taskRef = db.collection('marketTasks').doc(taskId);
+        const taskDoc = await taskRef.get();
+        if (!taskDoc.exists) return sendJson(res, 404, { ok: false, error: 'Task not found' });
+
+        const taskData = taskDoc.data();
+        const creatorId = taskData.creatorTelegramId;
+        const refundAmount = taskData.totalEscrow || 0;
+
+        await db.runTransaction(async (transaction) => {
+          transaction.update(taskRef, { status: 'rejected', rejectedAt: new Date().toISOString() });
+          if (creatorId && refundAmount > 0) {
+            const userRef = db.collection('users').doc(String(creatorId));
+            transaction.update(userRef, {
+              points: FieldValue.increment(refundAmount),
+              escrow_points: FieldValue.increment(-refundAmount),
+            });
+          }
+        });
+
+        console.log(`❌ [Market Admin] Rejected task id=${taskId}, refunded ${refundAmount} to user ${creatorId}`);
+        return sendJson(res, 200, { ok: true, message: 'Task rejected and escrow refunded', refundedAmount: refundAmount });
+      } catch (err) {
+        return sendJson(res, 500, { ok: false, error: err.message });
       }
     }
 

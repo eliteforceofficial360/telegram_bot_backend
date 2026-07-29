@@ -18,6 +18,7 @@ import {
   getTodayNewUsersCount, getFlaggedUsersCount, getBannedUsersCount,
   getPremiumUsersCount, getAutoMinerUsersCount, getOnlineUserCount,
   updateWithdrawRequest, subscribeToWithdrawRequests,
+  subscribeToDepositRequests, updateDepositRequest, type DepositRecord,
   flagUser, adminSetBan, logAdminAction,
   adminPinUser, adminRemoveUser, adminAddUser, adminResetLeaderboard,
   type FirestoreUser, subscribeToAllUsers, adminHideUser, normalizeCountryName,
@@ -35,6 +36,9 @@ import {
   sendWithdrawNotification,
 } from '../lib/notificationService';
 import { uploadFile } from '../lib/uploadService';
+import {
+  fetchPendingMarketTasks, approveMarketTask, rejectMarketTask, type MarketTask,
+} from '../lib/marketService';
 
 interface AdminProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -207,12 +211,54 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [marketMaintenanceUntil, setMarketMaintenanceUntil] = useState('');
   const [marketLockReason, setMarketLockReason] = useState('');
   const [savingMarketSettings, setSavingMarketSettings] = useState(false);
+  const [pendingMarketTasks, setPendingMarketTasks] = useState<MarketTask[]>([]);
+  const [loadingPendingMarket, setLoadingPendingMarket] = useState<boolean>(false);
+
+  const loadPendingMarketTasks = React.useCallback(async () => {
+    setLoadingPendingMarket(true);
+    const tasks = await fetchPendingMarketTasks();
+    setPendingMarketTasks(tasks);
+    setLoadingPendingMarket(false);
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'market') {
+      loadPendingMarketTasks();
+    }
+  }, [activeTab, loadPendingMarketTasks]);
+
+  // Market Fee & BEP-20 Deposit Settings State
+  const [marketServiceFeePercent, setMarketServiceFeePercent] = useState<number>(25);
+  const [marketReviewFee, setMarketReviewFee] = useState<number>(10);
+  const [marketVerificationFeeManual, setMarketVerificationFeeManual] = useState<number>(1.5);
+  const [marketVerificationFeeAuto, setMarketVerificationFeeAuto] = useState<number>(0.5);
+
+  const [bep20DepositAddress, setBep20DepositAddress] = useState<string>('0x0000000000000000000000000000000000000000');
+  const [bep20DepositRate, setBep20DepositRate] = useState<number>(100);
+  const [bep20DepositMinAmount, setBep20DepositMinAmount] = useState<number>(1.0);
+  const [bep20DepositInstructions, setBep20DepositInstructions] = useState<string>('Send USDT (BEP-20 / BSC Network) to the address below, then submit your transaction hash (TxHash) for verification.');
+  const [depositRequests, setDepositRequests] = useState<DepositRecord[]>([]);
 
   useEffect(() => {
     const unsub = subscribeToAdminSettings((s) => {
       setMarketStatus(s.marketStatus || 'on');
       setMarketMaintenanceUntil(s.marketMaintenanceUntil || '');
       setMarketLockReason(s.marketLockReason || 'Task Market is currently undergoing system maintenance and campaign security audits.');
+      setMarketServiceFeePercent(s.marketServiceFeePercent ?? 25);
+      setMarketReviewFee(s.marketReviewFee ?? 10);
+      setMarketVerificationFeeManual(s.marketVerificationFeeManual ?? 1.5);
+      setMarketVerificationFeeAuto(s.marketVerificationFeeAuto ?? 0.5);
+      setBep20DepositAddress(s.bep20DepositAddress || '');
+      setBep20DepositRate(s.bep20DepositRate ?? 100);
+      setBep20DepositMinAmount(s.bep20DepositMinAmount ?? 1.0);
+      setBep20DepositInstructions(s.bep20DepositInstructions || 'Send USDT (BEP-20 / BSC Network) to the address below, then submit your transaction hash (TxHash) for verification.');
+    });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const unsub = subscribeToDepositRequests((list) => {
+      setDepositRequests(list);
     });
     return () => unsub();
   }, []);
@@ -229,12 +275,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       marketStatus,
       marketMaintenanceUntil: marketStatus === 'on' ? '' : marketMaintenanceUntil,
       marketLockReason,
+      marketServiceFeePercent: Number(marketServiceFeePercent),
+      marketReviewFee: Number(marketReviewFee),
+      marketVerificationFeeManual: Number(marketVerificationFeeManual),
+      marketVerificationFeeAuto: Number(marketVerificationFeeAuto),
+      bep20DepositAddress,
+      bep20DepositRate: Number(bep20DepositRate),
+      bep20DepositMinAmount: Number(bep20DepositMinAmount),
+      bep20DepositInstructions,
     });
     setSavingMarketSettings(false);
     if (success) {
-      showToast(`Task Market access settings updated: ${marketStatus.toUpperCase()}`, 'success');
+      showToast('Market fees & BEP-20 deposit settings updated!', 'success');
     } else {
-      showToast('Failed to update Market access settings', 'error');
+      showToast('Failed to update Market settings', 'error');
     }
   };
 
@@ -2377,6 +2431,114 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       </div>
                     )}
 
+                    {/* ── Market Escrow & Fee Configuration Engine ── */}
+                    <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-3 pt-3 border-t">
+                      <div>
+                        <h4 className="text-xs font-black text-white flex items-center gap-2">
+                          <Wallet size={14} className="text-[#FFD700]" />
+                          Market Escrow & Fee Rates Controller
+                        </h4>
+                        <p className="text-[10px] text-slate-400">Configure service fees, review costs, and verification rates charged on task creation</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Service Fee (%)</label>
+                          <input
+                            type="number"
+                            value={marketServiceFeePercent}
+                            onChange={e => setMarketServiceFeePercent(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white font-bold outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Review Fee (EFC)</label>
+                          <input
+                            type="number"
+                            value={marketReviewFee}
+                            onChange={e => setMarketReviewFee(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white font-bold outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Manual Verif. (EFC/Worker)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={marketVerificationFeeManual}
+                            onChange={e => setMarketVerificationFeeManual(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white font-bold outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Auto Verif. (EFC/Worker)</label>
+                          <input
+                            type="number"
+                            step="0.1"
+                            value={marketVerificationFeeAuto}
+                            onChange={e => setMarketVerificationFeeAuto(Number(e.target.value))}
+                            className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white font-bold outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── BEP-20 Deposit Gateway Configuration ── */}
+                    <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-3 pt-3 border-t">
+                      <div>
+                        <h4 className="text-xs font-black text-white flex items-center gap-2">
+                          <ShieldCheck size={14} className="text-[#00FF88]" />
+                          BEP-20 (USDT) Deposit Gateway Configuration
+                        </h4>
+                        <p className="text-[10px] text-slate-400">Set receiving wallet address and USDT conversion rates for user deposits</p>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">BEP-20 Admin Deposit Wallet Address (BSC Network)</label>
+                          <input
+                            type="text"
+                            value={bep20DepositAddress}
+                            onChange={e => setBep20DepositAddress(e.target.value)}
+                            placeholder="0x..."
+                            className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-cyan-400 font-mono font-bold outline-none"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">EFC Points per 1 USDT</label>
+                            <input
+                              type="number"
+                              value={bep20DepositRate}
+                              onChange={e => setBep20DepositRate(Number(e.target.value))}
+                              className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white font-bold outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Min. Deposit Amount ($ USDT)</label>
+                            <input
+                              type="number"
+                              step="0.5"
+                              value={bep20DepositMinAmount}
+                              onChange={e => setBep20DepositMinAmount(Number(e.target.value))}
+                              className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white font-bold outline-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Deposit Instructions Text</label>
+                          <textarea
+                            value={bep20DepositInstructions}
+                            onChange={e => setBep20DepositInstructions(e.target.value)}
+                            rows={2}
+                            className="w-full px-3 py-2 rounded-xl text-xs bg-white/5 border border-white/10 text-white focus:outline-none resize-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Save Button */}
                     <div className="flex justify-end pt-1">
                       <button
@@ -2386,9 +2548,174 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         style={{ background: 'linear-gradient(135deg, #FFD700, #FF8A00)' }}
                       >
                         {savingMarketSettings ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                        Save Market Access Settings
+                        Save Market & Deposit Settings
                       </button>
                     </div>
+                  </div>
+
+                  {/* ── BEP-20 Deposit Requests Center ── */}
+                  <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-black text-white flex items-center gap-2">
+                          📥 BEP-20 Deposit Requests ({depositRequests.filter(d => d.status === 'Pending').length} Pending)
+                        </h4>
+                        <p className="text-[10px] text-slate-400">Review user TxHash submissions and credit EFC/USDT balances</p>
+                      </div>
+                    </div>
+
+                    {depositRequests.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-slate-500 font-mono">No deposit requests submitted yet.</div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {depositRequests.map((d) => (
+                          <div key={d.id} className="p-3.5 rounded-xl bg-black/40 border border-white/10 flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${
+                                  d.status === 'Approved' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                  d.status === 'Rejected' ? 'bg-rose-500/20 text-rose-400 border-rose-500/30' :
+                                  'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                                }`}>
+                                  {d.status}
+                                </span>
+                                <span className="text-xs font-bold text-white">{d.username} (ID: {d.telegramId})</span>
+                              </div>
+                              <span className="text-xs font-black text-[#00FF88]">+${d.amountUsdt} USDT ({d.efcGranted} EFC)</span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-[10px] text-slate-400 font-mono">
+                              <span className="truncate mr-2">TxHash: <span className="text-cyan-400">{d.txHash}</span></span>
+                              <a
+                                href={`https://bscscan.com/tx/${d.txHash}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-cyan-400 hover:underline flex items-center gap-1 shrink-0"
+                              >
+                                BscScan <ExternalLink size={10} />
+                              </a>
+                            </div>
+
+                            {d.status === 'Pending' && (
+                              <div className="flex items-center gap-2 pt-1 border-t border-white/5">
+                                <button
+                                  onClick={async () => {
+                                    const ok = await updateDepositRequest(d.id, 'Approved');
+                                    if (ok) showToast(`✅ Approved! Credited +${d.efcGranted} EFC & +$${d.amountUsdt} USDT to user.`, 'success');
+                                    else showToast('Failed to approve deposit.', 'error');
+                                  }}
+                                  className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all cursor-pointer"
+                                >
+                                  Approve & Credit User
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    const ok = await updateDepositRequest(d.id, 'Rejected', 'Invalid TxHash or deposit not received');
+                                    if (ok) showToast('❌ Deposit request rejected.', 'info');
+                                    else showToast('Failed to reject deposit.', 'error');
+                                  }}
+                                  className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 transition-all cursor-pointer"
+                                >
+                                  Reject Deposit
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── Custom & Pending Market Tasks Moderation Queue ── */}
+                  <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-black text-white flex items-center gap-2">
+                          <ShieldCheck size={16} className="text-[#00FF88]" />
+                          Custom & Pending Market Tasks Review Queue ({pendingMarketTasks.length})
+                        </h4>
+                        <p className="text-[10px] text-slate-400">Review custom and pending P2P tasks before approving them for public Market discover</p>
+                      </div>
+                      <button
+                        onClick={loadPendingMarketTasks}
+                        disabled={loadingPendingMarket}
+                        className="p-2 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white cursor-pointer"
+                      >
+                        <RefreshCw size={14} className={loadingPendingMarket ? 'animate-spin' : ''} />
+                      </button>
+                    </div>
+
+                    {loadingPendingMarket ? (
+                      <div className="text-center py-8 text-xs text-slate-500 font-mono">Loading pending market tasks...</div>
+                    ) : pendingMarketTasks.length === 0 ? (
+                      <div className="text-center py-8 rounded-xl bg-black/20 border border-white/5 space-y-1">
+                        <CheckCircle2 size={24} className="mx-auto text-emerald-400 opacity-60" />
+                        <div className="text-xs font-bold text-slate-400">No Custom Tasks Awaiting Review</div>
+                        <div className="text-[10px] text-slate-600">All submitted custom tasks have been reviewed or published.</div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {pendingMarketTasks.map((t) => (
+                          <div key={t.id} className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                  {t.platform} · {t.action || 'Custom'}
+                                </span>
+                                <span className="text-[9px] font-mono text-slate-400">Creator ID: {t.creatorTelegramId}</span>
+                              </div>
+                              <span className="text-xs font-black text-[#FFD700]">{t.reward} EFC reward</span>
+                            </div>
+
+                            <div>
+                              <div className="text-xs font-bold text-white">{t.title}</div>
+                              {t.description && <div className="text-[10px] text-slate-400 mt-0.5">{t.description}</div>}
+                              {t.targetUrl && (
+                                <a href={t.targetUrl} target="_blank" rel="noreferrer" className="text-[10px] text-cyan-400 hover:underline flex items-center gap-1 mt-1">
+                                  <ExternalLink size={10} /> {t.targetUrl}
+                                </a>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-between pt-2 border-t border-white/5 text-[10px] text-slate-400 font-mono">
+                              <span>Escrow Held: {t.totalEscrow || t.budget || 0} EFC</span>
+                              <span>Limit: {t.workerLimit} workers</span>
+                            </div>
+
+                            <div className="flex items-center gap-2 pt-1">
+                              <button
+                                onClick={async () => {
+                                  const res = await approveMarketTask(t.id);
+                                  if (res.ok) {
+                                    showToast('✅ Task approved and published to Market!', 'success');
+                                    loadPendingMarketTasks();
+                                  } else {
+                                    showToast(res.error || 'Failed to approve task', 'error');
+                                  }
+                                }}
+                                className="flex-1 py-2 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              >
+                                <CheckCircle2 size={14} /> Approve & Publish
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  const res = await rejectMarketTask(t.id);
+                                  if (res.ok) {
+                                    showToast(`❌ Task rejected & ${res.refundedAmount || 0} EFC refunded.`, 'info');
+                                    loadPendingMarketTasks();
+                                  } else {
+                                    showToast(res.error || 'Failed to reject task', 'error');
+                                  }
+                                }}
+                                className="flex-1 py-2 rounded-xl text-xs font-bold bg-rose-500/20 text-rose-400 border border-rose-500/40 hover:bg-rose-500/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                              >
+                                <X size={14} /> Reject & Refund Escrow
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </SectionCard>

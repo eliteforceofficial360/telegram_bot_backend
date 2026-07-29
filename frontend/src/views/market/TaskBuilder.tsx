@@ -631,39 +631,39 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                 {cost && (
                   <div className="p-4 rounded-[20px] space-y-2.5" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
                     <div className="flex justify-between text-xs">
-                      <span className="text-slate-400">{form.reward} GOMINE × {form.workerLimit}</span>
-                      <span className="font-bold text-white">{cost.rewardPool.toFixed(0)} GOMINE</span>
+                      <span className="text-slate-400">{form.reward} EFC × {form.workerLimit}</span>
+                      <span className="font-bold text-white">{cost.rewardPool.toFixed(0)} EFC</span>
                     </div>
 
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-400">Service fee (25%)</span>
-                      <span className="font-bold text-slate-300">{cost.platformFee.toFixed(0)} GOMINE</span>
+                      <span className="font-bold text-slate-300">{cost.platformFee.toFixed(1)} EFC</span>
                     </div>
 
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-400">Verification × {form.workerLimit}</span>
-                      <span className="font-bold text-slate-300">{cost.verificationFee.toFixed(0)} GOMINE</span>
+                      <span className="font-bold text-slate-300">{cost.verificationFee.toFixed(1)} EFC</span>
                     </div>
 
                     <div className="flex justify-between text-xs">
                       <span className="text-slate-400">Review fee (one-time)</span>
-                      <span className="font-bold text-slate-300">{cost.reviewFee.toFixed(0)} GOMINE</span>
+                      <span className="font-bold text-slate-300">{cost.reviewFee.toFixed(0)} EFC</span>
                     </div>
 
                     <div className="h-px bg-white/10 my-2" />
 
                     <div className="flex justify-between items-center text-sm">
                       <span className="font-black text-white">Total escrowed</span>
-                      <span className="font-black text-white">{cost.escrowTotal.toFixed(0)} GOMINE</span>
+                      <span className="font-black text-white">{cost.escrowTotal.toFixed(0)} EFC</span>
                     </div>
 
                     {/* Balance & Deficit */}
                     <div className="flex justify-between items-center text-xs">
                       <span className="font-bold text-[#FF8A00] underline">
-                        {canAfford ? 'Available Balance' : 'Insufficient - top up'}
+                        {canAfford ? 'Available Balance' : 'Insufficient - deposit BEP-20'}
                       </span>
                       <span className={`font-black ${canAfford ? 'text-[#00FF88]' : 'text-[#FF8A00]'}`}>
-                        {canAfford ? `${efcBalance.toFixed(0)} GOMINE` : `-${deficit.toFixed(0)} GOMINE`}
+                        {canAfford ? `${efcBalance.toFixed(0)} EFC` : `-${deficit.toFixed(0)} EFC`}
                       </span>
                     </div>
 
@@ -712,7 +712,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
           </button>
         ) : !canAfford ? (
           <button
-            onClick={() => showToast(`Deposit at least ${deficit.toFixed(0)} GOMINE to fund this task.`, 'warning')}
+            onClick={() => showToast(`Deposit at least ${deficit.toFixed(0)} EFC via BEP-20 in Wallet to fund this task.`, 'warning')}
             className="flex-1 h-11 rounded-[14px] text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-all"
             style={{
               background: 'rgba(255,138,0,0.15)',
@@ -720,7 +720,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
               color: '#FF8A00',
             }}
           >
-            Top up ↗
+            Deposit BEP-20 ↗
           </button>
         ) : (
           <button

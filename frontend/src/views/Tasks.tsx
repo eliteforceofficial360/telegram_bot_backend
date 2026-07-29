@@ -48,6 +48,7 @@ interface TasksProps {
   adminSettings: AdminSettings;
   dbUser: FirestoreUser | null;
   setActiveTab?: (tab: string) => void;
+  navigateToMarket?: (tab?: string, openCreate?: boolean) => void;
 }
 
 type TaskStatus = 'idle' | 'verifying' | 'completed';
@@ -62,6 +63,7 @@ export const Tasks = ({
   adminSettings,
   dbUser,
   setActiveTab,
+  navigateToMarket,
 }: TasksProps) => {
   const [tasks, setTasks] = useState<EForceTask[]>([]);
   const [completedTaskIds, setCompletedTaskIds] = useState<Set<string>>(new Set());
@@ -789,7 +791,13 @@ export const Tasks = ({
           </button>
 
           <button
-            onClick={() => setMainTab('my_tasks')}
+            onClick={() => {
+              if (navigateToMarket) {
+                navigateToMarket('created', false);
+              } else if (setActiveTab) {
+                setActiveTab('market');
+              }
+            }}
             className={`flex-1 h-10 rounded-xl font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               mainTab === 'my_tasks'
                 ? 'bg-[#252833] text-white shadow-md border border-white/10'
@@ -801,7 +809,13 @@ export const Tasks = ({
           </button>
 
           <button
-            onClick={() => setMainTab('create')}
+            onClick={() => {
+              if (navigateToMarket) {
+                navigateToMarket('discover', true);
+              } else if (setActiveTab) {
+                setActiveTab('market');
+              }
+            }}
             className={`flex-1 h-10 rounded-xl font-extrabold text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
               mainTab === 'create'
                 ? 'bg-[#E5A338] text-black shadow-lg font-black'

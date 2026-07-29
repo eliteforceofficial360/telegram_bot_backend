@@ -115,6 +115,18 @@ export interface AdminSettings {
   // Custom Top Miners (shown as pinned entries on Leaderboard)
   customTopMiners: { name: string; score: number; badge: string }[];
 
+  // Market Fees & Escrow Settings
+  marketServiceFeePercent?: number;       // default 25%
+  marketReviewFee?: number;              // default 10 EFC
+  marketVerificationFeeManual?: number;   // default 1.5 EFC
+  marketVerificationFeeAuto?: number;     // default 0.5 EFC
+
+  // BEP-20 Deposit System
+  bep20DepositAddress?: string;           // Admin BEP-20 Wallet Deposit Address
+  bep20DepositRate?: number;              // EFC Points granted per 1 USDT (default 100)
+  bep20DepositMinAmount?: number;         // Min USDT deposit amount (default 1.0)
+  bep20DepositInstructions?: string;      // Custom instructions for depositors
+
   // Market Maintenance & Access Control
   marketStatus?: 'on' | 'off' | 'maintenance';
   marketMaintenanceUntil?: string;
@@ -137,6 +149,14 @@ export interface AdminSettings {
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
+  marketServiceFeePercent: 25,
+  marketReviewFee: 10,
+  marketVerificationFeeManual: 1.5,
+  marketVerificationFeeAuto: 0.5,
+  bep20DepositAddress: '0x0000000000000000000000000000000000000000',
+  bep20DepositRate: 100,
+  bep20DepositMinAmount: 1.0,
+  bep20DepositInstructions: 'Send USDT (BEP-20 / BSC Network) to the address below, then submit your transaction hash (TxHash) for verification.',
   swapRate: 1000,
   eforceTokenValue: 0.05,
   tapReward: 1,

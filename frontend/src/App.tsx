@@ -30,6 +30,8 @@ interface Toast {
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
+  const [marketInitialTab, setMarketInitialTab] = useState<string>('discover');
+  const [marketAutoOpenCreate, setMarketAutoOpenCreate] = useState<boolean>(false);
 
   
   // Persisted state loading helper
@@ -668,6 +670,11 @@ export default function App() {
             adminSettings={adminSettings}
             dbUser={dbUser}
             setActiveTab={(tab: string) => setActiveTab(tab as ActiveTab)}
+            navigateToMarket={(tab?: string, openCreate?: boolean) => {
+              if (tab) setMarketInitialTab(tab);
+              if (openCreate !== undefined) setMarketAutoOpenCreate(openCreate);
+              setActiveTab('market');
+            }}
           />
         );
       case 'market':
@@ -679,6 +686,9 @@ export default function App() {
             adminSettings={adminSettings}
             showToast={showToast}
             setActiveTab={(tab: string) => setActiveTab(tab as ActiveTab)}
+            initialTab={marketInitialTab as any}
+            autoOpenCreate={marketAutoOpenCreate}
+            resetAutoOpenCreate={() => setMarketAutoOpenCreate(false)}
           />
         );
       case 'referral':

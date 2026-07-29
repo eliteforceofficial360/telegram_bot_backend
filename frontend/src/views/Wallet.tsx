@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAlert, X, Edit3, Save, RefreshCw } from 'lucide-react';
+import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAlert, X, Edit3, Save, RefreshCw, Copy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { UsdtIcon } from '../components/UsdtIcon';
 import { showRewardedAd } from '../lib/monetag';
-import { submitWithdrawRequest, updateWalletAddress, subscribeToUser, updateUserDatabaseValues, getUserTodayWithdrawalAmount, getUserTodayWithdrawalTokens, type FirestoreUser } from '../lib/userService';
+import {
+  submitWithdrawRequest, updateWalletAddress, subscribeToUser, updateUserDatabaseValues,
+  getUserTodayWithdrawalAmount, getUserTodayWithdrawalTokens, type FirestoreUser,
+  submitDepositRequest, subscribeToUserDepositRequests, type DepositRecord,
+} from '../lib/userService';
 import type { TelegramUser } from '../lib/telegramUser';
 
 interface WalletProps {
@@ -37,7 +41,8 @@ export const Wallet: React.FC<WalletProps> = ({
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
-  
+  const [showDepositModal, setShowDepositModal] = useState(false);
+
   const [walletInput, setWalletInput] = useState('');
   const [isEditingAddress, setIsEditingAddress] = useState(false);
   const [savingAddress, setSavingAddress] = useState(false);
@@ -47,8 +52,12 @@ export const Wallet: React.FC<WalletProps> = ({
   const [withdrawAmount, setWithdrawAmount] = useState('0.20');
   const [withdrawAsset, setWithdrawAsset] = useState<'usdt' | 'token'>('usdt');
 
-  // Local swap form state
+  // Local swap & deposit form state
   const [swapInputPoints, setSwapInputPoints] = useState('1000');
+  const [depositAmountUsdt, setDepositAmountUsdt] = useState('5');
+  const [depositTxHash, setDepositTxHash] = useState('');
+  const [submittingDeposit, setSubmittingDeposit] = useState(false);
+  const [userDeposits, setUserDeposits] = useState<DepositRecord[]>([]);
 
   // Subscribe to real-time user database state
   useEffect(() => {
@@ -58,6 +67,14 @@ export const Wallet: React.FC<WalletProps> = ({
         setDbUser(user);
         setWalletInput(user.walletAddress || '');
       }
+    });
+    return unsub;
+  }, [telegramUser]);
+
+  useEffect(() => {
+    if (!telegramUser) return;
+    const unsub = subscribeToUserDepositRequests(telegramUser.id, (list) => {
+      setUserDeposits(list);
     });
     return unsub;
   }, [telegramUser]);
@@ -400,6 +417,33 @@ export const Wallet: React.FC<WalletProps> = ({
 
 
 
+      {/* BEP-20 Deposit Portal Banner */}
+      <div className="glass-panel p-4 rounded-[22px] border-white/6 flex items-center justify-between"
+        style={{ background: 'linear-gradient(135deg, rgba(0,255,136,0.08), rgba(0,229,255,0.05))', border: '1px solid rgba(0,255,136,0.2)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-lg shrink-0"
+            style={{ background: 'rgba(0,255,136,0.15)', border: '1px solid rgba(0,255,136,0.3)', color: '#00FF88' }}>
+            📥
+          </div>
+          <div>
+            <div className="text-xs font-black text-white flex items-center gap-1.5">
+              Deposit BEP-20 (USDT)
+              <span className="text-[8px] font-black px-1.5 py-0.5 rounded bg-[#00FF88]/20 text-[#00FF88] border border-[#00FF88]/30">BSC</span>
+            </div>
+            <div className="text-[10px] text-slate-400 mt-0.5">
+              Fund your balance to create campaigns & mine ({settings.bep20DepositRate || 100} EFC per $1 USDT)
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => setShowDepositModal(true)}
+          className="h-9 px-4 rounded-xl text-xs font-black text-black cursor-pointer transition-all shadow-lg hover:brightness-110 shrink-0"
+          style={{ background: 'linear-gradient(135deg, #00FF88, #00E5FF)' }}
+        >
+          Deposit
+        </button>
+      </div>
+
       {/* Swap & Withdraw Portal */}
       <div className="glass-panel p-5 rounded-[24px] border-white/6 flex flex-col gap-4">
         
@@ -728,6 +772,184 @@ export const Wallet: React.FC<WalletProps> = ({
                 </div>
               </div>
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── BEP-20 DEPOSIT MODAL ── */}
+      <AnimatePresence>
+        {showDepositModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md rounded-[28px] p-6 bg-[#0D1220] border border-white/10 space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-white/8">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-[#00FF88]/15 border border-[#00FF88]/30 flex items-center justify-center text-[#00FF88]">
+                    📥
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white">Deposit BEP-20 (USDT)</h3>
+                    <p className="text-[9px] text-slate-400">BNB Smart Chain (BEP-20 Network)</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDepositModal(false)}
+                  className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Rate & Instructions */}
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-slate-400 font-bold">Conversion Rate:</span>
+                  <span className="font-extrabold text-[#00FF88]">1 USDT = {settings.bep20DepositRate || 100} EFC Points</span>
+                </div>
+                <p className="text-[10px] text-slate-300 leading-relaxed">
+                  {settings.bep20DepositInstructions || 'Send USDT (BEP-20 / BSC Network) to the address below, then submit your transaction hash (TxHash) for verification.'}
+                </p>
+              </div>
+
+              {/* Deposit Address Area */}
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">
+                  Admin BEP-20 Deposit Wallet Address
+                </label>
+                <div className="flex items-center gap-2 p-3 rounded-2xl bg-black/50 border border-white/10">
+                  <span className="text-xs font-mono text-cyan-400 truncate flex-1 select-all">
+                    {settings.bep20DepositAddress || '0x0000000000000000000000000000000000000000'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (settings.bep20DepositAddress) {
+                        navigator.clipboard.writeText(settings.bep20DepositAddress);
+                        showToast('Deposit address copied to clipboard!', 'success');
+                      } else {
+                        showToast('No deposit address set by admin.', 'warning');
+                      }
+                    }}
+                    className="h-8 px-3 rounded-xl bg-[#00FF88]/20 text-[#00FF88] border border-[#00FF88]/30 text-xs font-extrabold flex items-center gap-1 cursor-pointer hover:bg-[#00FF88]/30 transition-all shrink-0"
+                  >
+                    <Copy size={12} /> Copy
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Inputs */}
+              <div className="space-y-3 pt-1">
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                    Amount Deposited ($ USDT)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.5"
+                    value={depositAmountUsdt}
+                    onChange={(e) => setDepositAmountUsdt(e.target.value)}
+                    placeholder="Enter amount (e.g. 10)"
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white bg-white/5 border border-white/10 outline-none focus:border-[#00FF88]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">
+                    BEP-20 Transaction Hash (TxHash / 0x...)
+                  </label>
+                  <input
+                    type="text"
+                    value={depositTxHash}
+                    onChange={(e) => setDepositTxHash(e.target.value)}
+                    placeholder="0x..."
+                    className="w-full px-3.5 py-2.5 rounded-xl text-xs text-white font-mono bg-white/5 border border-white/10 outline-none focus:border-[#00FF88]"
+                  />
+                </div>
+
+                {/* Calculation Preview */}
+                <div className="p-3 rounded-xl bg-black/40 border border-white/5 flex justify-between items-center text-xs font-mono">
+                  <span className="text-slate-400 font-bold">You Will Receive:</span>
+                  <span className="font-extrabold text-[#00FF88]">
+                    +{(Math.max(0, Number(depositAmountUsdt) || 0) * (settings.bep20DepositRate || 100)).toLocaleString()} EFC Points
+                  </span>
+                </div>
+
+                <button
+                  onClick={async () => {
+                    if (!telegramUser) return;
+                    const amountNum = parseFloat(depositAmountUsdt);
+                    const minAmount = settings.bep20DepositMinAmount || 1.0;
+                    if (isNaN(amountNum) || amountNum < minAmount) {
+                      showToast(`Minimum deposit is $${minAmount} USDT.`, 'warning');
+                      return;
+                    }
+                    if (!depositTxHash.trim().startsWith('0x') || depositTxHash.trim().length < 20) {
+                      showToast('Please enter a valid BEP-20 Transaction Hash (starting with 0x).', 'error');
+                      return;
+                    }
+
+                    setSubmittingDeposit(true);
+                    const rate = settings.bep20DepositRate || 100;
+                    const efcGranted = Math.round(amountNum * rate);
+
+                    const res = await submitDepositRequest(
+                      telegramUser.id,
+                      telegramUser.username || `user_${telegramUser.id}`,
+                      amountNum,
+                      depositTxHash.trim(),
+                      efcGranted
+                    );
+                    setSubmittingDeposit(false);
+
+                    if (res.success) {
+                      showToast('🎉 Deposit request submitted! Admin will verify your TxHash.', 'success');
+                      setDepositTxHash('');
+                      confetti({ particleCount: 25, spread: 50, origin: { y: 0.6 } });
+                    } else {
+                      showToast(res.reason || 'Failed to submit deposit request.', 'error');
+                    }
+                  }}
+                  disabled={submittingDeposit}
+                  className="w-full py-3 rounded-2xl text-xs font-black text-black cursor-pointer transition-all shadow-lg flex items-center justify-center gap-2"
+                  style={{ background: 'linear-gradient(135deg, #00FF88, #00E5FF)' }}
+                >
+                  {submittingDeposit ? <RefreshCw size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                  Submit Deposit Verification Request
+                </button>
+              </div>
+
+              {/* Deposit History */}
+              <div className="pt-2 border-t border-white/8 space-y-2">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest block">
+                  Your Deposit History ({userDeposits.length})
+                </span>
+                {userDeposits.length === 0 ? (
+                  <div className="text-[10px] text-slate-500 font-mono text-center py-2">No deposits submitted yet.</div>
+                ) : (
+                  <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
+                    {userDeposits.map(d => (
+                      <div key={d.id} className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between text-[10px] font-mono">
+                        <div>
+                          <div className="font-bold text-white">+${d.amountUsdt} USDT ({d.efcGranted} EFC)</div>
+                          <div className="text-[8px] text-slate-500 truncate max-w-[160px]">{d.txHash}</div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase border ${
+                          d.status === 'Approved' ? 'bg-[#00FF88]/15 text-[#00FF88] border-[#00FF88]/30' :
+                          d.status === 'Rejected' ? 'bg-rose-500/15 text-rose-400 border-rose-500/30' :
+                          'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                        }`}>
+                          {d.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
         )}
