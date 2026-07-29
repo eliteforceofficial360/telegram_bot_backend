@@ -7,6 +7,7 @@ import {
   type CreateTaskPayload,
 } from '../../lib/marketService';
 import { type TelegramUser } from '../../lib/telegramUser';
+import { PlatformIcon, ActionIcon, getPlatformColor } from './components/PlatformIcons';
 
 interface TaskBuilderProps {
   onClose: () => void;
@@ -167,6 +168,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none flex-wrap">
             {PLATFORMS.map(p => {
               const isSel = selectedPlatform === p.id;
+              const color = getPlatformColor(p.id);
               return (
                 <button
                   key={p.id}
@@ -175,15 +177,15 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                     setSelectedPlatform(p.id);
                     setSelectedActions({ [PLATFORM_ACTIONS[p.id]?.[0]?.label || 'Do task']: true });
                   }}
-                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-1.5 shrink-0 ${
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer border flex items-center gap-2 shrink-0 ${
                     isSel
                       ? 'bg-white text-black border-white shadow-md font-extrabold scale-105'
                       : 'bg-[#16171B] text-slate-300 border-white/10 hover:border-white/20'
                   }`}
                 >
-                  <span>{p.icon}</span>
+                  <PlatformIcon platformId={p.id} size={15} color={isSel ? '#000000' : color} />
                   <span>{p.id}</span>
-                  {isSel && <Check size={12} strokeWidth={3} />}
+                  {isSel && <Check size={12} strokeWidth={3} className="text-black ml-0.5" />}
                 </button>
               );
             })}
@@ -215,6 +217,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                     <span className={`w-4 h-4 rounded border flex items-center justify-center text-[9px] shrink-0 ${checked ? 'bg-[#FF8A00] border-[#FF8A00] text-black font-black' : 'border-white/30'}`}>
                       {checked ? '✓' : ''}
                     </span>
+                    <ActionIcon action={act.label} size={14} color={checked ? '#FF8A00' : '#94a3b8'} />
                     <span className="text-xs font-bold text-white truncate">{act.label}</span>
                   </div>
                   <span className="text-[10px] font-mono text-slate-400 shrink-0">from {act.baseReward}</span>
