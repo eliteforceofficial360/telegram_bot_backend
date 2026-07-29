@@ -322,44 +322,21 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
           </div>
         )}
 
-        {/* REWARD CURRENCY SELECTOR */}
+        {/* REWARD CURRENCY BANNER (USDT BEP-20 ONLY) */}
         <div className="space-y-1.5 pt-2 border-t border-white/5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">PAYMENT CURRENCY</span>
-            <span className="text-[9px] font-mono text-emerald-400">BEP-20 Supported</span>
+            <span className="text-[9px] font-mono text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">BEP-20 Supported</span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                setRewardCurrency('EFC');
-                setRewardPerEach(5);
-              }}
-              className={`p-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all cursor-pointer text-xs font-bold ${
-                rewardCurrency === 'EFC'
-                  ? 'bg-[#FF8A00]/20 border-[#FF8A00] text-white shadow-md'
-                  : 'bg-[#16171B] border-white/10 text-slate-400 hover:text-white'
-              }`}
-            >
-              <span className="text-sm">⚡</span>
-              <span>EFC Points</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setRewardCurrency('USDT');
-                setRewardPerEach(0.05);
-              }}
-              className={`p-2.5 rounded-xl border flex items-center justify-center gap-2 transition-all cursor-pointer text-xs font-bold ${
-                rewardCurrency === 'USDT'
-                  ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-md'
-                  : 'bg-[#16171B] border-white/10 text-slate-400 hover:text-white'
-              }`}
-            >
-              <span className="text-sm">💵</span>
-              <span>USDT (BEP-20)</span>
-            </button>
+          <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-base">💵</span>
+              <div>
+                <span className="text-xs font-bold text-emerald-400 block">USDT (BEP-20)</span>
+                <span className="text-[9px] text-slate-400">Creators fund using USDT. Workers earn EFC Points.</span>
+              </div>
+            </div>
+            <span className="text-[9px] font-mono font-bold text-emerald-400 bg-emerald-500/20 px-2 py-0.5 rounded border border-emerald-500/30">Mandatory</span>
           </div>
         </div>
 

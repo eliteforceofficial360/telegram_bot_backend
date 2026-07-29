@@ -58,7 +58,7 @@ export const Connections = ({
     {
       id: 'discord',
       name: 'Discord',
-      isOauth: true,
+      isOauth: false,
       color: '#5865F2',
       bgColor: '#5865F2',
       icon: (
@@ -67,7 +67,7 @@ export const Connections = ({
         </svg>
       ),
       inputPlaceholder: 'username or username#0000',
-      subtitle: 'Your Discord username or ID',
+      subtitle: 'Your Discord username or handle',
     },
     {
       id: 'tiktok',
@@ -380,34 +380,9 @@ export const Connections = ({
                   </div>
                 )}
 
-                {/* Discord OAuth button (only for Discord) */}
-                {currentModalPlat.isOauth && currentModalPlat.id === 'discord' && (
-                  <div className="flex flex-col gap-2 border-b border-white/10 pb-4">
-                    <p className="text-xs text-slate-300 font-medium">
-                      Authenticate with {currentModalPlat.name} OAuth 2.0:
-                    </p>
-                    <button
-                      onClick={() => {
-                        const clientId = adminSettings.discordClientId?.trim() || '1529919990235529397';
-                        const redirectUri = encodeURIComponent(`${window.location.origin}/auth/discord/callback`);
-                        const scope = encodeURIComponent('openid identify email');
-                        openExternalUrl(`https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`);
-                      }}
-                      className="w-full h-11 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white font-extrabold text-xs shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <span className="shrink-0">{currentModalPlat.icon}</span>
-                      <span>Authorize with {currentModalPlat.name}</span>
-                    </button>
-                  </div>
-                )}
-
                 <div>
                   <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    {currentModalPlat.id === 'x'
-                      ? 'Enter your X @username:'
-                      : currentModalPlat.isOauth
-                        ? 'Or enter your @handle / username manually:'
-                        : currentModalPlat.subtitle}
+                    Enter your {currentModalPlat.name} username or handle:
                   </label>
                   <input
                     type="text"

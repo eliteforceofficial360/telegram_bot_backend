@@ -322,9 +322,9 @@ async function broadcast(ids, html, extra = {}, imageUrl = null, delayMs = 60) {
 const DEFAULT_NOTIFICATION_TEMPLATES = {
   SOCIAL_CONNECTED: {
     enabled: true,
-    template: `🎉 <b>{platformName} Connected Successfully</b>\n\nYour {platformName} account has been linked to your Elite Force account.\n\n<b>Username:</b>\n{handle}\n\nYou can now complete {platformName} Campaign Tasks and earn EFC rewards.`,
-    buttonText: 'Open Elite Force',
-    buttonTab: 'tasks',
+    template: `✅ <b>Connection Successful</b>\n\n<b>Platform:</b>\n{platformName}\n\n<b>Username:</b>\n{handle}\n\n<b>Connected At:</b>\n{connectedAt}`,
+    buttonText: 'Open Profile',
+    buttonTab: 'profile',
   },
   SOCIAL_DISCONNECTED: {
     enabled: true,
@@ -460,18 +460,25 @@ async function sendEventNotification({ telegramId, eventType, eventId, params = 
       }
     }
 
-    // 6. Record Notification History
+    // 6. Record Notification History & In-App Notification Center
     const logDocId = eventId || `notif_${numId}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    await dbInstance.collection('notificationHistory').doc(logDocId).set({
+    const notifPayload = {
       userId: numId,
+      telegramId: numId,
       eventType: eventType,
       eventId: eventId || logDocId,
       timestamp: new Date().toISOString(),
       deliveryStatus: deliveryStatus,
       messageId: messageId,
       content: text,
+      read: false,
       params: params,
-    });
+    };
+
+    await Promise.all([
+      dbInstance.collection('notificationHistory').doc(logDocId).set(notifPayload),
+      dbInstance.collection('userNotifications').doc(logDocId).set(notifPayload),
+    ]);
 
     return deliveryStatus === 'sent';
   } catch (err) {
@@ -923,6 +930,7 @@ const server = http.createServer(async (req, res) => {
 
         const platformLabels = { x: 'X', discord: 'Discord', tiktok: 'TikTok', instagram: 'Instagram', youtube: 'YouTube', reddit: 'Reddit' };
         const pName = platformLabels[platformKey] || platformKey.toUpperCase();
+        const connectedAt = new Date().toUTCString();
 
         sendEventNotification({
           telegramId: numId,
@@ -931,6 +939,7 @@ const server = http.createServer(async (req, res) => {
           params: {
             platformName: pName,
             handle: cleanHandle,
+            connectedAt: connectedAt,
           },
         }).catch(() => { });
 
@@ -1274,7 +1283,7 @@ const server = http.createServer(async (req, res) => {
             reviewFee,
             verificationType: verificationType || 'automatic',
             audience: audience || { type: 'everyone' },
-            status: 'pending_review',
+            status: String(platform).toLowerCase() === 'custom' ? 'pending_review' : 'active',
             completedCount: 0,
             remainingSlots: limitNum,
             featured: false,
@@ -1481,6 +1490,10 @@ const server = http.createServer(async (req, res) => {
         if (!taskDoc.exists) return sendJson(res, 404, { ok: false, error: 'Task not found' });
         const task = taskDoc.data();
 
+        if (Number(task.creatorTelegramId) === numId) {
+          return sendJson(res, 403, { ok: false, error: 'You cannot complete your own created task!' });
+        }
+
         // Check if already completed/submitted
         const existing = await db.collection('taskSubmissions')
           .where('taskId', '==', taskId)
@@ -1527,6 +1540,10 @@ const server = http.createServer(async (req, res) => {
         const taskDoc = await taskRef.get();
         if (!taskDoc.exists) return sendJson(res, 404, { ok: false, error: 'Task not found' });
         const task = taskDoc.data();
+
+        if (Number(task.creatorTelegramId) === numId) {
+          return sendJson(res, 403, { ok: false, error: 'You cannot complete your own created task!' });
+        }
 
         const subSnap = await db.collection('taskSubmissions')
           .where('taskId', '==', taskId)

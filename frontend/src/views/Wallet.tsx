@@ -436,7 +436,22 @@ export const Wallet: React.FC<WalletProps> = ({
           </div>
         </div>
         <button
-          onClick={() => setShowDepositModal(true)}
+          onClick={async () => {
+            if (settings.adEnabled && settings.monetagZoneId) {
+              try {
+                showToast('Loading sponsored video...', 'info');
+                const adSuccess = await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
+                if (!adSuccess) {
+                  showToast('Ad skipped. Complete the ad to open the deposit page!', 'warning');
+                  return;
+                }
+              } catch (err: any) {
+                showToast(err.message || 'Ad skipped. Complete the ad to access deposit!', 'error');
+                return;
+              }
+            }
+            setShowDepositModal(true);
+          }}
           className="h-9 px-4 rounded-xl text-xs font-black text-black cursor-pointer transition-all shadow-lg hover:brightness-110 shrink-0"
           style={{ background: 'linear-gradient(135deg, #00FF88, #00E5FF)' }}
         >
@@ -897,6 +912,22 @@ export const Wallet: React.FC<WalletProps> = ({
                       return;
                     }
 
+                    // Step 1: Rewarded Ad
+                    if (settings.adEnabled && settings.monetagZoneId) {
+                      try {
+                        showToast('Loading sponsored video...', 'info');
+                        const adSuccess = await showRewardedAd(settings.monetagZoneId, settings.monetagDirectLink);
+                        if (!adSuccess) {
+                          showToast('Ad skipped. You must watch the complete ad to submit deposit verification.', 'warning');
+                          return;
+                        }
+                      } catch (err: any) {
+                        showToast(err.message || 'Ad failed/skipped.', 'error');
+                        return;
+                      }
+                    }
+
+                    // Step 2: Submit Deposit Request
                     setSubmittingDeposit(true);
                     const rate = settings.bep20DepositRate || 100;
                     const efcGranted = Math.round(amountNum * rate);

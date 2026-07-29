@@ -223,7 +223,11 @@ export const TaskDetailView: React.FC<TaskDetailViewProps> = ({
 
       {/* Bottom Fixed Action Button */}
       <div className="fixed bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-[#050816] via-[#050816]/90 to-transparent shrink-0 max-w-[430px] mx-auto z-50">
-        {!started ? (
+        {telegramUser?.id === task.creatorTelegramId ? (
+          <div className="w-full h-12 rounded-[18px] text-xs font-bold text-amber-400 bg-amber-500/15 border border-amber-500/30 flex items-center justify-center gap-2">
+            <span>🛡️</span> You created this task. Creator self-completion is disabled.
+          </div>
+        ) : !started ? (
           <button
             onClick={handleStart}
             disabled={starting}
