@@ -164,9 +164,17 @@ const MarketMaintenanceOverlay: React.FC<{
 };
 
 export const Market: React.FC<MarketProps> = ({
-  efcBalance, telegramUser, showToast, adminSettings, setActiveTab,
+  efcBalance,
+  setEfcBalance: _setEfcBalance,
+  telegramUser,
+  showToast,
+  adminSettings,
+  setActiveTab,
+  initialTab,
+  autoOpenCreate,
+  resetAutoOpenCreate,
 }) => {
-  const [activeTab, setActiveTabLocal] = useState<MarketTab>('discover');
+  const [activeTab, setActiveTabLocal] = useState<MarketTab>(initialTab || 'discover');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
@@ -182,6 +190,23 @@ export const Market: React.FC<MarketProps> = ({
   // Modals
   const [taskBuilderOpen, setTaskBuilderOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<MarketTask | null>(null);
+
+  // Sync initialTab prop when component receives routing instructions
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTabLocal(initialTab);
+    }
+  }, [initialTab]);
+
+  // Sync autoOpenCreate prop when component receives auto-create trigger
+  useEffect(() => {
+    if (autoOpenCreate) {
+      setTaskBuilderOpen(true);
+      if (resetAutoOpenCreate) {
+        resetAutoOpenCreate();
+      }
+    }
+  }, [autoOpenCreate, resetAutoOpenCreate]);
 
   // Load discover tasks
   const loadDiscover = useCallback(async () => {
