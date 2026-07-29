@@ -6,6 +6,7 @@ import { type AdminSettings } from '../lib/adminSettingsService';
 import {
   subscribeToReferralTiers,
   calculateUserReferralTier,
+  formatTierBadgeName,
   type ReferralClaimTier,
 } from '../lib/referralTierService';
 import type { TelegramUser } from '../lib/telegramUser';
@@ -42,16 +43,15 @@ export const Referral: React.FC<ReferralProps> = ({
     return unsub;
   }, []);
 
-  const renderPremiumIcon = (badge: string) => {
-    if (!badge) return <Award size={14} className="text-[#FF8A00]" />;
-    const name = badge.toLowerCase();
+  const renderPremiumIcon = (badge: string, requiredReferrals: number = 0) => {
+    const name = formatTierBadgeName(badge, requiredReferrals).toLowerCase();
     if (name.includes('starter')) return <Zap size={14} className="text-yellow-400 drop-shadow-[0_0_8px_rgba(250,204,21,0.6)]" />;
     if (name.includes('bronze')) return <Medal size={14} className="text-orange-400 drop-shadow-[0_0_8px_rgba(251,146,60,0.6)]" />;
     if (name.includes('silver')) return <Medal size={14} className="text-slate-300 drop-shadow-[0_0_8px_rgba(203,213,225,0.6)]" />;
     if (name.includes('gold')) return <Award size={14} className="text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" />;
     if (name.includes('platinum')) return <Diamond size={14} className="text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]" />;
     if (name.includes('diamond')) return <Crown size={14} className="text-fuchsia-400 drop-shadow-[0_0_8px_rgba(232,121,249,0.6)]" />;
-    if (name.includes('master')) return <Flame size={14} className="text-[#FF8A00] drop-shadow-[0_0_8px_rgba(255,138,0,0.6)]" />;
+    if (name.includes('master') || name.includes('elite')) return <Flame size={14} className="text-[#FF8A00] drop-shadow-[0_0_8px_rgba(255,138,0,0.6)]" />;
     return <Award size={14} className="text-[#FF8A00]" />;
   };
 
@@ -283,9 +283,9 @@ export const Referral: React.FC<ReferralProps> = ({
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      {renderPremiumIcon(tier.badge || '')}
+                      {renderPremiumIcon(tier.badge || '', tier.requiredReferrals)}
                       <span className="text-xs font-black text-white">
-                        {tier.badge ? tier.badge.replace(/[^\\x00-\\x7F]/g, '').trim() : `${tier.requiredReferrals} Referrals`}
+                        {formatTierBadgeName(tier.badge, tier.requiredReferrals)}
                       </span>
                       {isCurrentTier && (
                         <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FF8A00] text-black">

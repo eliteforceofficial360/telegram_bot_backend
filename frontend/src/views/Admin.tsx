@@ -30,7 +30,7 @@ import {
   subscribeToAdminSettings, saveAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings,
 } from '../lib/adminSettingsService';
 import {
-  subscribeToReferralTiers, createReferralTier, updateReferralTier, deleteReferralTier, reorderReferralTiers, type ReferralClaimTier,
+  subscribeToReferralTiers, createReferralTier, updateReferralTier, deleteReferralTier, reorderReferralTiers, getTierBadgeWithIcon, type ReferralClaimTier,
 } from '../lib/referralTierService';
 import {
   sendWithdrawNotification,
@@ -4038,7 +4038,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                                 <div className="min-w-0">
                                   <div className="flex items-center gap-1.5">
-                                    <span className="text-xs font-black text-white">{tier.badge || `Tier #${idx + 1}`}</span>
+                                    <span className="text-xs font-black text-white">{getTierBadgeWithIcon(tier.badge, tier.requiredReferrals).full}</span>
                                     <span className="text-[9px] text-slate-500 font-mono">({tier.requiredReferrals} Referrals)</span>
                                   </div>
                                   <div className="text-[10px] text-slate-400 font-mono mt-0.5">

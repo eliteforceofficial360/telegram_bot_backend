@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Trophy, 
@@ -22,6 +22,12 @@ import { UsdtIcon } from '../components/UsdtIcon';
 import { DEFAULT_ADMIN_SETTINGS, type AdminSettings } from '../lib/adminSettingsService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { Connections } from '../components/Connections';
+import {
+  subscribeToReferralTiers,
+  calculateUserReferralTier,
+  getTierBadgeWithIcon,
+  type ReferralClaimTier,
+} from '../lib/referralTierService';
 
 interface ProfileProps {
   efcBalance: number;
@@ -47,6 +53,12 @@ export const Profile = ({
   const connectedAddress = dbUser?.walletAddress || null;
   const [copiedId, setCopiedId] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [liveTiers, setLiveTiers] = useState<ReferralClaimTier[]>([]);
+
+  useEffect(() => {
+    const unsub = subscribeToReferralTiers(setLiveTiers);
+    return unsub;
+  }, []);
 
   const handleCopyId = () => {
     if (!telegramUser) return;
@@ -83,18 +95,9 @@ export const Profile = ({
   const totalTokens = dbUser?.tokens ?? eforceTokens ?? 0;
   const totalRef = dbUser?.referrals ?? dbUser?.referralCount ?? referralsCount ?? 0;
 
-  // Real-Time Agent Rank Calculation (dependent on both EFC Points & Referrals)
-  const getAgentLevel = (points: number, refs: number) => {
-    const rankScore = points + (refs * 1000);
-
-    if (rankScore >= 100000 || refs >= 50) return { title: 'Cyber Overlord', level: 5, badge: '👑 VIP' };
-    if (rankScore >= 25000 || refs >= 20) return { title: 'Grandmaster Miner', level: 4, badge: '💎 DIAMOND' };
-    if (rankScore >= 5000 || refs >= 5) return { title: 'Elite Commander', level: 3, badge: '🔥 GOLD' };
-    if (rankScore >= 1000 || refs >= 1) return { title: 'Vanguard Agent', level: 2, badge: '⚡ SILVER' };
-    return { title: 'Recruit Node', level: 1, badge: '🌱 BRONZE' };
-  };
-
-  const agentLevel = getAgentLevel(totalPoints, totalRef);
+  // Real-Time Referral Tier Rank Calculation
+  const tierStatus = calculateUserReferralTier(totalRef, liveTiers);
+  const tierBadgeInfo = getTierBadgeWithIcon(tierStatus.unlockedTier?.badge, tierStatus.unlockedTier?.requiredReferrals);
 
   // Dynamic Milestones / Achievements
   const achievements = [
@@ -169,7 +172,7 @@ export const Profile = ({
             Identity <Sparkles size={18} className="text-[#FF8A00]" />
           </h1>
           <span className="text-[10px] font-black text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/25 px-2.5 py-1 rounded-full uppercase tracking-wider">
-            {agentLevel.badge}
+            {tierBadgeInfo.full}
           </span>
         </div>
         <p className="text-xs text-slate-400 mt-1">Review your node details, verification status, and achievements.</p>
@@ -269,7 +272,7 @@ export const Profile = ({
           {/* Real-time Agent Rank */}
           <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
             <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold">Agent Rank</span>
-            <span className="text-xs font-black text-[#00E5FF] truncate">{agentLevel.title}</span>
+            <span className="text-xs font-black text-[#00E5FF] truncate">{tierBadgeInfo.full}</span>
           </div>
         </div>
       </motion.div>

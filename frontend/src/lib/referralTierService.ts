@@ -320,3 +320,56 @@ export const calculateUserReferralTier = (
     isMaxTier: !nextTier,
   };
 };
+
+/**
+ * Formats a tier badge string to guarantee clean full rank names instead of single letters or broken badges.
+ * E.g., '⚡ S' -> 'Starter', '🏅 B' -> 'Bronze', '🥈 S' -> 'Silver', '🎗 G' -> 'Gold', '🔷 P' -> 'Platinum', '👑 D' -> 'Diamond', '🔥 ME' -> 'Master Elite'
+ */
+export const formatTierBadgeName = (badge?: string, requiredReferrals: number = 0): string => {
+  if (!badge || !badge.trim()) {
+    if (requiredReferrals === 0) return 'Starter';
+    if (requiredReferrals <= 5) return 'Bronze';
+    if (requiredReferrals <= 10) return 'Silver';
+    if (requiredReferrals <= 15) return 'Gold';
+    if (requiredReferrals <= 20) return 'Platinum';
+    if (requiredReferrals <= 25) return 'Diamond';
+    return 'Master Elite';
+  }
+
+  // Remove non-alphanumeric/spaces or emojis to inspect text code
+  const textOnly = badge.replace(/[^\w\s-]/g, '').trim();
+  const lower = textOnly.toLowerCase();
+
+  if (lower === 's' || lower === 'starter' || lower.includes('starter')) {
+    return requiredReferrals >= 10 ? 'Silver' : 'Starter';
+  }
+  if (lower === 'b' || lower === 'bronze' || lower.includes('bronze')) return 'Bronze';
+  if (lower === 'g' || lower === 'gold' || lower.includes('gold')) return 'Gold';
+  if (lower === 'p' || lower === 'platinum' || lower.includes('platinum')) return 'Platinum';
+  if (lower === 'd' || lower === 'diamond' || lower.includes('diamond')) return 'Diamond';
+  if (lower === 'me' || lower === 'master' || lower.includes('master') || lower.includes('elite')) return 'Master Elite';
+
+  return textOnly || badge.trim();
+};
+
+/**
+ * Returns formatted rank badge metadata with matching icon, name, and full label string.
+ */
+export const getTierBadgeWithIcon = (badge?: string, requiredReferrals: number = 0): { icon: string; name: string; full: string } => {
+  const name = formatTierBadgeName(badge, requiredReferrals);
+  let icon = '⚡';
+  const lower = name.toLowerCase();
+  if (lower.includes('bronze')) icon = '🥉';
+  else if (lower.includes('silver')) icon = '🥈';
+  else if (lower.includes('gold')) icon = '🥇';
+  else if (lower.includes('platinum')) icon = '💎';
+  else if (lower.includes('diamond')) icon = '👑';
+  else if (lower.includes('master') || lower.includes('elite')) icon = '🔥';
+  else if (lower.includes('starter')) icon = '⚡';
+
+  return {
+    icon,
+    name,
+    full: `${icon} ${name}`,
+  };
+};
