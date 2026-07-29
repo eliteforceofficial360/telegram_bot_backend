@@ -24,6 +24,17 @@ import type { TelegramUser } from './telegramUser';
 
 import { recordReferral, parseReferralFromStartParam } from './referralService';
 
+const getBotApiUrl = () => {
+  const stored = localStorage.getItem('adminSettings');
+  if (stored) {
+    try {
+      const s = JSON.parse(stored);
+      if (s.botApiUrl) return s.botApiUrl.replace(/\/$/, '');
+    } catch { /* ignore */ }
+  }
+  return import.meta.env.VITE_BOT_API_URL || '';
+};
+
 export interface SocialConnectionData {
   handle: string;
   connected: boolean;
@@ -1289,6 +1300,22 @@ export const submitDepositRequest = async (
       adminNote: '',
     });
 
+    // Send Telegram Notification to user via bot.js
+    const botUrl = getBotApiUrl();
+    if (botUrl) {
+      fetch(`${botUrl}/notify/deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramId,
+          status: 'Submitted',
+          amountUsdt,
+          efcGranted,
+          txHash: cleanTxHash,
+        }),
+      }).catch((err) => console.warn('[submitDepositRequest] Notification error:', err));
+    }
+
     return { success: true };
   } catch (err: any) {
     console.error('[submitDepositRequest] Error:', err);
@@ -1331,6 +1358,9 @@ export const updateDepositRequest = async (
   const depRef = doc(db, 'depositRequests', reqId);
 
   try {
+    const preSnap = await getDoc(depRef);
+    const dData = preSnap.exists() ? (preSnap.data() as DepositRecord) : null;
+
     await runTransaction(db, async (transaction) => {
       const depSnap = await transaction.get(depRef);
       if (!depSnap.exists()) {
@@ -1362,6 +1392,24 @@ export const updateDepositRequest = async (
         processedAt: serverTimestamp(),
       });
     });
+
+    if (dData) {
+      const botUrl = getBotApiUrl();
+      if (botUrl) {
+        fetch(`${botUrl}/notify/deposit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegramId: dData.telegramId,
+            status,
+            amountUsdt: dData.amountUsdt,
+            efcGranted: dData.efcGranted,
+            txHash: dData.txHash,
+            adminNote,
+          }),
+        }).catch((err) => console.warn('[updateDepositRequest] Notification error:', err));
+      }
+    }
 
     return true;
   } catch (err) {

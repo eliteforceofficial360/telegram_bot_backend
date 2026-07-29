@@ -1795,6 +1795,47 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    // ── POST /notify/deposit ──────────────────────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/deposit') {
+      const { telegramId, status, amountUsdt, efcGranted, txHash, adminNote } = data;
+      if (!isValidTelegramId(telegramId) || !status) {
+        return sendJson(res, 400, { error: 'valid telegramId and status required' });
+      }
+      const numId = Number(telegramId);
+      const shortHash = txHash ? (txHash.length > 20 ? `${txHash.slice(0, 10)}...${txHash.slice(-8)}` : txHash) : 'N/A';
+
+      let msg = '';
+      if (status === 'Submitted' || status === 'Pending') {
+        msg = `📥 <b>BEP-20 Deposit Request Submitted!</b>\n\n` +
+          `💰 <b>Amount:</b> $${amountUsdt} USDT\n` +
+          `🎁 <b>EFC Bonus:</b> +${efcGranted} EFC Points\n` +
+          `🔑 <b>TxHash:</b> <code>${shortHash}</code>\n` +
+          `⏳ <b>Status:</b> Pending Admin Verification\n\n` +
+          `<i>Our team is verifying your transaction hash on BNB Smart Chain. You will receive another message when approved.</i>`;
+      } else if (status === 'Approved') {
+        msg = `✅ <b>BEP-20 Deposit Approved!</b>\n\n` +
+          `🎉 Your deposit of <b>$${amountUsdt} USDT</b> (+${efcGranted} EFC Points) has been verified and added to your balance!\n\n` +
+          `🔑 <b>TxHash:</b> <code>${shortHash}</code>\n` +
+          (adminNote ? `📝 <b>Note:</b> ${escapeHTML(adminNote)}\n\n` : '\n') +
+          `<i>Thank you for funding your account!</i>`;
+      } else if (status === 'Rejected') {
+        msg = `❌ <b>BEP-20 Deposit Request Rejected</b>\n\n` +
+          `Your deposit request for <b>$${amountUsdt} USDT</b> was rejected by admin.\n\n` +
+          `🔑 <b>TxHash:</b> <code>${shortHash}</code>\n` +
+          `📝 <b>Reason:</b> ${escapeHTML(adminNote || 'Invalid transaction hash or unconfirmed on chain.')}\n\n` +
+          `<i>If you believe this is an error, please double check your TxHash or contact support.</i>`;
+      } else {
+        return sendJson(res, 400, { error: 'Invalid deposit status' });
+      }
+
+      const extra = Markup.inlineKeyboard([
+        [Markup.button.webApp('💳 Open Wallet', `${getEffectiveAppUrl()}?startapp=wallet`)],
+      ]);
+
+      const ok = await sendToUser(numId, msg, extra);
+      return sendJson(res, 200, { ok });
+    }
+
     // ── POST /notify/referral ────────────────────────────────────────────────
     if (req.method === 'POST' && url === '/notify/referral') {
       const { referrerId, refereeName, refereeUsername, rewardAmount } = data;

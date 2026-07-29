@@ -780,12 +780,12 @@ export const Wallet: React.FC<WalletProps> = ({
       {/* ── BEP-20 DEPOSIT MODAL ── */}
       <AnimatePresence>
         {showDepositModal && (
-          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pb-20 bg-black/85 backdrop-blur-md overflow-y-auto">
+          <div className="fixed inset-0 z-[99999] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/85 backdrop-blur-md overflow-y-auto">
             <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="w-full max-w-md rounded-[28px] p-5 sm:p-6 pb-20 bg-[#0D1220] border border-white/12 space-y-4 max-h-[85vh] overflow-y-auto my-auto shadow-2xl scrollbar-thin"
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 50 }}
+              className="w-full max-w-md rounded-t-[28px] sm:rounded-[28px] p-5 sm:p-6 bg-[#0D1220] border border-white/12 space-y-4 max-h-[90vh] overflow-y-auto shadow-2xl scrollbar-thin pb-12 sm:pb-6"
             >
               <div className="flex items-center justify-between pb-2 border-b border-white/8">
                 <div className="flex items-center gap-2">
