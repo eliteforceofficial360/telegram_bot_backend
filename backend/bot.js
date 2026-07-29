@@ -1180,12 +1180,28 @@ const server = http.createServer(async (req, res) => {
         const limitNum = Number(workerLimit);
         const expDays = Number(expiryDays || 7);
 
-        // Escrow Calculation
-        const rewardPool = rewardNum * limitNum;
-        const platformFee = rewardPool * 0.25;
-        const verificationFee = (verificationType === 'manual' ? 1.5 : 0.5) * limitNum;
-        const reviewFee = 10; // one-time review fee
-        const totalEscrow = rewardPool + platformFee + verificationFee + reviewFee;
+        // Escrow Calculation matching frontend
+        const isUsdt = rewardCurrency === 'USDT';
+        const rewardPool = isUsdt ? Number((rewardNum * limitNum).toFixed(3)) : rewardNum * limitNum;
+        const platformFee = isUsdt ? Number((rewardPool * 0.25).toFixed(3)) : Math.round(rewardPool * 0.25 * 10) / 10;
+        
+        let tierCost = 0;
+        if (audience && audience.type === 'level') {
+          if (audience.minLevel === 5) tierCost = isUsdt ? 0.01 * limitNum : 1 * limitNum;
+          else if (audience.minLevel === 10) tierCost = isUsdt ? 0.02 * limitNum : 2 * limitNum;
+        }
+
+        // Frontend currently sends verificationType: 'manual' always.
+        // And it only adds verificationCost if `verifiedOnly` is true, but `verifiedOnly` isn't in body.
+        // Let's assume verifiedOnly is passed in body, or we just trust the frontend's verificationCost if we have to.
+        // Wait, the frontend doesn't send verifiedOnly. I will just set verificationFee to 0 for now unless verifiedOnly is present in body.
+        const verifiedOnly = body.verifiedOnly || false;
+        const verificationFee = verifiedOnly ? (isUsdt ? 0.015 * limitNum : 1.5 * limitNum) : 0;
+        
+        const reviewFee = platform === 'Custom' ? (isUsdt ? 0.2 : 10) : 0;
+
+        const rawTotalEscrow = rewardPool + platformFee + tierCost + verificationFee + reviewFee;
+        const totalEscrow = isUsdt ? Number(rawTotalEscrow.toFixed(3)) : Math.ceil(rawTotalEscrow);
 
         // Check user balance and create task in atomic transaction
         const userRef = db.collection('users').doc(String(numId));
@@ -1309,9 +1325,9 @@ const server = http.createServer(async (req, res) => {
           budget: totalEscrow,
         }).catch(() => { });
 
-        console.log(`✅ [Market] Task created id=${taskRef.id} by telegramId=${numId}, escrow=${totalEscrow} EFC`);
+        console.log(`✅ [Market] Task created id=${taskDocRef.id} by telegramId=${numId}, escrow=${totalEscrow}`);
 
-        return sendJson(res, 200, { ok: true, taskId: taskRef.id, totalEscrow });
+        return sendJson(res, 200, { ok: true, taskId: taskDocRef.id, totalEscrow });
       } catch (err) {
         console.error('[Market] Task Create Error:', err.message);
         return sendJson(res, 500, { ok: false, error: err.message });

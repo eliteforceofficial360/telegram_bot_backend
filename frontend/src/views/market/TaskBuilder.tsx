@@ -128,6 +128,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
         minLevel: minTier === 'bronze' ? 2 : minTier === 'silver' ? 5 : minTier === 'gold' ? 10 : 1,
       },
       verificationType: 'manual',
+      verifiedOnly,
     };
 
     const result = await createMarketTask(payload);

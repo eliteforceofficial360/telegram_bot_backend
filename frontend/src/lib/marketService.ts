@@ -88,6 +88,7 @@ export interface CreateTaskPayload {
   expiryDays: number;
   audience: MarketTask['audience'];
   verificationType: MarketTask['verificationType'];
+  verifiedOnly?: boolean;
 }
 
 export interface DiscoverFilters {
