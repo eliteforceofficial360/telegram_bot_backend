@@ -805,14 +805,14 @@ export const Wallet: React.FC<WalletProps> = ({
                 </button>
               </div>
 
-              {/* Rate & Instructions */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-2">
+              {/* Instructions */}
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-bold">Bonus Conversion Rate:</span>
-                  <span className="font-extrabold text-[#00FF88]">1 USDT = {settings.bep20DepositRate || 100} EFC</span>
+                  <span className="text-slate-400 font-bold">Network:</span>
+                  <span className="font-extrabold text-[#00FF88]">BNB Smart Chain (BEP-20)</span>
                 </div>
                 <p className="text-[10px] text-slate-300 leading-relaxed">
-                  {settings.bep20DepositInstructions || 'Send USDT (BEP-20 / BSC Network) to the address below, then submit your transaction hash (TxHash) for verification.'}
+                  {settings.bep20DepositInstructions || 'Send USDT (BEP-20 Network) to the address below, then submit your transaction hash (TxHash). Your USDT balance will be credited upon verification.'}
                 </p>
               </div>
 
@@ -880,12 +880,6 @@ export const Wallet: React.FC<WalletProps> = ({
                   <div className="flex justify-between items-center text-slate-400">
                     <span>Wallet USDT Credit:</span>
                     <span className="font-bold text-emerald-400">+${Math.max(0, Number(depositAmountUsdt) || 0).toFixed(2)} USDT</span>
-                  </div>
-                  <div className="flex justify-between items-center text-slate-400">
-                    <span>EFC Points Bonus:</span>
-                    <span className="font-bold text-[#FF8A00]">
-                      +{(Math.max(0, Number(depositAmountUsdt) || 0) * (settings.bep20DepositRate || 100)).toLocaleString()} EFC
-                    </span>
                   </div>
                 </div>
 
