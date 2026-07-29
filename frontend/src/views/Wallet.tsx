@@ -780,12 +780,12 @@ export const Wallet: React.FC<WalletProps> = ({
       {/* ── BEP-20 DEPOSIT MODAL ── */}
       <AnimatePresence>
         {showDepositModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 pb-20 bg-black/85 backdrop-blur-md overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="w-full max-w-md rounded-[28px] p-6 bg-[#0D1220] border border-white/10 space-y-4 max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md rounded-[28px] p-5 sm:p-6 pb-20 bg-[#0D1220] border border-white/12 space-y-4 max-h-[85vh] overflow-y-auto my-auto shadow-2xl scrollbar-thin"
             >
               <div className="flex items-center justify-between pb-2 border-b border-white/8">
                 <div className="flex items-center gap-2">
@@ -808,8 +808,8 @@ export const Wallet: React.FC<WalletProps> = ({
               {/* Rate & Instructions */}
               <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/8 space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-400 font-bold">Conversion Rate:</span>
-                  <span className="font-extrabold text-[#00FF88]">1 USDT = {settings.bep20DepositRate || 100} EFC Points</span>
+                  <span className="text-slate-400 font-bold">Bonus Conversion Rate:</span>
+                  <span className="font-extrabold text-[#00FF88]">1 USDT = {settings.bep20DepositRate || 100} EFC</span>
                 </div>
                 <p className="text-[10px] text-slate-300 leading-relaxed">
                   {settings.bep20DepositInstructions || 'Send USDT (BEP-20 / BSC Network) to the address below, then submit your transaction hash (TxHash) for verification.'}
@@ -872,11 +872,21 @@ export const Wallet: React.FC<WalletProps> = ({
                 </div>
 
                 {/* Calculation Preview */}
-                <div className="p-3 rounded-xl bg-black/40 border border-white/5 flex justify-between items-center text-xs font-mono">
-                  <span className="text-slate-400 font-bold">You Will Receive:</span>
-                  <span className="font-extrabold text-[#00FF88]">
-                    +{(Math.max(0, Number(depositAmountUsdt) || 0) * (settings.bep20DepositRate || 100)).toLocaleString()} EFC Points
-                  </span>
+                <div className="p-3.5 rounded-2xl bg-black/50 border border-white/10 space-y-1.5 font-mono text-xs">
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>USDT Deposited:</span>
+                    <span className="font-bold text-white">${Math.max(0, Number(depositAmountUsdt) || 0).toFixed(2)} USDT</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>Wallet USDT Credit:</span>
+                    <span className="font-bold text-emerald-400">+${Math.max(0, Number(depositAmountUsdt) || 0).toFixed(2)} USDT</span>
+                  </div>
+                  <div className="flex justify-between items-center text-slate-400">
+                    <span>EFC Points Bonus:</span>
+                    <span className="font-bold text-[#FF8A00]">
+                      +{(Math.max(0, Number(depositAmountUsdt) || 0) * (settings.bep20DepositRate || 100)).toLocaleString()} EFC
+                    </span>
+                  </div>
                 </div>
 
                 <button
