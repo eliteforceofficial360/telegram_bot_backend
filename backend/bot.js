@@ -1362,7 +1362,7 @@ const server = http.createServer(async (req, res) => {
         const numId = Number(telegramId);
         const rewardNum = Number(reward);
         const limitNum = Number(workerLimit);
-        const expDays = Number(expiryDays || 7);
+        const expDays = Number(expiryDays) > 0 ? Number(expiryDays) : 7;
 
         // Escrow Calculation matching frontend
         const isUsdt = rewardCurrency === 'USDT';

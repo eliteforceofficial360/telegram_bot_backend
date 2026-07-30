@@ -30,9 +30,9 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
   const [customDescription, setCustomDescription] = useState<string>('');
   const [customNoteToReviewers, setCustomNoteToReviewers] = useState<string>('');
   const rewardCurrency = 'USDT' as const;
-  const [rewardPerEach, setRewardPerEach] = useState<number>(0.05);
-  const [quantity, setQuantity] = useState<number>(10);
-  const [expiresDays, setExpiresDays] = useState<number>(7);
+  const [rewardPerEach, setRewardPerEach] = useState<number | string>(0.05);
+  const [quantity, setQuantity] = useState<number | string>(10);
+  const [expiresDays, setExpiresDays] = useState<number | string>(7);
   const [minTier, setMinTier] = useState<'anyone' | 'bronze' | 'silver' | 'gold'>('anyone');
   const [verifiedOnly, setVerifiedOnly] = useState<boolean>(false);
   const [startPaused, setStartPaused] = useState<boolean>(false);
@@ -157,7 +157,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
           workerLimit: howMany,
           dailyLimit: 0,
           cooldownHours: 0,
-          expiryDays: Number(expiresDays) || 7,
+          expiryDays: Math.max(1, Number(expiresDays) || 1),
           audience: {
             type: minTier === 'anyone' ? 'everyone' : 'level',
             minLevel: minTier === 'bronze' ? 2 : minTier === 'silver' ? 5 : minTier === 'gold' ? 10 : 1,
@@ -390,7 +390,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
                 step={isUsdt ? "0.01" : "1"}
                 min={isUsdt ? 0.01 : 1}
                 value={rewardPerEach}
-                onChange={e => setRewardPerEach(Number(e.target.value))}
+                onChange={e => setRewardPerEach(e.target.value)}
                 className="w-full h-11 rounded-xl pl-3 pr-10 text-xs text-white font-mono outline-none focus:border-[#FF8A00]"
                 style={inputStyle}
               />
@@ -404,7 +404,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
               type="number"
               min={1}
               value={quantity}
-              onChange={e => setQuantity(Number(e.target.value))}
+              onChange={e => setQuantity(e.target.value)}
               className="w-full h-11 rounded-xl px-3 text-xs text-white font-mono outline-none focus:border-[#FF8A00]"
               style={inputStyle}
             />
@@ -415,9 +415,9 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
             <input
               type="number"
               min={1}
-              max={30}
+              max={90}
               value={expiresDays}
-              onChange={e => setExpiresDays(Number(e.target.value))}
+              onChange={e => setExpiresDays(e.target.value)}
               className="w-full h-11 rounded-xl px-3 text-xs text-white font-mono outline-none focus:border-[#FF8A00]"
               style={inputStyle}
             />

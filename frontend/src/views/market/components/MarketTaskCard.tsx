@@ -17,12 +17,18 @@ const DIFFICULTY_CONFIG: Record<string, { label: string; color: string; bg: stri
 };
 
 function timeLeft(expiresAt: string): string {
+  if (!expiresAt) return 'No Expiry';
   const diff = new Date(expiresAt).getTime() - Date.now();
   if (diff <= 0) return 'Expired';
-  const h = Math.floor(diff / 3600000);
-  const d = Math.floor(h / 24);
-  if (d > 0) return `${d}d left`;
-  return `${h}h left`;
+  const totalHours = Math.floor(diff / 3600000);
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  const minutes = Math.floor((diff % 3600000) / 60000);
+
+  if (days > 0) return `${days}d ${hours}h left`;
+  if (totalHours > 0) return `${totalHours}h ${minutes}m left`;
+  const seconds = Math.floor((diff % 60000) / 1000);
+  return `${minutes}m ${seconds}s left`;
 }
 
 export const MarketTaskCard: React.FC<MarketTaskCardProps> = ({ task, onClick, compact = false }) => {
