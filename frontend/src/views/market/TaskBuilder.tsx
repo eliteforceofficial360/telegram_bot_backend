@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X, Check, AlertTriangle, Loader2, ShieldCheck,
 } from 'lucide-react';
@@ -48,26 +48,56 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
     }));
   };
 
-  // Escrow Calculations
-  const isUsdt = rewardCurrency === 'USDT';
-  const currencySymbol = isUsdt ? 'USDT' : 'EFC';
-  const rewardEach = isUsdt ? Math.max(0.01, Number(rewardPerEach) || 0.01) : Math.max(1, Number(rewardPerEach) || 1);
-  const howMany = Math.max(1, Number(quantity) || 1);
-  const baseSubtotal = isUsdt ? Number((rewardEach * howMany).toFixed(3)) : rewardEach * howMany;
-  const serviceFee = isUsdt ? Number((baseSubtotal * 0.25).toFixed(3)) : Math.round(baseSubtotal * 0.25 * 10) / 10;
-  const tierCost = minTier === 'silver' ? (isUsdt ? 0.01 * howMany : 1 * howMany) : minTier === 'gold' ? (isUsdt ? 0.02 * howMany : 2 * howMany) : 0;
-  const verificationCost = verifiedOnly ? (isUsdt ? 0.015 * howMany : 1.5 * howMany) : 0;
-  const reviewFee = selectedPlatform === 'Custom' ? (isUsdt ? 0.2 : 10) : 0;
+  // Memoized Escrow Calculations for fast UI responses
+  const {
+    currencySymbol,
+    rewardEach,
+    howMany,
+    baseSubtotal,
+    serviceFee,
+    tierCost,
+    verificationCost,
+    reviewFee,
+    totalEscrowRequired,
+    balanceAfter,
+    isInsufficientBalance,
+    isUsdt,
+  } = useMemo(() => {
+    const isUsdt = rewardCurrency === 'USDT';
+    const currencySymbol = isUsdt ? 'USDT' : 'EFC';
+    const rewardEach = isUsdt ? Math.max(0.01, Number(rewardPerEach) || 0.01) : Math.max(1, Number(rewardPerEach) || 1);
+    const howMany = Math.max(1, Number(quantity) || 1);
+    const baseSubtotal = isUsdt ? Number((rewardEach * howMany).toFixed(3)) : rewardEach * howMany;
+    const serviceFee = isUsdt ? Number((baseSubtotal * 0.25).toFixed(3)) : Math.round(baseSubtotal * 0.25 * 10) / 10;
+    const tierCost = minTier === 'silver' ? (isUsdt ? 0.01 * howMany : 1 * howMany) : minTier === 'gold' ? (isUsdt ? 0.02 * howMany : 2 * howMany) : 0;
+    const verificationCost = verifiedOnly ? (isUsdt ? 0.015 * howMany : 1.5 * howMany) : 0;
+    const reviewFee = selectedPlatform === 'Custom' ? (isUsdt ? 0.2 : 10) : 0;
 
-  const totalEscrowRequired = isUsdt
-    ? Number((baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee).toFixed(3))
-    : Math.ceil(baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee);
+    const totalEscrowRequired = isUsdt
+      ? Number((baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee).toFixed(3))
+      : Math.ceil(baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee);
 
-  const availableBalance = isUsdt ? usdtBalance : efcBalance;
-  const balanceAfter = Number((availableBalance - totalEscrowRequired).toFixed(3));
-  const isInsufficientBalance = balanceAfter < 0;
+    const availableBalance = isUsdt ? usdtBalance : efcBalance;
+    const balanceAfter = Number((availableBalance - totalEscrowRequired).toFixed(3));
+    const isInsufficientBalance = balanceAfter < 0;
 
-  const handleSubmit = async () => {
+    return {
+      currencySymbol,
+      rewardEach,
+      howMany,
+      baseSubtotal,
+      serviceFee,
+      tierCost,
+      verificationCost,
+      reviewFee,
+      totalEscrowRequired,
+      balanceAfter,
+      isInsufficientBalance,
+      isUsdt,
+    };
+  }, [rewardCurrency, rewardPerEach, quantity, minTier, verifiedOnly, selectedPlatform, usdtBalance, efcBalance]);
+
+  const handleSubmit = () => {
     if (!telegramUser) {
       showToast('Please open in Telegram to create tasks.', 'warning');
       return;
@@ -90,62 +120,72 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
     }
 
     if (isInsufficientBalance) {
+      const availableBalance = isUsdt ? usdtBalance : efcBalance;
       showToast(`Insufficient balance. Needed: ${totalEscrowRequired} ${currencySymbol}, Available: ${availableBalance} ${currencySymbol}`, 'error');
       return;
     }
 
+    // Set loading immediately to paint button state on main thread without blocking INP
     setSubmitting(true);
-    const actionLabel = activeActions.join(', ');
-    const finalTitle =
-      selectedPlatform === 'Custom'
-        ? customTitle.trim()
-        : `${selectedPlatform.toUpperCase()} ${actionLabel} Campaign`;
 
-    const finalDescription =
-      selectedPlatform === 'Custom'
-        ? customDescription.trim()
-        : `Complete ${actionLabel} on ${targetUrl.trim()}`;
+    setTimeout(async () => {
+      try {
+        const actionLabel = activeActions.join(', ');
+        const finalTitle =
+          selectedPlatform === 'Custom'
+            ? customTitle.trim()
+            : `${selectedPlatform.toUpperCase()} ${actionLabel} Campaign`;
 
-    const payload: CreateTaskPayload = {
-      telegramId: telegramUser.id,
-      platform: selectedPlatform,
-      action: actionLabel,
-      targetUrl: targetUrl.trim() || 'https://telegram.org',
-      title: finalTitle,
-      description: finalDescription || `Complete ${actionLabel} task`,
-      instructions: customNoteToReviewers.trim(),
-      exampleImages: [],
-      checklist: [],
-      inputFields: ['screenshot'],
-      reward: rewardEach,
-      rewardCurrency: rewardCurrency,
-      workerLimit: howMany,
-      dailyLimit: 0,
-      cooldownHours: 0,
-      expiryDays: Number(expiresDays) || 7,
-      audience: {
-        type: minTier === 'anyone' ? 'everyone' : 'level',
-        minLevel: minTier === 'bronze' ? 2 : minTier === 'silver' ? 5 : minTier === 'gold' ? 10 : 1,
-      },
-      verificationType: 'manual',
-      verifiedOnly,
-    };
+        const finalDescription =
+          selectedPlatform === 'Custom'
+            ? customDescription.trim()
+            : `Complete ${actionLabel} on ${targetUrl.trim()}`;
 
-    const result = await createMarketTask(payload);
-    setSubmitting(false);
+        const payload: CreateTaskPayload = {
+          telegramId: telegramUser.id,
+          platform: selectedPlatform,
+          action: actionLabel,
+          targetUrl: targetUrl.trim() || 'https://telegram.org',
+          title: finalTitle,
+          description: finalDescription || `Complete ${actionLabel} task`,
+          instructions: customNoteToReviewers.trim(),
+          exampleImages: [],
+          checklist: [],
+          inputFields: ['screenshot'],
+          reward: rewardEach,
+          rewardCurrency: rewardCurrency,
+          workerLimit: howMany,
+          dailyLimit: 0,
+          cooldownHours: 0,
+          expiryDays: Number(expiresDays) || 7,
+          audience: {
+            type: minTier === 'anyone' ? 'everyone' : 'level',
+            minLevel: minTier === 'bronze' ? 2 : minTier === 'silver' ? 5 : minTier === 'gold' ? 10 : 1,
+          },
+          verificationType: 'manual',
+          verifiedOnly,
+        };
 
-    if (result.ok) {
-      if (isUsdt && setUsdtBalance) {
-        setUsdtBalance(prev => Math.max(0, Number((prev - totalEscrowRequired).toFixed(3))));
-      } else if (!isUsdt && setEfcBalance) {
-        setEfcBalance(prev => Math.max(0, Math.round(prev - totalEscrowRequired)));
+        const result = await createMarketTask(payload);
+
+        if (result.ok) {
+          if (isUsdt && setUsdtBalance) {
+            setUsdtBalance(prev => Math.max(0, Number((prev - totalEscrowRequired).toFixed(3))));
+          } else if (!isUsdt && setEfcBalance) {
+            setEfcBalance(prev => Math.max(0, Math.round(prev - totalEscrowRequired)));
+          }
+          showToast(`🎉 Task Created & ${totalEscrowRequired} ${currencySymbol} escrowed! Pending review.`, 'success');
+          onCreated();
+          onClose();
+        } else {
+          showToast(result.error || 'Failed to create task.', 'error');
+        }
+      } catch (err: unknown) {
+        showToast(err instanceof Error ? err.message : 'Error creating task', 'error');
+      } finally {
+        setSubmitting(false);
       }
-      showToast(`🎉 Task Created & ${totalEscrowRequired} ${currencySymbol} escrowed! Pending review.`, 'success');
-      onCreated();
-      onClose();
-    } else {
-      showToast(result.error || 'Failed to create task.', 'error');
-    }
+    }, 0);
   };
 
   const inputStyle: React.CSSProperties = {

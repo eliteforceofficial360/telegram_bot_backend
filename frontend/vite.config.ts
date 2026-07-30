@@ -8,6 +8,24 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
+      '/upload-profile-photo': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
+      '/check-membership': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
+      '/verify-captcha': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     // Code splitting for better mobile performance

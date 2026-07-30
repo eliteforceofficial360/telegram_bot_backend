@@ -32,7 +32,7 @@ const getBotApiUrl = () => {
       if (s.botApiUrl) return s.botApiUrl.replace(/\/$/, '');
     } catch { /* ignore */ }
   }
-  return import.meta.env.VITE_BOT_API_URL || '';
+  return (import.meta.env.VITE_BOT_API_URL || '').trim() || 'https://elite-force-telegram-app.onrender.com';
 };
 
 export interface SocialConnectionData {

@@ -1,4 +1,4 @@
-﻿// Nexora Labs — Elite Force X Verification Engine v3.0
+// Nexora Labs — Elite Force X Verification Engine v3.0
 // Username-Based Verification | App-Only Bearer Token | No OAuth Required
 
 import crypto from 'crypto';
@@ -29,12 +29,16 @@ function getFirebaseAdminCredential() {
     }
   }
   try {
-    const cwd = process.cwd();
-    const files = fs.readdirSync(cwd);
-    const saFile = files.find(f => f.includes('firebase-adminsdk') && f.endsWith('.json'));
-    if (saFile) {
-      const content = fs.readFileSync(path.join(cwd, saFile), 'utf8');
-      return cert(JSON.parse(content));
+    const searchDirs = [process.cwd(), path.join(process.cwd(), 'backend')];
+    for (const dir of searchDirs) {
+      if (fs.existsSync(dir)) {
+        const files = fs.readdirSync(dir);
+        const saFile = files.find(f => f.includes('firebase-adminsdk') && f.endsWith('.json'));
+        if (saFile) {
+          const content = fs.readFileSync(path.join(dir, saFile), 'utf8');
+          return cert(JSON.parse(content));
+        }
+      }
     }
   } catch (e) { /* silent */ }
   return null;
