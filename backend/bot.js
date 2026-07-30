@@ -1417,6 +1417,42 @@ const server = http.createServer(async (req, res) => {
           budget: totalEscrow,
         }).catch(() => { });
 
+        // Broadcast New Task Alert to ALL Users (ANONYMOUS — No Creator Name!)
+        if (String(platform).toLowerCase() !== 'custom') {
+          (async () => {
+            try {
+              const usersSnap = await db.collection('users').get();
+              if (usersSnap.empty) return;
+              const appUrl = getEffectiveAppUrl();
+              const rewardSymbol = rewardCurrency === 'USDT' ? 'USDT' : 'EFC';
+
+              const broadcastMsg =
+                `🔥 *NEW MISSION AVAILABLE!* 🔥\n\n` +
+                `📌 *Task:* ${title}\n` +
+                `⚡ *Platform:* ${String(platform).toUpperCase()} (${action})\n` +
+                `🎁 *Reward:* +${rewardNum} ${rewardSymbol}\n` +
+                `👥 *Slots Available:* ${limitNum}\n\n` +
+                `🚀 *Open the Elite Force App now to complete this mission and earn rewards!*`;
+
+              for (const uDoc of usersSnap.docs) {
+                const uData = uDoc.data();
+                const uId = uData.telegramId || uDoc.id;
+                if (!uId || isNaN(Number(uId))) continue;
+                bot.telegram.sendMessage(uId, broadcastMsg, {
+                  parse_mode: 'Markdown',
+                  reply_markup: {
+                    inline_keyboard: [
+                      [{ text: '🚀 Complete Mission Now', web_app: { url: appUrl } }]
+                    ]
+                  }
+                }).catch(() => {});
+              }
+            } catch (e) {
+              console.error('[Market] Broadcast error:', e.message);
+            }
+          })();
+        }
+
         console.log(`✅ [Market] Task created id=${taskDocRef.id} by telegramId=${numId}, escrow=${totalEscrow}`);
 
         return sendJson(res, 200, { ok: true, taskId: taskDocRef.id, totalEscrow });

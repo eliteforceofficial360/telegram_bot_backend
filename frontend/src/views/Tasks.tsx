@@ -964,7 +964,14 @@ export const Tasks = ({
 
                                              {/* Action Button */}
                                              {!isForceJoin &&
-                                               (done ? (
+                                               (task.createdBy && telegramUser && Number(task.createdBy) === Number(telegramUser.id) ? (
+                                                 <button
+                                                   disabled
+                                                   className="shrink-0 h-8 px-3.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-amber-500/15 text-amber-400 border border-amber-500/30 cursor-not-allowed"
+                                                 >
+                                                   🛡️ Your Task (Disabled)
+                                                 </button>
+                                               ) : done ? (
                                                  <button
                                                    disabled
                                                    className="shrink-0 h-8 px-4 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1 bg-accent-success/15 text-accent-success border border-accent-success/25"

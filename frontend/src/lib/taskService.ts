@@ -81,7 +81,7 @@ const TASKS_COLLECTION = 'tasks';
 const USER_TASKS_COLLECTION = 'userTasks';
 
 /**
- * Subscribe to real-time task list from Firestore.
+ * Subscribe to real-time task list from Firestore (Includes both Admin tasks and User Created Market Tasks).
  * Returns unsubscribe function.
  */
 export const subscribeToTasks = (
@@ -91,15 +91,85 @@ export const subscribeToTasks = (
     callback(getDefaultTasks());
     return () => {};
   }
-  const q = query(
+
+  let adminTasks: EForceTask[] = [];
+  let marketTasksList: EForceTask[] = [];
+
+  const emitCombined = () => {
+    const combined = [...marketTasksList, ...adminTasks];
+    callback(combined);
+  };
+
+  // 1. Subscribe to Admin Tasks
+  const qAdmin = query(
     collection(db, TASKS_COLLECTION),
     orderBy('createdAt', 'desc')
   );
-  return onSnapshot(q, (snap) => {
-    const tasks: EForceTask[] = [];
-    snap.forEach((d) => tasks.push({ id: d.id, ...d.data() } as EForceTask));
-    callback(tasks);
-  }, () => callback([]));
+  const unsubAdmin = onSnapshot(qAdmin, (snap) => {
+    adminTasks = [];
+    snap.forEach((d) => adminTasks.push({ id: d.id, ...d.data() } as EForceTask));
+    emitCombined();
+  }, () => {
+    adminTasks = [];
+    emitCombined();
+  });
+
+  // 2. Subscribe to Active User-Created Market Tasks
+  const qMarket = query(
+    collection(db, 'marketTasks'),
+    where('status', '==', 'active')
+  );
+  const unsubMarket = onSnapshot(qMarket, (snap) => {
+    marketTasksList = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      const platformLower = (data.platform || 'website').toLowerCase();
+      let type: TaskType = 'website';
+      if (platformLower.includes('x') || platformLower.includes('twitter')) type = 'x';
+      else if (platformLower.includes('discord')) type = 'discord';
+      else if (platformLower.includes('youtube')) type = 'youtube';
+      else if (platformLower.includes('telegram')) type = 'channel';
+      else if (platformLower.includes('instagram')) type = 'instagram';
+      else if (platformLower.includes('tiktok')) type = 'tiktok';
+      else if (platformLower.includes('reddit')) type = 'reddit';
+
+      marketTasksList.push({
+        id: d.id,
+        title: data.title || 'Market Task',
+        description: data.description || `Complete ${data.action || 'action'} task`,
+        type: type,
+        reward: Number(data.reward || 10),
+        tokenReward: Number(data.tokenReward || 0),
+        isEnabled: data.status === 'active',
+        isMandatory: false,
+        autoApprove: false,
+        url: data.targetUrl || '',
+        dailyLimit: 0,
+        totalCompletionLimit: Number(data.workerLimit || 0),
+        expiryDate: data.expiresAt || null,
+        completedCount: Number(data.completedCount || 0),
+        createdAt: data.createdAt,
+        createdBy: data.creatorTelegramId ? Number(data.creatorTelegramId) : undefined,
+        createdByName: data.creatorName,
+        status: data.status,
+        escrowedAmount: data.totalEscrow,
+        quantityTotal: data.workerLimit,
+        platform: data.platform,
+        actionType: data.action,
+        requireSocialConnection: data.requireSocialConnection || undefined,
+        requireRewardedAd: data.requireRewardedAd || false,
+      });
+    });
+    emitCombined();
+  }, () => {
+    marketTasksList = [];
+    emitCombined();
+  });
+
+  return () => {
+    unsubAdmin();
+    unsubMarket();
+  };
 };
 
 /**

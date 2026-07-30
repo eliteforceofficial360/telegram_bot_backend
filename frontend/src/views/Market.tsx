@@ -381,7 +381,10 @@ export const Market: React.FC<MarketProps> = ({
           {/* Featured Campaign */}
           {!loading && featuredTask && (
             <div>
-              <FeaturedTaskCard task={featuredTask} onClick={task => setSelectedTask(task)} />
+              <FeaturedTaskCard task={featuredTask} onClick={task => {
+                setSelectedTask(task);
+                if (setActiveTab) setActiveTab('tasks');
+              }} />
             </div>
           )}
 
@@ -407,7 +410,10 @@ export const Market: React.FC<MarketProps> = ({
               </div>
             ) : (
               discoverTasks.map(task => (
-                <MarketTaskCard key={task.id} task={task} onClick={t => setSelectedTask(t)} />
+                <MarketTaskCard key={task.id} task={task} onClick={t => {
+                  setSelectedTask(t);
+                  if (setActiveTab) setActiveTab('tasks');
+                }} />
               ))
             )}
           </div>
