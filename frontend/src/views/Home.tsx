@@ -400,7 +400,10 @@ export const Home: React.FC<HomeProps> = ({
 
       {/* Multi-Image Right-to-Left Auto-Sliding Hero Carousel Banner */}
       {activeBanners.length > 0 && (
-        <div className="relative w-full h-[136px] min-h-[136px] rounded-[24px] overflow-hidden border border-white/12 shadow-[0_15px_35px_rgba(0,0,0,0.6)] bg-[#090D1F] group select-none shrink-0">
+        <div
+          className="relative w-full h-[136px] min-h-[136px] rounded-[24px] overflow-hidden border border-white/12 shadow-[0_15px_35px_rgba(0,0,0,0.6)] bg-[#090D1F] group select-none shrink-0"
+          style={{ contain: 'layout paint' }}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={activeBanners[currentBannerIndex]?.id || currentBannerIndex}
