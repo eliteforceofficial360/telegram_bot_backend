@@ -97,9 +97,7 @@ export const Home: React.FC<HomeProps> = ({
   const validHeroBanners = (settings.heroBanners || []).filter(b => b && b.imageUrl);
   const activeBanners = validHeroBanners.length > 0
     ? validHeroBanners
-    : settings.welcomeBannerUrl
-      ? [{ id: 'default', imageUrl: settings.welcomeBannerUrl, title: '' }]
-      : [];
+    : [{ id: 'default', imageUrl: settings.welcomeBannerUrl || '/coin-logo.jpg', title: '' }];
 
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
@@ -434,9 +432,11 @@ export const Home: React.FC<HomeProps> = ({
                 />
               ) : (
                 <img
-                  src={activeBanners[currentBannerIndex]?.imageUrl}
+                  src={activeBanners[currentBannerIndex]?.imageUrl || '/coin-logo.jpg'}
                   alt={activeBanners[currentBannerIndex]?.title || 'Hero Banner'}
                   className="w-full h-full object-cover"
+                  width="600"
+                  height="136"
                   loading="eager"
                   decoding="sync"
                   {...{ fetchpriority: 'high' }}
