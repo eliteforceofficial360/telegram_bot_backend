@@ -246,13 +246,16 @@ export const Referral: React.FC<ReferralProps> = ({
 
       {/* DYNAMIC REAL-TIME REFERRAL CLAIM LIMIT TIERS (Managed by Admin) */}
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold flex items-center gap-1.5">
-            <Award size={13} className="text-[#FF8A00]" /> Dynamic Referral Claim Limit Tiers
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between border-b border-white/5 pb-2.5">
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-extrabold flex items-center gap-1.5">
+            <Award size={14} className="text-[#FF8A00] shrink-0" /> Dynamic Referral Tiers
           </span>
-          <span className="text-xs font-black text-[#FF8A00]">
-            {tierStatus.maxPoints.toLocaleString()} EFC Current Limit
-          </span>
+          <div className="flex items-center justify-between sm:justify-end gap-1.5">
+            <span className="text-slate-400 text-[10px] font-semibold uppercase tracking-wider">Current Limit:</span>
+            <span className="text-xs font-black text-[#FF8A00]">
+              {tierStatus.maxPoints.toLocaleString()} EFC
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2">
