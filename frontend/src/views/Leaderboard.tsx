@@ -67,7 +67,14 @@ export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser, admin
            adminSettings.leaderboardBannerUrl.toLowerCase().startsWith('data:video/') ? (
             <video src={adminSettings.leaderboardBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
           ) : (
-            <img src={adminSettings.leaderboardBannerUrl} alt="Leaderboard Banner" className="w-full h-full object-cover" />
+            <img
+              src={adminSettings.leaderboardBannerUrl}
+              alt="Leaderboard Banner"
+              className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
+              {...{ fetchpriority: 'high' }}
+            />
           )}
         </div>
       )}

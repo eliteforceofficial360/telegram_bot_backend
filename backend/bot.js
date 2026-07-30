@@ -45,6 +45,7 @@ let dynamicSettings = {
   miniAppUrl: webAppUrl,
   botStartMessage: '',
   botStartButtonText: '🔥 Launch Elite Force App 🔥',
+  adminTelegramId: '',
 };
 
 function getEffectiveAppUrl() {
@@ -121,6 +122,9 @@ async function syncAdminSettingsFromRest() {
     if (fields.botStartButtonText?.stringValue) {
       dynamicSettings.botStartButtonText = fields.botStartButtonText.stringValue.trim();
     }
+    if (fields.adminTelegramId?.stringValue) {
+      dynamicSettings.adminTelegramId = fields.adminTelegramId.stringValue.trim();
+    }
   } catch {
     /* silent catch */
   }
@@ -143,6 +147,9 @@ try {
       }
       if (data.botStartButtonText && typeof data.botStartButtonText === 'string' && data.botStartButtonText.trim()) {
         dynamicSettings.botStartButtonText = data.botStartButtonText.trim();
+      }
+      if (data.adminTelegramId && (typeof data.adminTelegramId === 'string' || typeof data.adminTelegramId === 'number')) {
+        dynamicSettings.adminTelegramId = String(data.adminTelegramId).trim();
       }
     }
   }, () => {
@@ -734,6 +741,90 @@ const server = http.createServer(async (req, res) => {
 
       const result = await googleRes.json();
       return sendJson(res, 200, result);
+    }
+
+    // ── PUBLIC: POST /notify/admin/deposit ────────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/admin/deposit') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const { telegramId, username, amountUsdt, efcGranted, txHash } = body;
+      const targetChatId = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID;
+
+      if (targetChatId) {
+        const msg = `📥 <b>NEW DEPOSIT REQUEST!</b>\n\n` +
+          `👤 <b>User:</b> ${escapeHTML(username || 'User')}\n` +
+          `🆔 <b>Telegram ID:</b> <code>${telegramId}</code>\n` +
+          `💵 <b>Amount:</b> $${amountUsdt} USDT\n` +
+          `🎁 <b>EFC Points Granted:</b> ${efcGranted}\n` +
+          `🔗 <b>TxHash:</b> <code>${escapeHTML(txHash)}</code>\n` +
+          `⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
+
+        await bot.telegram.sendMessage(targetChatId, msg, { parse_mode: 'HTML' }).catch((err) => {
+          console.warn('[Bot] Admin deposit notify error:', err.message);
+        });
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+
+    // ── PUBLIC: POST /notify/admin/withdraw ───────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/admin/withdraw') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const { telegramId, username, amount, type, walletAddress } = body;
+      const targetChatId = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID;
+
+      if (targetChatId) {
+        const msg = `💸 <b>NEW WITHDRAWAL REQUEST!</b>\n\n` +
+          `👤 <b>User:</b> ${escapeHTML(username || 'User')}\n` +
+          `🆔 <b>Telegram ID:</b> <code>${telegramId}</code>\n` +
+          `💰 <b>Withdraw Amount:</b> ${amount} ${(type || 'usdt').toUpperCase()}\n` +
+          `🏦 <b>Wallet Address:</b> <code>${escapeHTML(walletAddress)}</code>\n` +
+          `⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
+
+        await bot.telegram.sendMessage(targetChatId, msg, { parse_mode: 'HTML' }).catch((err) => {
+          console.warn('[Bot] Admin withdraw notify error:', err.message);
+        });
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+
+    // ── PUBLIC: POST /notify/admin/task ───────────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/admin/task') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const { telegramId, username, title, taskType, budgetUsdt, rewardPoints } = body;
+      const targetChatId = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID;
+
+      if (targetChatId) {
+        const msg = `📋 <b>NEW TASK CREATION REQUEST!</b>\n\n` +
+          `👤 <b>Creator:</b> ${escapeHTML(username || 'Creator')}\n` +
+          `🆔 <b>Telegram ID:</b> <code>${telegramId}</code>\n` +
+          `📌 <b>Task Title:</b> ${escapeHTML(title || 'Untitled Task')}\n` +
+          `🏷️ <b>Category:</b> ${escapeHTML((taskType || 'general').toUpperCase())}\n` +
+          `💵 <b>Total Budget:</b> $${budgetUsdt || 0} USDT\n` +
+          `🎁 <b>Per Worker Reward:</b> ${rewardPoints || 0} EFC\n` +
+          `⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
+
+        await bot.telegram.sendMessage(targetChatId, msg, { parse_mode: 'HTML' }).catch((err) => {
+          console.warn('[Bot] Admin task notify error:', err.message);
+        });
+      }
+      return sendJson(res, 200, { ok: true });
     }
 
     // ── PUBLIC: POST /upload-profile-photo ───────────────────────────────────
@@ -1416,6 +1507,21 @@ const server = http.createServer(async (req, res) => {
           workers: limitNum,
           budget: totalEscrow,
         }).catch(() => { });
+
+        // Send Private Telegram Notification to Admin
+        const targetAdminId = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID;
+        if (targetAdminId) {
+          const adminTaskMsg = `📋 <b>NEW TASK CREATED!</b>\n\n` +
+            `👤 <b>Creator:</b> ${escapeHTML(userData.firstName || `@${userData.username || 'user'}`)}\n` +
+            `🆔 <b>Creator ID:</b> <code>${numId}</code>\n` +
+            `📌 <b>Title:</b> ${escapeHTML(title)}\n` +
+            `🏷️ <b>Platform:</b> ${escapeHTML(platform)}\n` +
+            `💵 <b>Total Escrow Budget:</b> ${totalEscrow} ${rewardCurrency || 'EFC'}\n` +
+            `🎁 <b>Worker Reward:</b> ${rewardNum} ${rewardCurrency || 'EFC'}\n` +
+            `⏰ <b>Created At:</b> ${new Date().toLocaleString()}`;
+
+          bot.telegram.sendMessage(targetAdminId, adminTaskMsg, { parse_mode: 'HTML' }).catch(() => {});
+        }
 
         // Broadcast New Task Alert to ALL Users (ANONYMOUS — No Creator Name!)
         if (String(platform).toLowerCase() !== 'custom') {

@@ -304,7 +304,14 @@ export const Wallet: React.FC<WalletProps> = ({
            settings.walletBannerUrl.toLowerCase().startsWith('data:video/') ? (
             <video src={settings.walletBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
           ) : (
-            <img src={settings.walletBannerUrl} alt="Wallet Banner" className="w-full h-full object-cover" />
+            <img
+               src={settings.walletBannerUrl}
+               alt="Wallet Banner"
+               className="w-full h-full object-cover"
+               loading="eager"
+               decoding="async"
+               {...{ fetchpriority: 'high' }}
+             />
           )}
         </div>
       )}

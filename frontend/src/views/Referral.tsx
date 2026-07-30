@@ -156,7 +156,14 @@ export const Referral: React.FC<ReferralProps> = ({
            adminSettings.referralBannerUrl.toLowerCase().startsWith('data:video/') ? (
             <video src={adminSettings.referralBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
           ) : (
-            <img src={adminSettings.referralBannerUrl} alt="Referral Banner" className="w-full h-full object-cover" />
+            <img 
+              src={adminSettings.referralBannerUrl} 
+              alt="Referral Banner" 
+              className="w-full h-full object-cover"
+              loading="eager"
+              decoding="async"
+              {...{ fetchpriority: 'high' }}
+            />
           )}
         </div>
       )}

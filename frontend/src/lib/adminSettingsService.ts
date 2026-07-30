@@ -101,9 +101,10 @@ export interface AdminSettings {
   reversalDeductionType?: 'full' | 'partial';
   autoReVerificationEnabled?: boolean;
 
-  // Bot & Admin Username
+  // Bot & Admin Username & Private Notification Target
   botUsername: string;
   adminUsername: string;
+  adminTelegramId?: string;
 
   // Social Connections & OAuth
   discordClientId?: string;
@@ -208,6 +209,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   autoReVerificationEnabled: true,
   botUsername: 'EliteForceBot',
   adminUsername: '',
+  adminTelegramId: '',
   discordClientId: '',
   discordAuthUrl: 'https://discord.com/oauth2/authorize?client_id=',
   xClientId: '',

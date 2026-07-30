@@ -4632,7 +4632,14 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       <label className="text-xs text-slate-400">Admin Username (@)</label>
                       <input type="text" value={settings.adminUsername || ''} onChange={e => setSettings(prev => ({ ...prev, adminUsername: e.target.value }))} placeholder="username" className="w-40 h-8 rounded-xl px-3 text-xs text-white outline-none text-right" style={inputStyle} />
                     </div>
-                    <div className="flex items-center justify-between py-3">
+                    <div className="flex items-center justify-between gap-4 py-3 border-t border-white/5">
+                      <div className="flex flex-col">
+                        <label className="text-xs text-slate-400">Private Admin Telegram ID (Chat ID)</label>
+                        <span className="text-[9px] text-slate-500">Bot sends instant Deposit, Withdraw & Task request alerts to this ID (Hidden from users)</span>
+                      </div>
+                      <input type="text" value={settings.adminTelegramId || ''} onChange={e => setSettings(prev => ({ ...prev, adminTelegramId: e.target.value }))} placeholder="e.g. 123456789" className="w-44 h-8 rounded-xl px-3 text-xs text-white outline-none text-right font-mono" style={inputStyle} />
+                    </div>
+                    <div className="flex items-center justify-between py-3 border-t border-white/5">
                       <label className="text-xs text-slate-400">CAPTCHA Verification</label>
                       <Toggle on={settings.humanVerificationOpen} onToggle={() => setSettings(p => ({ ...p, humanVerificationOpen: !p.humanVerificationOpen }))} accentColor="#4ADE80" />
                     </div>

@@ -643,7 +643,14 @@ export const Tasks = ({
            adminSettings.tasksBannerUrl.toLowerCase().startsWith('data:video/') ? (
             <video src={adminSettings.tasksBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
           ) : (
-            <img src={adminSettings.tasksBannerUrl} alt="Tasks Banner" className="w-full h-full object-cover" />
+            <img
+               src={adminSettings.tasksBannerUrl}
+               alt="Tasks Banner"
+               className="w-full h-full object-cover"
+               loading="eager"
+               decoding="async"
+               {...{ fetchpriority: 'high' }}
+             />
           )}
         </div>
       )}
@@ -670,27 +677,27 @@ export const Tasks = ({
         const limitHit = adCount >= limit;
         return (
           <div
-            className={`glass-panel p-4 rounded-[22px] border-white/10 flex items-center gap-3.5 transition-all ${limitHit ? 'opacity-60' : ''}`}
-            style={{ background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.12) 0%, rgba(0, 229, 255, 0.05) 100%)', borderColor: 'rgba(168, 85, 247, 0.25)' }}
+            className={`glass-panel p-4 rounded-[22px] border flex items-center gap-3.5 transition-all ${limitHit ? 'opacity-60' : ''}`}
+            style={{ background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.14) 0%, rgba(255, 138, 0, 0.08) 100%)', borderColor: 'rgba(0, 229, 255, 0.3)' }}
           >
-            <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border border-purple-500/30 bg-purple-500/20 text-purple-300">
-              <Play size={16} className="fill-current" />
+            <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border border-[#00E5FF]/40 bg-[#00E5FF]/20 text-[#00E5FF] shadow-[0_0_12px_rgba(0,229,255,0.25)]">
+              <Video size={18} />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[11px] font-black text-white mb-0.5">
                 Watch Sponsored Video Ad {isPremium && <span className="text-[7px] font-black text-[#00E5FF] bg-[#00E5FF]/10 px-1 py-0.5 rounded border border-[#00E5FF]/20 uppercase ml-1">Premium Boost</span>}
               </div>
               <div className="text-[9px] text-slate-400">
-                Earn <span className="text-purple-400 font-black">+{adminSettings.adTokenReward || 1} EFC Points</span> per ad · {adCount}/{limit} today
+                Earn <span className="text-[#00E5FF] font-black">+{adminSettings.adTokenReward || 1} EFC Points</span> per ad · {adCount}/{limit} today
               </div>
             </div>
             <button
               onClick={handleWatchDailyVideo}
               disabled={watchingDailyVideo || limitHit}
-              className={`shrink-0 h-9 px-4 rounded-xl text-[10px] font-extrabold flex items-center justify-center gap-1 cursor-pointer transition-all ${
+              className={`shrink-0 h-9 px-4 rounded-xl text-[10px] font-black flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
                 limitHit
                   ? 'bg-accent-success/15 text-accent-success border border-accent-success/25'
-                  : 'bg-gradient-to-r from-purple-500 to-cyan-500 text-white shadow-lg hover:scale-105'
+                  : 'bg-gradient-to-r from-[#00E5FF] via-[#00B0FF] to-[#3B82F6] text-[#050816] shadow-[0_0_14px_rgba(0,229,255,0.35)] hover:scale-105'
               }`}
             >
               {limitHit ? (
@@ -703,7 +710,7 @@ export const Tasks = ({
                 </>
               ) : (
                 <>
-                  <Play size={11} /> Watch Ad
+                  <Video size={13} /> Watch Ad
                 </>
               )}
             </button>

@@ -1166,6 +1166,22 @@ export const submitWithdrawRequest = async (
       });
     });
 
+    // Notify Admin via Bot
+    const botUrl = getBotApiUrl();
+    if (botUrl) {
+      fetch(`${botUrl}/notify/admin/withdraw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramId,
+          username,
+          amount,
+          type,
+          walletAddress,
+        }),
+      }).catch((err) => console.warn('[submitWithdrawRequest] Admin notification error:', err));
+    }
+
     return { success: true };
   } catch (err: any) {
     console.error('[submitWithdrawRequest] Transaction error:', err?.message || err);
@@ -1300,20 +1316,20 @@ export const submitDepositRequest = async (
       adminNote: '',
     });
 
-    // Send Telegram Notification to user via bot.js
+    // Send Telegram Notification to admin via bot.js
     const botUrl = getBotApiUrl();
     if (botUrl) {
-      fetch(`${botUrl}/notify/deposit`, {
+      fetch(`${botUrl}/notify/admin/deposit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegramId,
-          status: 'Submitted',
+          username: username || 'User',
           amountUsdt,
           efcGranted,
           txHash: cleanTxHash,
         }),
-      }).catch((err) => console.warn('[submitDepositRequest] Notification error:', err));
+      }).catch((err) => console.warn('[submitDepositRequest] Admin notification error:', err));
     }
 
     return { success: true };

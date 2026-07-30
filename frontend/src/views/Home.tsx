@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Flame, Zap, ChevronRight, Trophy } from 'lucide-react';
+import { Sparkles, Flame, Zap, ChevronRight, Trophy, Video } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
 import { recordDailyCheckin, subscribeToUser, upsertUser, syncPointsToFirestore, type FirestoreUser } from '../lib/userService';
@@ -893,37 +893,47 @@ export const Home: React.FC<HomeProps> = ({
 
       {/* Sponsored Ads Card */}
       {settings.adEnabled && (
-        <div className="glass-panel p-4 rounded-[22px] border border-white/10 flex items-center justify-between bg-[#16171B] shadow-lg">
-          <div className="flex flex-col gap-1 min-w-0 pr-2">
-            <h4 className="text-xs sm:text-sm font-extrabold text-[#38BDF8] leading-snug">
-              Watch an ad, earn +{effectiveAdReward} EFC Points
-            </h4>
-            <div className="flex items-center gap-2">
-              <p className="text-[10px] text-slate-400 font-mono leading-tight">
-                {adWatchesToday < effectiveAdDailyLimit
-                  ? `${effectiveAdDailyLimit - adWatchesToday}/${effectiveAdDailyLimit} left today`
-                  : 'Daily limit reached'}
-              </p>
-              {isTelegramPremium && (
-                <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-cyan-400/15 text-cyan-300 border border-cyan-400/30 whitespace-nowrap shrink-0">
-                  ⭐ 2x
-                </span>
-              )}
+        <div
+          className="glass-panel p-4 rounded-[22px] border flex items-center justify-between shadow-lg"
+          style={{ background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.14) 0%, rgba(255, 138, 0, 0.08) 100%)', borderColor: 'rgba(0, 229, 255, 0.3)' }}
+        >
+          <div className="flex items-center gap-3 min-w-0 pr-2">
+            <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 border border-[#00E5FF]/40 bg-[#00E5FF]/20 text-[#00E5FF] shadow-[0_0_12px_rgba(0,229,255,0.25)]">
+              <Video size={18} />
+            </div>
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <h4 className="text-xs sm:text-sm font-extrabold text-white leading-snug">
+                Watch an ad, earn <span className="text-[#00E5FF] font-black">+{effectiveAdReward} EFC Points</span>
+              </h4>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] text-slate-400 font-mono leading-tight">
+                  {adWatchesToday < effectiveAdDailyLimit
+                    ? `${effectiveAdDailyLimit - adWatchesToday}/${effectiveAdDailyLimit} left today`
+                    : 'Daily limit reached'}
+                </p>
+                {isTelegramPremium && (
+                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full bg-cyan-400/15 text-cyan-300 border border-cyan-400/30 whitespace-nowrap shrink-0">
+                    ⭐ 2x
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 
           <button
             onClick={handleWatchAdClick}
             disabled={watchingAd || adWatchesToday >= effectiveAdDailyLimit}
-            className={`h-9 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${adWatchesToday >= effectiveAdDailyLimit
+            className={`h-9 px-4 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${adWatchesToday >= effectiveAdDailyLimit
               ? 'bg-white/5 text-slate-500 border border-white/10 cursor-not-allowed'
-              : 'bg-[#E5A338] text-black border border-[#FFD700]/30 hover:brightness-110 active:scale-95 shadow-[0_0_12px_rgba(229,163,56,0.3)]'
+              : 'bg-gradient-to-r from-[#00E5FF] via-[#00B0FF] to-[#3B82F6] text-[#050816] shadow-[0_0_14px_rgba(0,229,255,0.35)] hover:scale-105'
               }`}
           >
             {watchingAd ? (
               <span className="w-3.5 h-3.5 border-2 border-t-transparent border-black rounded-full animate-spin" />
             ) : (
-              <>▶ Watch</>
+              <>
+                <Video size={13} /> Watch
+              </>
             )}
           </button>
         </div>
