@@ -376,13 +376,23 @@ export const Home: React.FC<HomeProps> = ({
             </p>
           </div>
         </div>
-        <div className="w-10 h-10 rounded-full border border-[#FFD700]/30 bg-[#0E1225] flex items-center justify-center shadow-[0_0_16px_rgba(255,138,0,0.3)] overflow-hidden">
-          {settings.appHeaderRightLogoUrl ? (
+        <div 
+          onClick={() => setActiveTab && setActiveTab('profile')}
+          className="w-10 h-10 rounded-full border-2 border-[#00E5FF]/40 bg-[#0E1225] flex items-center justify-center shadow-[0_0_16px_rgba(0,229,255,0.25)] overflow-hidden cursor-pointer shrink-0 hover:scale-105 transition-all"
+          title="View Profile"
+        >
+          {dbUser?.photoUrl || telegramUser?.photoUrl ? (
+            <img 
+              src={dbUser?.photoUrl || telegramUser?.photoUrl} 
+              alt="Profile" 
+              className="w-full h-full object-cover rounded-full" 
+            />
+          ) : settings.appHeaderRightLogoUrl ? (
             <img src={settings.appHeaderRightLogoUrl} alt="Header Avatar" className="w-full h-full object-cover rounded-full" />
-          ) : telegramUser?.photoUrl ? (
-            <img src={telegramUser.photoUrl} alt="" className="w-full h-full object-cover rounded-full" />
           ) : (
-            <img src={settings.coinIconUrl || '/coin.png'} alt="EForce Coin" className="w-full h-full object-cover rounded-full" />
+            <div className="w-full h-full bg-gradient-to-br from-[#00E5FF] to-[#0088FF] flex items-center justify-center text-white font-black text-sm">
+              {(displayName[0] || 'U').toUpperCase()}
+            </div>
           )}
         </div>
       </div>
