@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, SlidersHorizontal, Plus, RefreshCw, Store, Clock, Sparkles, Layers, ShieldAlert, Bell, Home } from 'lucide-react';
 import {
@@ -258,7 +258,18 @@ export const Market: React.FC<MarketProps> = ({
     showToast('Market refreshed', 'info');
   };
 
-  const featuredTask = discoverTasks.find(t => t.featured) || discoverTasks[0];
+  const filteredDiscoverTasks = useMemo(() => {
+    if (selectedCategory === 'all') return discoverTasks;
+    return discoverTasks.filter(
+      (t: MarketTask) => t.platform && t.platform.toLowerCase() === selectedCategory.toLowerCase()
+    );
+  }, [discoverTasks, selectedCategory]);
+
+  const featuredTask = useMemo(() => {
+    if (filteredDiscoverTasks.length === 0) return undefined;
+    const featured = filteredDiscoverTasks.find((t: MarketTask) => t.featured);
+    return featured || filteredDiscoverTasks[0];
+  }, [filteredDiscoverTasks]);
 
   const marketStatus = adminSettings?.marketStatus || 'on';
   const marketUntil = adminSettings?.marketMaintenanceUntil;
@@ -392,7 +403,7 @@ export const Market: React.FC<MarketProps> = ({
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                Available Campaigns ({discoverTasks.length})
+                Available Campaigns ({filteredDiscoverTasks.length})
               </h3>
             </div>
 
@@ -402,15 +413,15 @@ export const Market: React.FC<MarketProps> = ({
                 <SkeletonCard />
                 <SkeletonCard />
               </div>
-            ) : discoverTasks.length === 0 ? (
+            ) : filteredDiscoverTasks.length === 0 ? (
               <div className="text-center py-10 rounded-[24px] bg-white/[0.02] border border-white/5 space-y-2">
                 <Store size={32} className="mx-auto text-slate-600 mb-1" />
                 <p className="text-xs font-bold text-slate-400">No campaigns found</p>
                 <p className="text-[10px] text-slate-600">Be the first to sponsor a task in this category!</p>
               </div>
             ) : (
-              discoverTasks.map(task => (
-                <MarketTaskCard key={task.id} task={task} onClick={t => {
+              filteredDiscoverTasks.map((task: MarketTask) => (
+                <MarketTaskCard key={task.id} task={task} onClick={(t: MarketTask) => {
                   setSelectedTask(t);
                   if (setActiveTab) setActiveTab('tasks');
                 }} />
