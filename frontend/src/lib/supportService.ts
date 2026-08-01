@@ -7,6 +7,7 @@ import {
   setDoc,
   addDoc,
   getDoc,
+  deleteDoc,
   onSnapshot,
   query,
   orderBy,
@@ -38,6 +39,7 @@ export interface SupportChatThread {
 }
 
 const CHATS_COLLECTION = 'support_chats';
+const CHAT_RETENTION_MS = 24 * 60 * 60 * 1000; // 24 Hours Auto Reset
 
 /**
  * User: Send a message to support.
@@ -176,7 +178,7 @@ export const sendAdminSupportMessage = async (
 };
 
 /**
- * Subscribe to real-time messages for a specific user's chat thread.
+ * Subscribe to real-time messages for a specific user's chat thread with 24h Auto Reset.
  */
 export const subscribeToUserSupportMessages = (
   telegramId: number,
@@ -194,19 +196,31 @@ export const subscribeToUserSupportMessages = (
   return onSnapshot(
     q,
     (snap) => {
-      const list: SupportChatMessage[] = snap.docs.map((d) => {
+      const nowMs = Date.now();
+      const activeMessages: SupportChatMessage[] = [];
+
+      snap.docs.forEach((d) => {
         const data = d.data();
-        return {
-          id: d.id,
-          sender: data.sender || 'user',
-          senderName: data.senderName || (data.sender === 'admin' ? 'Elite Force Support' : 'User'),
-          text: data.text || '',
-          imageUrl: data.imageUrl || '',
-          createdAt: data.createdAt || new Date().toISOString(),
-          read: data.read ?? false,
-        };
+        const createdMs = data.createdAt ? new Date(data.createdAt).getTime() : nowMs;
+        const isExpired = nowMs - createdMs > CHAT_RETENTION_MS;
+
+        if (isExpired) {
+          // Asynchronously purge expired message doc from Firestore
+          deleteDoc(d.ref).catch(() => {});
+        } else {
+          activeMessages.push({
+            id: d.id,
+            sender: data.sender || 'user',
+            senderName: data.senderName || (data.sender === 'admin' ? 'Elite Force Support' : 'User'),
+            text: data.text || '',
+            imageUrl: data.imageUrl || '',
+            createdAt: data.createdAt || new Date().toISOString(),
+            read: data.read ?? false,
+          });
+        }
       });
-      callback(list);
+
+      callback(activeMessages);
     },
     (err) => {
       console.warn('[SupportService] Realtime messages error:', err);
@@ -216,7 +230,7 @@ export const subscribeToUserSupportMessages = (
 };
 
 /**
- * Admin: Subscribe to all support chat threads in real time.
+ * Admin: Subscribe to all support chat threads in real time with 24h Auto Reset.
  */
 export const subscribeToAllSupportChats = (
   callback: (threads: SupportChatThread[]) => void
@@ -232,21 +246,33 @@ export const subscribeToAllSupportChats = (
   return onSnapshot(
     q,
     (snap) => {
-      const list: SupportChatThread[] = snap.docs.map((d) => {
+      const nowMs = Date.now();
+      const activeThreads: SupportChatThread[] = [];
+
+      snap.docs.forEach((d) => {
         const data = d.data();
-        return {
-          userTelegramId: Number(data.userTelegramId || d.id),
-          userName: data.userName || `User ${d.id}`,
-          userPhotoUrl: data.userPhotoUrl || '',
-          lastMessage: data.lastMessage || '',
-          lastMessageSender: data.lastMessageSender || 'user',
-          lastMessageAt: data.lastMessageAt || new Date().toISOString(),
-          unreadByAdmin: Number(data.unreadByAdmin || 0),
-          unreadByUser: Number(data.unreadByUser || 0),
-          updatedAt: data.updatedAt || new Date().toISOString(),
-        };
+        const lastMsgMs = data.lastMessageAt ? new Date(data.lastMessageAt).getTime() : nowMs;
+        const isExpired = nowMs - lastMsgMs > CHAT_RETENTION_MS;
+
+        if (isExpired) {
+          // Asynchronously purge expired thread doc from Firestore
+          deleteDoc(d.ref).catch(() => {});
+        } else {
+          activeThreads.push({
+            userTelegramId: Number(data.userTelegramId || d.id),
+            userName: data.userName || `User ${d.id}`,
+            userPhotoUrl: data.userPhotoUrl || '',
+            lastMessage: data.lastMessage || '',
+            lastMessageSender: data.lastMessageSender || 'user',
+            lastMessageAt: data.lastMessageAt || new Date().toISOString(),
+            unreadByAdmin: Number(data.unreadByAdmin || 0),
+            unreadByUser: Number(data.unreadByUser || 0),
+            updatedAt: data.updatedAt || new Date().toISOString(),
+          });
+        }
       });
-      callback(list);
+
+      callback(activeThreads);
     },
     (err) => {
       console.warn('[SupportService] Realtime threads error:', err);

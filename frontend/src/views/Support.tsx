@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Upload, Headset, ShieldCheck, ChevronLeft, CheckCheck, Clock, Sparkles, MessageSquare } from 'lucide-react';
+import { Send, Upload, Headset, ShieldCheck, ChevronLeft, CheckCheck, Clock, MessageSquare } from 'lucide-react';
 import {
   sendUserSupportMessage,
   subscribeToUserSupportMessages,
@@ -149,8 +149,8 @@ export const Support: React.FC<SupportProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[9.5px] font-bold text-slate-400 bg-white/5 border border-white/10 px-2.5 py-1 rounded-xl">
-          <Sparkles size={11} className="text-[#00E5FF]" /> Instant
+        <div className="flex items-center gap-1.5 text-[9.5px] font-bold text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/20 px-2.5 py-1 rounded-xl">
+          <Clock size={11} /> 24h Auto Reset
         </div>
       </div>
 
