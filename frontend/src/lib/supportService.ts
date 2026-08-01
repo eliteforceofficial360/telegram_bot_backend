@@ -158,13 +158,13 @@ export const sendAdminSupportMessage = async (
 
     // 3. Dispatch Telegram Push Notification to User
     if (botApiUrl) {
-      const apiEndpoint = botApiUrl.replace(/\/$/, '') + '/notify/message';
+      const apiEndpoint = botApiUrl.replace(/\/$/, '') + '/notify/support/reply';
       fetch(apiEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           telegramId: userTelegramId,
-          message: `🎧 <b>New Message from Elite Force Support:</b>\n\n${text.trim()}`,
+          text: text.trim(),
           imageUrl: imageUrl || '',
         }),
       }).catch((e) => console.warn('[SupportService] User Telegram bot notify error:', e.message));

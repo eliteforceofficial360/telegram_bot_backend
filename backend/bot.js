@@ -854,6 +854,36 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    // ── PUBLIC: POST /notify/support/reply ─────────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/support/reply') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const { telegramId, text, imageUrl } = body;
+      const numId = Number(telegramId);
+      if (!isValidTelegramId(numId) || (!text && !imageUrl)) {
+        return sendJson(res, 400, { error: 'valid telegramId and text required' });
+      }
+
+      const msg = `🎧 <b>LIVE SUPPORT RESPONSE</b>\n\n` +
+        `${escapeHTML(text || '(Attachment)')}\n\n` +
+        `<i>— Elite Force Customer Support (24/7)</i>`;
+
+      const extra = {};
+      if (dynamicSettings.miniAppUrl) {
+        extra.reply_markup = Markup.inlineKeyboard([
+          [Markup.button.webApp('💬 Open Support Chat', dynamicSettings.miniAppUrl)]
+        ]).reply_markup;
+      }
+
+      const ok = await sendToUser(numId, msg, extra, imageUrl);
+      return sendJson(res, 200, { ok });
+    }
+
     // ── PUBLIC: POST /upload-profile-photo ───────────────────────────────────
     if (req.method === 'POST' && url === '/upload-profile-photo') {
       let uploadData;
