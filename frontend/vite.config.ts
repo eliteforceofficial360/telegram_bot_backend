@@ -41,13 +41,10 @@ export default defineConfig({
         },
       },
     },
-    // Enable minification
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,  // Remove console.log in production
-        drop_debugger: true,
-      },
+    // Enable fast, memory-safe esbuild minification
+    minify: 'esbuild',
+    esbuild: {
+      drop: ['console', 'debugger'],
     },
     // Target modern browsers for smaller bundle
     target: 'esnext',
