@@ -1188,6 +1188,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         eforceTokenValue={settings.eforceTokenValue}
+        unreadSupportCount={supportThreads.reduce((acc, t) => acc + (t.unreadByAdmin || 0), 0)}
+        pendingWithdrawalsCount={withdrawals.filter(w => w.status === 'Pending').length}
       />
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-[#090D16]">

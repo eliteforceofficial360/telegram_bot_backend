@@ -9,12 +9,14 @@ interface AdminSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   eforceTokenValue?: number;
+  unreadSupportCount?: number;
+  pendingWithdrawalsCount?: number;
 }
 
 const navItems: { id: AdminTab; label: string; iconClass: string; desc: string; accentColor: string }[] = [
   { id: 'dashboard',     label: 'Dashboard',      iconClass: 'fa-solid fa-chart-pie',             desc: 'Overview & Telemetry', accentColor: '#38BDF8' },
   { id: 'users',         label: 'Users Roster',   iconClass: 'fa-solid fa-users-gear',            desc: 'Member Directory',    accentColor: '#60A5FA' },
-  { id: 'support',       label: 'Live Support',   iconClass: 'fa-solid fa-[#00E5FF] fa-headset',   desc: 'User Help & Realtime Chat', accentColor: '#00E5FF' },
+  { id: 'support',       label: 'Live Support',   iconClass: 'fa-solid fa-headset',               desc: 'User Help & Realtime Chat', accentColor: '#00E5FF' },
   { id: 'countries',     label: 'Geographics',    iconClass: 'fa-solid fa-earth-americas',        desc: 'Regional Demographics',accentColor: '#22D3EE' },
   { id: 'tasks',         label: 'Missions',       iconClass: 'fa-solid fa-list-check',            desc: 'Earning Campaigns',    accentColor: '#34D399' },
   { id: 'market',        label: 'Task Market',    iconClass: 'fa-solid fa-store',                 desc: 'P2P Task Moderation',  accentColor: '#FFD700' },
@@ -26,7 +28,7 @@ const navItems: { id: AdminTab; label: string; iconClass: string; desc: string; 
 ];
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
-  activeTab, setActiveTab, isOpen, onClose, eforceTokenValue = 0.05,
+  activeTab, setActiveTab, isOpen, onClose, eforceTokenValue = 0.05, unreadSupportCount = 0, pendingWithdrawalsCount = 0,
 }) => {
   return (
     <>
@@ -88,6 +90,17 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
           {navItems.map((item) => {
             const isActive = activeTab === item.id;
+            let badgeNumber = 0;
+            let badgeBg = '';
+
+            if (item.id === 'support' && unreadSupportCount > 0) {
+              badgeNumber = unreadSupportCount;
+              badgeBg = 'bg-[#00E5FF] text-black shadow-[0_0_12px_rgba(0,229,255,0.7)] animate-pulse';
+            } else if (item.id === 'withdrawals' && pendingWithdrawalsCount > 0) {
+              badgeNumber = pendingWithdrawalsCount;
+              badgeBg = 'bg-emerald-500 text-black shadow-xs';
+            }
+
             return (
               <button
                 key={item.id}
@@ -113,9 +126,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                   </div>
                 </div>
 
-                {isActive && (
+                {badgeNumber > 0 ? (
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black shrink-0 ${badgeBg}`}>
+                    {badgeNumber > 99 ? '99+' : badgeNumber}
+                  </span>
+                ) : isActive ? (
                   <i className="fa-solid fa-chevron-right text-[10px] text-blue-400 shrink-0"></i>
-                )}
+                ) : null}
               </button>
             );
           })}
