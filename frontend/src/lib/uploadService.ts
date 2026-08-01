@@ -392,11 +392,58 @@ async function _pingServer(baseUrl: string, timeoutMs: number): Promise<void> {
 }
 
 async function _fileToDataUrl(file: File): Promise<string> {
+  if (file.type.startsWith('image/') && file.type !== 'image/svg+xml') {
+    try {
+      const compressed = await _compressImageFile(file, 1200, 0.82);
+      if (compressed) return compressed;
+    } catch (e) {
+      console.warn('[UploadService] Image compression fallback to raw file:', e);
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = () => reject(_error('FILE_READ_ERROR', 'Failed to read file. Please try again.'));
     reader.readAsDataURL(file);
+  });
+}
+
+function _compressImageFile(file: File, maxDim = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxDim || height > maxDim) {
+        if (width > height) {
+          height = Math.round((height * maxDim) / width);
+          width = maxDim;
+        } else {
+          width = Math.round((width * maxDim) / height);
+          height = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } else {
+        reject(new Error('Canvas context unavailable'));
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Image decode failed'));
+    };
+    img.src = url;
   });
 }
 
