@@ -827,6 +827,33 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    // ── PUBLIC: POST /notify/admin/support ───────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/admin/support') {
+      let body;
+      try {
+        body = await readJsonBody(req);
+      } catch {
+        return sendJson(res, 400, { error: 'Invalid JSON' });
+      }
+
+      const { telegramId, userName, messageText, imageUrl } = body;
+      const targetChatId = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID;
+
+      if (targetChatId) {
+        const msg = `🎧 <b>NEW LIVE SUPPORT MESSAGE!</b>\n\n` +
+          `👤 <b>From User:</b> ${escapeHTML(userName || 'User')}\n` +
+          `🆔 <b>Telegram ID:</b> <code>${telegramId}</code>\n` +
+          `💬 <b>Message:</b> ${escapeHTML(messageText || '(Attachment)')}\n` +
+          (imageUrl ? `📷 <b>Attachment:</b> ${escapeHTML(imageUrl)}\n` : '') +
+          `⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
+
+        await bot.telegram.sendMessage(targetChatId, msg, { parse_mode: 'HTML' }).catch((err) => {
+          console.warn('[Bot] Admin support notify error:', err.message);
+        });
+      }
+      return sendJson(res, 200, { ok: true });
+    }
+
     // ── PUBLIC: POST /upload-profile-photo ───────────────────────────────────
     if (req.method === 'POST' && url === '/upload-profile-photo') {
       let uploadData;

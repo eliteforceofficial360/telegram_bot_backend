@@ -48,7 +48,8 @@ export const sendUserSupportMessage = async (
   userName: string,
   userPhotoUrl: string,
   text: string,
-  imageUrl?: string
+  imageUrl?: string,
+  botApiUrl?: string
 ): Promise<boolean> => {
   const targetId = telegramId || 88888888;
   if (!isFirebaseConfigured() || (!text.trim() && !imageUrl)) return false;
@@ -66,7 +67,7 @@ export const sendUserSupportMessage = async (
     // 1. Add message doc
     const msgPayload = {
       sender: 'user',
-      senderName: userName || `User ${telegramId}`,
+      senderName: userName || `User ${targetId}`,
       text: text.trim(),
       imageUrl: imageUrl || '',
       createdAt: now,
@@ -76,8 +77,8 @@ export const sendUserSupportMessage = async (
 
     // 2. Set/Update thread doc
     const threadPayload: SupportChatThread = {
-      userTelegramId: Number(telegramId),
-      userName: userName || `User ${telegramId}`,
+      userTelegramId: Number(targetId),
+      userName: userName || `User ${targetId}`,
       userPhotoUrl: userPhotoUrl || '',
       lastMessage: text.trim() || (imageUrl ? '📷 Image attachment' : ''),
       lastMessageSender: 'user',
@@ -88,6 +89,22 @@ export const sendUserSupportMessage = async (
     };
 
     await setDoc(threadRef, threadPayload, { merge: true });
+
+    // 3. Dispatch real-time Telegram Bot Notification to Admin
+    if (botApiUrl) {
+      const apiEndpoint = botApiUrl.replace(/\/$/, '') + '/notify/admin/support';
+      fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramId: targetId,
+          userName: userName || `User ${targetId}`,
+          messageText: text.trim(),
+          imageUrl: imageUrl || '',
+        }),
+      }).catch((e) => console.warn('[SupportService] Admin Telegram bot notify error:', e.message));
+    }
+
     return true;
   } catch (err) {
     console.error('[SupportService] Error sending user message:', err);
@@ -102,7 +119,8 @@ export const sendUserSupportMessage = async (
 export const sendAdminSupportMessage = async (
   userTelegramId: number,
   text: string,
-  imageUrl?: string
+  imageUrl?: string,
+  botApiUrl?: string
 ): Promise<boolean> => {
   if (!isFirebaseConfigured() || !userTelegramId || (!text.trim() && !imageUrl)) return false;
 
@@ -135,6 +153,20 @@ export const sendAdminSupportMessage = async (
       unreadByUser: currentUnreadUser + 1,
       updatedAt: now,
     }, { merge: true });
+
+    // 3. Dispatch Telegram Push Notification to User
+    if (botApiUrl) {
+      const apiEndpoint = botApiUrl.replace(/\/$/, '') + '/notify/message';
+      fetch(apiEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegramId: userTelegramId,
+          message: `🎧 <b>New Message from Elite Force Support:</b>\n\n${text.trim()}`,
+          imageUrl: imageUrl || '',
+        }),
+      }).catch((e) => console.warn('[SupportService] User Telegram bot notify error:', e.message));
+    }
 
     return true;
   } catch (err) {

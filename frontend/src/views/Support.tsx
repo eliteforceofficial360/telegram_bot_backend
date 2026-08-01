@@ -66,7 +66,9 @@ export const Support: React.FC<SupportProps> = ({
       userTelegramId,
       userName || `User ${userTelegramId}`,
       userPhotoUrl || '',
-      text
+      text,
+      undefined,
+      botApiUrl
     );
 
     setSending(false);
@@ -96,7 +98,8 @@ export const Support: React.FC<SupportProps> = ({
           userName || `User ${userTelegramId}`,
           userPhotoUrl || '',
           '📷 Attached image',
-          res.secureUrl
+          res.secureUrl,
+          botApiUrl
         );
         showToast('Image sent to support!', 'success');
       }

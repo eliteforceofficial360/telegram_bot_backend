@@ -216,6 +216,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [loadingUsers, setLoadingUsers] = useState(true);
 
   // --- Live Support Chat State ---
+  const [adminSettings, setAdminSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
   const [supportThreads, setSupportThreads] = useState<SupportChatThread[]>([]);
   const [selectedSupportUser, setSelectedSupportUser] = useState<number | null>(null);
   const [supportMessages, setSupportMessages] = useState<SupportChatMessage[]>([]);
@@ -223,6 +224,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [sendingAdminMsg, setSendingAdminMsg] = useState(false);
   const [supportSearchQuery, setSupportSearchQuery] = useState('');
   const adminMsgEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToAdminSettings(setAdminSettings);
+    return unsub;
+  }, []);
 
   useEffect(() => {
     const unsub = subscribeToAllSupportChats((threads) => {
@@ -253,7 +259,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setSendingAdminMsg(true);
     const txt = adminReplyText.trim();
     setAdminReplyText('');
-    const ok = await sendAdminSupportMessage(selectedSupportUser, txt);
+    const ok = await sendAdminSupportMessage(selectedSupportUser, txt, undefined, adminSettings.botApiUrl);
     setSendingAdminMsg(false);
     if (!ok) {
       showToast('Failed to send support reply.', 'error');
