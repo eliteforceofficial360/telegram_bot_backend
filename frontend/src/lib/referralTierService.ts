@@ -213,8 +213,15 @@ export const updateReferralTier = async (
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
     const now = new Date().toISOString();
-    const cleanData = JSON.parse(JSON.stringify({ ...tierData, updatedAt: now }));
-    delete cleanData.id;
+    const cleanData: Record<string, any> = { updatedAt: now };
+
+    if (tierData.requiredReferrals !== undefined) cleanData.requiredReferrals = Number(tierData.requiredReferrals);
+    if (tierData.claimLimit !== undefined) cleanData.claimLimit = Number(tierData.claimLimit);
+    if (tierData.bonusUSDT !== undefined) cleanData.bonusUSDT = Number(tierData.bonusUSDT);
+    if (tierData.badge !== undefined) cleanData.badge = String(tierData.badge).trim();
+    if (tierData.isActive !== undefined) cleanData.isActive = Boolean(tierData.isActive);
+    if (tierData.sortOrder !== undefined) cleanData.sortOrder = Number(tierData.sortOrder);
+
     await setDoc(docRef, cleanData, { merge: true });
     return true;
   } catch (err) {

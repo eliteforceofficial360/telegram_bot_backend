@@ -343,11 +343,18 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   };
 
   const handleSaveEditTier = async (id: string) => {
+    if (editTierRefs < 0 || editTierLimit < 0) {
+      showToast('Please enter valid required referrals and claim limit.', 'warning');
+      return;
+    }
+    const currentTier = referralTiers.find(t => t.id === id);
     const ok = await updateReferralTier(id, {
       requiredReferrals: Number(editTierRefs),
       claimLimit: Number(editTierLimit),
       bonusUSDT: Number(editTierBonus),
       badge: editTierBadge.trim(),
+      isActive: currentTier?.isActive ?? true,
+      sortOrder: currentTier?.sortOrder ?? 1,
     });
     if (ok) {
       showToast('✅ Referral Tier updated & live pushed to users!', 'success');

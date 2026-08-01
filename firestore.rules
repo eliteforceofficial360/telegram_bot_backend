@@ -20,26 +20,35 @@ service cloud.firestore {
     match /tasks/{document=**} {
       allow read, write: if true;
     }
+    match /taskCompletions/{document=**} {
+      allow read, write: if true;
+    }
 
     // 4. User task completions
     match /userTasks/{document=**} {
       allow read, write: if true;
     }
 
-    // 5. Referrals
+    // 5. Referrals & Tiers
     match /referrals/{document=**} {
       allow read, write: if true;
     }
+    match /referral_claim_tiers/{document=**} {
+      allow read, write: if true;
+    }
 
-    // 6. Withdraw and Deposit requests
+    // 6. Withdraw and Deposit requests & Transactions
     match /withdrawRequests/{document=**} {
       allow read, write: if true;
     }
     match /depositRequests/{document=**} {
       allow read, write: if true;
     }
+    match /transactions/{document=**} {
+      allow read, write: if true;
+    }
 
-    // 7. Audit logs & security logs
+    // 7. Audit logs & security logs & histories
     match /auditLogs/{document=**} {
       allow read, write: if true;
     }
@@ -55,9 +64,18 @@ service cloud.firestore {
     match /notificationLogs/{document=**} {
       allow read, write: if true;
     }
+    match /pointHistory/{document=**} {
+      allow read, write: if true;
+    }
+    match /deductionHistory/{document=**} {
+      allow read, write: if true;
+    }
 
     // 8. X (Twitter) Verification System
     match /xUsers/{document=**} {
+      allow read, write: if true;
+    }
+    match /xUserIds/{document=**} {
       allow read, write: if true;
     }
 
@@ -72,6 +90,11 @@ service cloud.firestore {
       allow read, write: if true;
     }
     match /taskAnalytics/{document=**} {
+      allow read, write: if true;
+    }
+
+    // 10. Fallback match for any current or future collection
+    match /{document=**} {
       allow read, write: if true;
     }
   }
