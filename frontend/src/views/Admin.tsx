@@ -254,6 +254,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     adminMsgEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [supportMessages]);
 
+  const [uploadingAdminImg, setUploadingAdminImg] = useState(false);
+  const adminImageInputRef = useRef<HTMLInputElement>(null);
+  const [adminLightboxImg, setAdminLightboxImg] = useState<string | null>(null);
+
   const handleSendAdminReply = async () => {
     if (!selectedSupportUser || !adminReplyText.trim() || sendingAdminMsg) return;
     setSendingAdminMsg(true);
@@ -263,6 +267,37 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setSendingAdminMsg(false);
     if (!ok) {
       showToast('Failed to send support reply.', 'error');
+    }
+  };
+
+  const handleAdminImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedSupportUser || uploadingAdminImg) return;
+    e.target.value = '';
+    setUploadingAdminImg(true);
+    showToast('Uploading image attachment...', 'info');
+
+    try {
+      const res = await uploadFile(file, {
+        assetKey: `admin_support_${selectedSupportUser}_${Date.now()}`,
+        folder: 'support',
+        botApiUrl: adminSettings.botApiUrl,
+      });
+
+      if (res.secureUrl) {
+        await sendAdminSupportMessage(
+          selectedSupportUser,
+          adminReplyText.trim() || '📷 Attachment',
+          res.secureUrl,
+          adminSettings.botApiUrl
+        );
+        setAdminReplyText('');
+        showToast('📷 Image sent to user!', 'success');
+      }
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to upload image', 'error');
+    } finally {
+      setUploadingAdminImg(false);
     }
   };
 
@@ -3023,6 +3058,31 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       );
                     })()}
 
+                    {/* Admin Image Lightbox Modal */}
+                    <AnimatePresence>
+                      {adminLightboxImg && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4"
+                          onClick={() => setAdminLightboxImg(null)}
+                        >
+                          <button
+                            onClick={() => setAdminLightboxImg(null)}
+                            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-all cursor-pointer z-50"
+                          >
+                            <X size={20} />
+                          </button>
+                          <img
+                            src={adminLightboxImg}
+                            alt="Screenshot Preview"
+                            className="max-w-full max-h-[85vh] object-contain rounded-2xl border border-white/20 shadow-2xl"
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
                     {/* Messages list */}
                     <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#080B12]">
                       {supportMessages.length === 0 ? (
@@ -3043,7 +3103,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                   : 'bg-[#182030] text-slate-200 border border-white/10 rounded-tl-xs'
                               }`}>
                                 {msg.imageUrl && (
-                                  <img src={msg.imageUrl} alt="" className="max-h-48 rounded-xl mb-2 object-cover border border-white/10" />
+                                  <div
+                                    onClick={() => setAdminLightboxImg(msg.imageUrl || null)}
+                                    className="mb-2 rounded-xl overflow-hidden border border-black/20 bg-black/40 cursor-pointer group relative"
+                                  >
+                                    <img
+                                      src={msg.imageUrl}
+                                      alt="Attachment"
+                                      className="max-h-52 w-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                    />
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1">
+                                      <Eye size={14} /> View Full Image
+                                    </div>
+                                  </div>
                                 )}
                                 <div className="whitespace-pre-wrap">{msg.text}</div>
                                 <div className="text-[8.5px] opacity-70 font-mono text-right mt-1">
@@ -3075,23 +3147,44 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       ))}
                     </div>
 
-                    {/* Reply input bar */}
+                    {/* Reply input bar with Upload Button */}
                     <form
                       onSubmit={(e) => { e.preventDefault(); handleSendAdminReply(); }}
-                      className="p-3 bg-[#121724] border-t border-white/10 flex items-center gap-2"
+                      className="p-3 bg-[#121724] border-t border-white/10 flex items-center gap-2 relative z-20"
                     >
+                      <input
+                        type="file"
+                        ref={adminImageInputRef}
+                        accept="image/*"
+                        onChange={handleAdminImageUpload}
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => adminImageInputRef.current?.click()}
+                        disabled={uploadingAdminImg || sendingAdminMsg}
+                        title="Upload screenshot or photo"
+                        className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer shrink-0 disabled:opacity-40"
+                      >
+                        {uploadingAdminImg ? (
+                          <RefreshCw size={15} className="animate-spin text-cyan-400" />
+                        ) : (
+                          <Upload size={15} />
+                        )}
+                      </button>
+
                       <input
                         type="text"
                         placeholder={`Reply to user #${selectedSupportUser} as Elite Force Support...`}
                         value={adminReplyText}
                         onChange={e => setAdminReplyText(e.target.value)}
-                        disabled={sendingAdminMsg}
+                        disabled={sendingAdminMsg || uploadingAdminImg}
                         className="flex-1 h-10 px-3.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-400"
                       />
                       <button
                         type="submit"
-                        disabled={!adminReplyText.trim() || sendingAdminMsg}
-                        className="h-10 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 shadow-lg hover:scale-[1.02] transition-all"
+                        disabled={!adminReplyText.trim() || sendingAdminMsg || uploadingAdminImg}
+                        className="h-10 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 shadow-lg hover:scale-[1.02] transition-all shrink-0"
                       >
                         <Send size={14} /> Send Reply
                       </button>
