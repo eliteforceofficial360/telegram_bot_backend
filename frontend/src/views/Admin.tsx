@@ -6,7 +6,7 @@ import {
   RefreshCw, Plus, Trash2, ToggleLeft, ToggleRight,
   Star, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   ArrowUpDown, ShieldAlert, Trophy, Eye, EyeOff, Upload,
-  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info, Send, Lock, Users,
+  Copy, ExternalLink, Wallet, ShieldCheck, Clock, CheckCircle2, Info, Send, Lock, Users, Headset,
 } from 'lucide-react';
 import { VerifiedBadge } from '../components/VerifiedBadge';
 import { AdminSidebar } from '../components/admin/AdminSidebar';
@@ -40,6 +40,14 @@ import { uploadFile } from '../lib/uploadService';
 import {
   fetchPendingMarketTasks, approveMarketTask, rejectMarketTask, type MarketTask,
 } from '../lib/marketService';
+import {
+  sendAdminSupportMessage,
+  subscribeToAllSupportChats,
+  subscribeToUserSupportMessages,
+  markChatAsReadByAdmin,
+  type SupportChatMessage,
+  type SupportChatThread,
+} from '../lib/supportService';
 
 interface AdminProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -206,6 +214,51 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
+
+  // --- Live Support Chat State ---
+  const [supportThreads, setSupportThreads] = useState<SupportChatThread[]>([]);
+  const [selectedSupportUser, setSelectedSupportUser] = useState<number | null>(null);
+  const [supportMessages, setSupportMessages] = useState<SupportChatMessage[]>([]);
+  const [adminReplyText, setAdminReplyText] = useState('');
+  const [sendingAdminMsg, setSendingAdminMsg] = useState(false);
+  const [supportSearchQuery, setSupportSearchQuery] = useState('');
+  const adminMsgEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToAllSupportChats((threads) => {
+      setSupportThreads(threads);
+      if (threads.length > 0 && !selectedSupportUser) {
+        setSelectedSupportUser(threads[0].userTelegramId);
+      }
+    });
+    return unsub;
+  }, [selectedSupportUser]);
+
+  useEffect(() => {
+    if (!selectedSupportUser) return;
+    markChatAsReadByAdmin(selectedSupportUser);
+    const unsub = subscribeToUserSupportMessages(selectedSupportUser, (msgs) => {
+      setSupportMessages(msgs);
+      markChatAsReadByAdmin(selectedSupportUser);
+    });
+    return unsub;
+  }, [selectedSupportUser]);
+
+  useEffect(() => {
+    adminMsgEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [supportMessages]);
+
+  const handleSendAdminReply = async () => {
+    if (!selectedSupportUser || !adminReplyText.trim() || sendingAdminMsg) return;
+    setSendingAdminMsg(true);
+    const txt = adminReplyText.trim();
+    setAdminReplyText('');
+    const ok = await sendAdminSupportMessage(selectedSupportUser, txt);
+    setSendingAdminMsg(false);
+    if (!ok) {
+      showToast('Failed to send support reply.', 'error');
+    }
+  };
 
   // --- Admin Settings & Market Access State ---
   const [marketStatus, setMarketStatus] = useState<'on' | 'off' | 'maintenance'>('on');
@@ -2848,6 +2901,201 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </div>
               </SectionCard>
+            </div>
+          )}
+
+          {/* ════════════════════ LIVE SUPPORT CHAT ════════════════════ */}
+          {activeTab === 'support' && (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-[calc(100vh-140px)] min-h-[600px]">
+              {/* Left Panel: Conversations Directory */}
+              <div className="lg:col-span-4 flex flex-col rounded-3xl bg-[#0D111A] border border-white/10 overflow-hidden shadow-2xl">
+                <div className="p-4 border-b border-white/10 bg-[#121724] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Headset size={18} className="text-[#00E5FF]" />
+                    <h3 className="text-sm font-black text-white">Support Threads</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 text-[10px] font-mono font-bold">
+                      {supportThreads.length}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="p-2 border-b border-white/5 bg-[#090C14]">
+                  <input
+                    type="text"
+                    placeholder="Search by name or Telegram ID..."
+                    value={supportSearchQuery}
+                    onChange={e => setSupportSearchQuery(e.target.value)}
+                    className="w-full h-8 px-3 rounded-xl text-xs bg-white/5 border border-white/10 text-white placeholder-slate-500 outline-none font-sans"
+                  />
+                </div>
+
+                <div className="flex-1 overflow-y-auto divide-y divide-white/5">
+                  {supportThreads.length === 0 ? (
+                    <div className="p-8 text-center text-xs text-slate-500 flex flex-col items-center gap-2">
+                      <Headset size={28} className="opacity-40" />
+                      <span>No user support tickets yet.</span>
+                    </div>
+                  ) : (
+                    supportThreads
+                      .filter(t => !supportSearchQuery || t.userName.toLowerCase().includes(supportSearchQuery.toLowerCase()) || String(t.userTelegramId).includes(supportSearchQuery))
+                      .map(t => {
+                        const isSelected = selectedSupportUser === t.userTelegramId;
+                        return (
+                          <button
+                            key={t.userTelegramId}
+                            onClick={() => setSelectedSupportUser(t.userTelegramId)}
+                            className={`w-full p-3.5 flex items-center gap-3 text-left transition-all cursor-pointer ${
+                              isSelected ? 'bg-[#00E5FF]/15 border-l-4 border-[#00E5FF]' : 'hover:bg-white/[0.03]'
+                            }`}
+                          >
+                            <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/10 flex items-center justify-center font-bold text-white shrink-0 overflow-hidden">
+                              {t.userPhotoUrl ? (
+                                <img src={t.userPhotoUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                (t.userName?.[0] || 'U').toUpperCase()
+                              )}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-white truncate">{t.userName}</span>
+                                <span className="text-[9px] font-mono text-slate-400">
+                                  {new Date(t.lastMessageAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-slate-400 truncate mt-0.5 flex items-center gap-1">
+                                {t.lastMessageSender === 'admin' && <span className="text-cyan-400 font-bold">You:</span>}
+                                <span>{t.lastMessage}</span>
+                              </div>
+                            </div>
+
+                            {t.unreadByAdmin > 0 && (
+                              <span className="w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shrink-0 animate-pulse">
+                                {t.unreadByAdmin}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })
+                  )}
+                </div>
+              </div>
+
+              {/* Right Panel: Chat Workspace */}
+              <div className="lg:col-span-8 flex flex-col rounded-3xl bg-[#0D111A] border border-white/10 overflow-hidden shadow-2xl">
+                {selectedSupportUser ? (
+                  <>
+                    {/* Header */}
+                    {(() => {
+                      const activeUserObj = usersList.find(u => u.telegramId === selectedSupportUser);
+                      const activeThreadObj = supportThreads.find(t => t.userTelegramId === selectedSupportUser);
+
+                      return (
+                        <div className="p-4 border-b border-white/10 bg-[#121724] flex items-center justify-between shrink-0">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center font-black text-cyan-400">
+                              {(activeThreadObj?.userName?.[0] || 'U').toUpperCase()}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-extrabold text-white">{activeThreadObj?.userName || `User ${selectedSupportUser}`}</h3>
+                                <span className="text-[10px] font-mono font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+                                  ID: {selectedSupportUser}
+                                </span>
+                              </div>
+                              {activeUserObj && (
+                                <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-0.5 font-mono">
+                                  <span>Balance: <strong className="text-[#FF8A00]">{activeUserObj.points?.toLocaleString() || 0} EFC</strong></span>
+                                  <span>· Risk: <strong className="uppercase" style={{ color: activeUserObj.riskLevel === 'high' ? '#F87171' : activeUserObj.riskLevel === 'medium' ? '#FBBF24' : '#4ADE80' }}>{activeUserObj.riskLevel || 'safe'}</strong></span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* Messages list */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#080B12]">
+                      {supportMessages.length === 0 ? (
+                        <div className="text-center text-xs text-slate-500 py-10">
+                          No message history yet for this user.
+                        </div>
+                      ) : (
+                        supportMessages.map(msg => {
+                          const isAdmin = msg.sender === 'admin';
+                          return (
+                            <div key={msg.id} className={`flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
+                              <span className="text-[9px] font-mono text-slate-500 mb-1 px-1">
+                                {isAdmin ? '🛡️ You (Elite Force Support)' : msg.senderName}
+                              </span>
+                              <div className={`max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed ${
+                                isAdmin
+                                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white rounded-tr-xs'
+                                  : 'bg-[#182030] text-slate-200 border border-white/10 rounded-tl-xs'
+                              }`}>
+                                {msg.imageUrl && (
+                                  <img src={msg.imageUrl} alt="" className="max-h-48 rounded-xl mb-2 object-cover border border-white/10" />
+                                )}
+                                <div className="whitespace-pre-wrap">{msg.text}</div>
+                                <div className="text-[8.5px] opacity-70 font-mono text-right mt-1">
+                                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div ref={adminMsgEndRef} />
+                    </div>
+
+                    {/* Quick template responses */}
+                    <div className="px-3 py-2 bg-[#0E121B] border-t border-white/5 flex items-center gap-2 overflow-x-auto shrink-0">
+                      {[
+                        'Hello! How can we assist you today?',
+                        'Your request is being reviewed by our team.',
+                        'Please provide a screenshot of your transaction/task.',
+                        'Thank you! Your issue has been resolved.',
+                      ].map(tmpl => (
+                        <button
+                          key={tmpl}
+                          onClick={() => setAdminReplyText(tmpl)}
+                          className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-cyan-500/20 text-[10px] text-slate-300 hover:text-white border border-white/10 shrink-0 transition-all cursor-pointer"
+                        >
+                          {tmpl}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Reply input bar */}
+                    <form
+                      onSubmit={(e) => { e.preventDefault(); handleSendAdminReply(); }}
+                      className="p-3 bg-[#121724] border-t border-white/10 flex items-center gap-2"
+                    >
+                      <input
+                        type="text"
+                        placeholder={`Reply to user #${selectedSupportUser} as Elite Force Support...`}
+                        value={adminReplyText}
+                        onChange={e => setAdminReplyText(e.target.value)}
+                        disabled={sendingAdminMsg}
+                        className="flex-1 h-10 px-3.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-400"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!adminReplyText.trim() || sendingAdminMsg}
+                        className="h-10 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 shadow-lg hover:scale-[1.02] transition-all"
+                      >
+                        <Send size={14} /> Send Reply
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center text-slate-500 gap-2">
+                    <Headset size={40} className="opacity-30" />
+                    <span className="text-xs font-semibold">Select a conversation thread to view and chat.</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

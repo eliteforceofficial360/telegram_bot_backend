@@ -36,6 +36,9 @@ service cloud.firestore {
     match /referral_claim_tiers/{document=**} {
       allow read, write: if true;
     }
+    match /support_chats/{document=**} {
+      allow read, write: if true;
+    }
 
     // 6. Withdraw and Deposit requests & Transactions
     match /withdrawRequests/{document=**} {

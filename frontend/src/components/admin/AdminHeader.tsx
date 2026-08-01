@@ -20,6 +20,7 @@ const tabMeta: Record<AdminTab, { title: string; sub: string; faIcon: string; ac
   withdrawals:   { title: 'Payout Queue',       sub: 'Review & authorize payout transactions',     faIcon: 'fa-solid fa-money-bill-transfer',   accentColor: '#4ADE80' },
   security:      { title: 'Security Center',    sub: 'Flagged threats, anti-cheat & bans',         faIcon: 'fa-solid fa-shield-halved',        accentColor: '#FB923C' },
   notifications: { title: 'Broadcast Manager', sub: 'Global push notifications & announcements',  faIcon: 'fa-solid fa-bullhorn',              accentColor: '#C084FC' },
+  support:       { title: 'Live Support Console',sub: 'Real-time customer chat & support tickets',faIcon: 'fa-solid fa-headset',               accentColor: '#00E5FF' },
   topminers:     { title: 'Leaderboard Setup',  sub: 'Configure leaderboard pinned top miners',    faIcon: 'fa-solid fa-trophy',                accentColor: '#FBBF24' },
   settings:      { title: 'System Parameters',  sub: 'Token economy, limits & app settings',        faIcon: 'fa-solid fa-sliders',               accentColor: '#818CF8' },
 };

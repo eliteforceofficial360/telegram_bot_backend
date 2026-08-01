@@ -14,7 +14,8 @@ import {
   Lock, 
   Unlock,
   Pickaxe,
-  Users
+  Users,
+  Headset
 } from 'lucide-react';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
 import { type FirestoreUser } from '../lib/userService';
@@ -38,6 +39,7 @@ interface ProfileProps {
   dbUser: FirestoreUser | null;
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   telegramUser: TelegramUser | null;
+  onOpenSupport?: () => void;
 }
 
 export const Profile = ({ 
@@ -48,7 +50,8 @@ export const Profile = ({
   adminSettings,
   dbUser, 
   showToast, 
-  telegramUser 
+  telegramUser,
+  onOpenSupport
 }: ProfileProps) => {
   const connectedAddress = dbUser?.walletAddress || null;
   const [copiedId, setCopiedId] = useState(false);
@@ -341,6 +344,33 @@ export const Profile = ({
           showToast={showToast}
         />
       </motion.div>
+
+      {/* 24/7 Customer Live Support Card */}
+      {onOpenSupport && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.14 }}
+          onClick={onOpenSupport}
+          className="p-4 rounded-3xl bg-gradient-to-r from-[#00E5FF]/10 via-[#00E5FF]/5 to-[#FF8A00]/10 border border-[#00E5FF]/20 flex items-center justify-between cursor-pointer hover:border-[#00E5FF]/40 shadow-lg transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#00E5FF]/20 border border-[#00E5FF]/30 flex items-center justify-center text-[#00E5FF]">
+              <Headset size={22} />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-white flex items-center gap-1.5">
+                <span>Live Customer Support (24/7)</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              </h3>
+              <p className="text-[9.5px] text-slate-400 mt-0.5">Need help? Chat directly with support agents in real-time</p>
+            </div>
+          </div>
+          <span className="px-3 py-1.5 rounded-xl bg-[#00E5FF] text-black font-extrabold text-[10px] shadow-md hover:scale-105 transition-all">
+            Chat Now
+          </span>
+        </motion.div>
+      )}
 
       {/* Achievements / Trophies & Milestones */}
       <motion.div 

@@ -12,6 +12,7 @@ import { Leaderboard } from './views/Leaderboard';
 import { Market } from './views/Market';
 import { Admin } from './views/Admin';
 import { AdminLogin } from './views/AdminLogin';
+import { Support } from './views/Support';
 import { getTelegramWebAppData, type TelegramUser } from './lib/telegramUser';
 import { upsertUser, setUserOffline, syncPointsToFirestore, getOnlineUserCount, subscribeToUser, checkUserBan, updateUserDatabaseValues, type FirestoreUser } from './lib/userService';
 import { subscribeToAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings } from './lib/adminSettingsService';
@@ -731,6 +732,18 @@ export default function App() {
             dbUser={dbUser}
             showToast={showToast}
             telegramUser={telegramUser}
+            onOpenSupport={() => setActiveTab('support')}
+          />
+        );
+      case 'support':
+        return (
+          <Support
+            userTelegramId={telegramUser?.id || dbUser?.telegramId || 0}
+            userName={telegramUser ? `${telegramUser.firstName || ''} ${telegramUser.lastName || ''}`.trim() : (dbUser?.firstName || 'User')}
+            userPhotoUrl={telegramUser?.photoUrl || dbUser?.photoUrl || ''}
+            botApiUrl={adminSettings.botApiUrl}
+            showToast={showToast}
+            onBack={() => setActiveTab('profile')}
           />
         );
       case 'settings':

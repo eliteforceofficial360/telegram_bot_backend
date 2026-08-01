@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export type AdminTab = 'dashboard' | 'users' | 'countries' | 'tasks' | 'market' | 'withdrawals' | 'security' | 'notifications' | 'settings' | 'topminers';
+export type AdminTab = 'dashboard' | 'users' | 'countries' | 'tasks' | 'market' | 'withdrawals' | 'security' | 'notifications' | 'support' | 'settings' | 'topminers';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -14,6 +14,7 @@ interface AdminSidebarProps {
 const navItems: { id: AdminTab; label: string; iconClass: string; desc: string; accentColor: string }[] = [
   { id: 'dashboard',     label: 'Dashboard',      iconClass: 'fa-solid fa-chart-pie',             desc: 'Overview & Telemetry', accentColor: '#38BDF8' },
   { id: 'users',         label: 'Users Roster',   iconClass: 'fa-solid fa-users-gear',            desc: 'Member Directory',    accentColor: '#60A5FA' },
+  { id: 'support',       label: 'Live Support',   iconClass: 'fa-solid fa-[#00E5FF] fa-headset',   desc: 'User Help & Realtime Chat', accentColor: '#00E5FF' },
   { id: 'countries',     label: 'Geographics',    iconClass: 'fa-solid fa-earth-americas',        desc: 'Regional Demographics',accentColor: '#22D3EE' },
   { id: 'tasks',         label: 'Missions',       iconClass: 'fa-solid fa-list-check',            desc: 'Earning Campaigns',    accentColor: '#34D399' },
   { id: 'market',        label: 'Task Market',    iconClass: 'fa-solid fa-store',                 desc: 'P2P Task Moderation',  accentColor: '#FFD700' },
