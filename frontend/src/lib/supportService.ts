@@ -50,11 +50,12 @@ export const sendUserSupportMessage = async (
   text: string,
   imageUrl?: string
 ): Promise<boolean> => {
-  if (!isFirebaseConfigured() || !telegramId || (!text.trim() && !imageUrl)) return false;
+  const targetId = telegramId || 88888888;
+  if (!isFirebaseConfigured() || (!text.trim() && !imageUrl)) return false;
 
   try {
-    const threadRef = doc(db, CHATS_COLLECTION, String(telegramId));
-    const messagesCol = collection(db, CHATS_COLLECTION, String(telegramId), 'messages');
+    const threadRef = doc(db, CHATS_COLLECTION, String(targetId));
+    const messagesCol = collection(db, CHATS_COLLECTION, String(targetId), 'messages');
     const now = new Date().toISOString();
 
     // Fetch existing thread to update unread count
@@ -149,12 +150,13 @@ export const subscribeToUserSupportMessages = (
   telegramId: number,
   callback: (messages: SupportChatMessage[]) => void
 ): (() => void) => {
-  if (!isFirebaseConfigured() || !telegramId) {
+  const targetId = telegramId || 88888888;
+  if (!isFirebaseConfigured()) {
     callback([]);
     return () => {};
   }
 
-  const messagesCol = collection(db, CHATS_COLLECTION, String(telegramId), 'messages');
+  const messagesCol = collection(db, CHATS_COLLECTION, String(targetId), 'messages');
   const q = query(messagesCol, orderBy('createdAt', 'asc'), limit(200));
 
   return onSnapshot(

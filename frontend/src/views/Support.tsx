@@ -117,7 +117,7 @@ export const Support: React.FC<SupportProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-140px)] min-h-[480px] max-w-2xl mx-auto w-full rounded-[28px] overflow-hidden bg-[#0A0D14] border border-white/10 shadow-2xl relative pb-2 md:pb-0">
+    <div className="flex flex-col h-[calc(100vh-210px)] max-h-[720px] min-h-[420px] max-w-2xl mx-auto w-full rounded-[28px] overflow-hidden bg-[#0A0D14] border border-white/10 shadow-2xl relative mb-24 md:mb-0">
       {/* Support Top Navigation Header */}
       <div className="px-3.5 py-3 border-b border-white/10 bg-[#0E121B] flex items-center justify-between shrink-0 relative z-20">
         <div className="flex items-center gap-2.5">
