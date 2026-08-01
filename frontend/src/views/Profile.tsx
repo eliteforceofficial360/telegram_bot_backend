@@ -15,7 +15,8 @@ import {
   Unlock,
   Pickaxe,
   Users,
-  Headset
+  Headset,
+  MessageSquare
 } from 'lucide-react';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
 import { type FirestoreUser } from '../lib/userService';
@@ -345,30 +346,54 @@ export const Profile = ({
         />
       </motion.div>
 
-      {/* 24/7 Customer Live Support Card */}
+      {/* 24/7 Premium Customer Live Support Card */}
       {onOpenSupport && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.14 }}
           onClick={onOpenSupport}
-          className="p-4 rounded-3xl bg-gradient-to-r from-[#00E5FF]/10 via-[#00E5FF]/5 to-[#FF8A00]/10 border border-[#00E5FF]/20 flex items-center justify-between cursor-pointer hover:border-[#00E5FF]/40 shadow-lg transition-all"
+          className="relative p-4 rounded-[26px] overflow-hidden flex items-center justify-between cursor-pointer group transition-all duration-300"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.12) 0%, rgba(14, 20, 34, 0.95) 50%, rgba(255, 138, 0, 0.12) 100%)',
+            border: '1px solid rgba(0, 229, 255, 0.25)',
+            boxShadow: '0 12px 35px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+          }}
         >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#00E5FF]/20 border border-[#00E5FF]/30 flex items-center justify-center text-[#00E5FF]">
+          {/* Top Shimmer Line */}
+          <div className="absolute top-0 left-6 right-6 h-[1px] bg-gradient-to-r from-transparent via-[#00E5FF]/50 to-transparent pointer-events-none" />
+
+          {/* Ambient Glow Pill */}
+          <div className="absolute -left-10 -bottom-10 w-28 h-28 bg-[#00E5FF]/15 rounded-full blur-xl pointer-events-none group-hover:bg-[#00E5FF]/25 transition-all" />
+
+          <div className="flex items-center gap-3.5 relative z-10 min-w-0 pr-2">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#00E5FF]/25 to-[#0088FF]/10 border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] shadow-[0_0_18px_rgba(0,229,255,0.3)] shrink-0 group-hover:scale-105 transition-all">
               <Headset size={22} />
             </div>
-            <div>
-              <h3 className="text-xs font-black text-white flex items-center gap-1.5">
-                <span>Live Customer Support (24/7)</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              </h3>
-              <p className="text-[9.5px] text-slate-400 mt-0.5">Need help? Chat directly with support agents in real-time</p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-black text-white tracking-wide truncate">Live Customer Support (24/7)</h3>
+                <span className="flex items-center gap-1 text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> ONLINE
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 mt-0.5 truncate font-medium">Need help? Chat directly with support agents in real-time</p>
             </div>
           </div>
-          <span className="px-3 py-1.5 rounded-xl bg-[#00E5FF] text-black font-extrabold text-[10px] shadow-md hover:scale-105 transition-all">
-            Chat Now
-          </span>
+
+          <div className="relative z-10 shrink-0">
+            <button
+              type="button"
+              className="h-9 px-4 rounded-xl font-extrabold text-xs text-black flex items-center gap-1.5 whitespace-nowrap shadow-lg cursor-pointer transition-all duration-200 group-hover:scale-105 active:scale-[0.98]"
+              style={{
+                background: 'linear-gradient(135deg, #00E5FF 0%, #00B4D8 100%)',
+                boxShadow: '0 0 20px rgba(0, 229, 255, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
+              }}
+            >
+              <MessageSquare size={13} fill="currentColor" opacity={0.3} />
+              <span>Chat Now</span>
+            </button>
+          </div>
         </motion.div>
       )}
 
