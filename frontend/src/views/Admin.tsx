@@ -3126,6 +3126,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           );
                         })
                       )}
+
+                      {/* Admin Uploading Image Bubble */}
+                      {uploadingAdminImg && (
+                        <div className="flex flex-col items-end animate-pulse">
+                          <span className="text-[9px] font-mono text-cyan-400 mb-1 px-1 flex items-center gap-1 font-bold">
+                            <RefreshCw size={9} className="animate-spin" /> Uploading Screenshot...
+                          </span>
+                          <div className="bg-cyan-500/10 border border-cyan-500/30 p-3 rounded-2xl text-xs text-cyan-400 flex items-center gap-2.5 shadow-lg shadow-cyan-500/10">
+                            <RefreshCw size={14} className="animate-spin shrink-0 text-cyan-400" />
+                            <span>Uploading screenshot & sending to user...</span>
+                          </div>
+                        </div>
+                      )}
+
                       <div ref={adminMsgEndRef} />
                     </div>
 

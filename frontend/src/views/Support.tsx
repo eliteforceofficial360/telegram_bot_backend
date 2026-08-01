@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Upload, Headset, ShieldCheck, ChevronLeft, CheckCheck, Clock, MessageSquare, X, Eye } from 'lucide-react';
+import { Send, Upload, Headset, ShieldCheck, ChevronLeft, CheckCheck, Clock, MessageSquare, X, Eye, RefreshCw } from 'lucide-react';
 import {
   sendUserSupportMessage,
   subscribeToUserSupportMessages,
@@ -267,6 +267,26 @@ export const Support: React.FC<SupportProps> = ({
             );
           })
         )}
+
+        {/* Uploading Image Loading Bubble */}
+        {uploadingImg && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-end"
+          >
+            <span className="text-[8.5px] font-mono text-[#00E5FF] mb-1 px-1 flex items-center gap-1 font-bold">
+              <RefreshCw size={9} className="animate-spin" /> Uploading Screenshot...
+            </span>
+            <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 p-3 rounded-2xl text-xs text-[#00E5FF] flex items-center gap-2.5 shadow-[0_0_15px_rgba(0,229,255,0.2)]">
+              <div className="w-6 h-6 rounded-lg bg-[#00E5FF]/20 flex items-center justify-center shrink-0">
+                <RefreshCw size={14} className="animate-spin text-[#00E5FF]" />
+              </div>
+              <span className="font-semibold text-[11px]">Uploading image & sending to support...</span>
+            </div>
+          </motion.div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
@@ -294,8 +314,12 @@ export const Support: React.FC<SupportProps> = ({
           }}
           className="flex items-center gap-2"
         >
-          <label className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shrink-0">
-            <Upload size={15} />
+          <label className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-40">
+            {uploadingImg ? (
+              <RefreshCw size={15} className="animate-spin text-[#00E5FF]" />
+            ) : (
+              <Upload size={15} />
+            )}
             <input
               type="file"
               accept="image/*"
