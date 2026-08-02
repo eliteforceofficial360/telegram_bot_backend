@@ -836,9 +836,12 @@ export const getAutoMinerUsersCount = async (): Promise<number> => {
 export const updateUserDatabaseValues = async (
   telegramId: number,
   updates: {
+    firstName?: string;
+    lastName?: string;
     points?: number;
     tokens?: number;
     wallet?: number;
+    depositBalance?: number;
     referrals?: number;
     riskLevel?: 'safe' | 'medium' | 'high';
     flagCount?: number;

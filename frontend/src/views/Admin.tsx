@@ -201,9 +201,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(1);
   const [editingUser, setEditingUser] = useState<FirestoreUser | null>(null);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
   const [editPoints, setEditPoints] = useState(0);
   const [editTokens, setEditTokens] = useState(0);
   const [editWallet, setEditWallet] = useState(0);
+  const [editDepositBalance, setEditDepositBalance] = useState(0);
   const [editReferrals, setEditReferrals] = useState(0);
   const [editRiskLevel, setEditRiskLevel] = useState<'safe' | 'medium' | 'high'>('safe');
   const [editBanStatus, setEditBanStatus] = useState<'none' | 'temp' | 'permanent'>('none');
@@ -542,8 +545,14 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   }, []);
 
   const startEditUser = (u: FirestoreUser) => {
-    setEditingUser(u); setEditPoints(u.points ?? 0); setEditTokens(u.tokens ?? 0);
-    setEditWallet(u.wallet ?? 0); setEditReferrals(u.referrals ?? 0);
+    setEditingUser(u);
+    setEditFirstName(u.firstName ?? '');
+    setEditLastName(u.lastName ?? '');
+    setEditPoints(u.points ?? 0);
+    setEditTokens(u.tokens ?? 0);
+    setEditWallet(u.wallet ?? 0);
+    setEditDepositBalance(u.depositBalance ?? 0);
+    setEditReferrals(u.referrals ?? 0);
     setEditRiskLevel(u.riskLevel ?? 'safe'); setEditBanStatus(u.banStatus ?? 'none');
     setEditLeaderboardPinned(u.leaderboardPinned ?? false);
     setEditLeaderboardHidden(u.leaderboardHidden ?? false);
@@ -608,11 +617,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     let banUntil = null;
     if (editBanStatus === 'temp') banUntil = Timestamp.fromDate(new Date(Date.now() + editBanDuration * 3600000));
     const ok = await updateUserDatabaseValues(editingUser.telegramId, {
-      points: editPoints, tokens: editTokens, wallet: editWallet, referrals: editReferrals,
-      riskLevel: editRiskLevel, banStatus: editBanStatus, banUntil,
-      leaderboardPinned: editLeaderboardPinned, leaderboardHidden: editLeaderboardHidden,
+      firstName: editFirstName,
+      lastName: editLastName,
+      points: editPoints,
+      tokens: editTokens,
+      wallet: editWallet,
+      depositBalance: editDepositBalance,
+      referrals: editReferrals,
+      riskLevel: editRiskLevel,
+      banStatus: editBanStatus,
+      banUntil,
+      leaderboardPinned: editLeaderboardPinned,
+      leaderboardHidden: editLeaderboardHidden,
       isVerified: editIsVerified,
-      // ✅ FIX: Save the updated photo URL to Firestore
       photoUrl: editPhotoUrl,
     });
     if (ok) {
@@ -620,9 +637,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       let adminId = 'unknown'; let adminUsername = 'Admin';
       if (sessionStr) { try { const p = JSON.parse(sessionStr); adminId = p.uid || 'unknown'; adminUsername = p.email || 'Admin'; } catch { } }
       const changes: string[] = [];
+      if (editingUser.firstName !== editFirstName) changes.push(`First Name: ${editingUser.firstName} -> ${editFirstName}`);
+      if (editingUser.lastName !== editLastName) changes.push(`Last Name: ${editingUser.lastName} -> ${editLastName}`);
       if (editingUser.points !== editPoints) changes.push(`Points: ${editingUser.points} -> ${editPoints}`);
       if (editingUser.tokens !== editTokens) changes.push(`Tokens: ${editingUser.tokens} -> ${editTokens}`);
       if (editingUser.wallet !== editWallet) changes.push(`Wallet: ${editingUser.wallet} -> ${editWallet}`);
+      if ((editingUser.depositBalance ?? 0) !== editDepositBalance) changes.push(`Deposit Balance: ${editingUser.depositBalance ?? 0} -> ${editDepositBalance}`);
       if (editingUser.referrals !== editReferrals) changes.push(`Referrals: ${editingUser.referrals} -> ${editReferrals}`);
       if (editingUser.riskLevel !== editRiskLevel) changes.push(`Risk: ${editingUser.riskLevel} -> ${editRiskLevel}`);
       if (editingUser.banStatus !== editBanStatus) changes.push(`Ban: ${editingUser.banStatus} -> ${editBanStatus}`);
@@ -631,7 +651,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       if ((editingUser.isVerified ?? false) !== editIsVerified) changes.push(`Verified: ${editingUser.isVerified ?? false} -> ${editIsVerified}`);
       if (editingUser.photoUrl !== editPhotoUrl) changes.push(`Photo updated`);
       if (changes.length > 0) await logAdminAction(typeof adminId === 'number' ? adminId : 0, adminUsername, 'Edit User Profile & Leaderboard', editingUser.telegramId, changes.join(', ')).catch(() => { });
-      showToast(`✅ ${editingUser.firstName} updated.`, 'success'); fetchUsers(); setEditingUser(null);
+      showToast(`✅ ${editFirstName || 'User'} updated.`, 'success'); fetchUsers(); setEditingUser(null);
     } else { showToast('Error updating user.', 'error'); }
     setSavingUser(false);
   };
@@ -1581,11 +1601,30 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                       </div>
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                                    {[{ label: 'Points', val: editPoints, set: setEditPoints }, { label: 'Tokens', val: editTokens, set: setEditTokens }, { label: 'Wallet', val: editWallet, set: setEditWallet }, { label: 'Referrals', val: editReferrals, set: setEditReferrals }].map(f => (
+                                  {/* First Name & Last Name Edit Fields */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">First Name</label>
+                                      <input type="text" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} className={inputCls} style={inputStyle} placeholder="First Name" />
+                                    </div>
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Last Name</label>
+                                      <input type="text" value={editLastName} onChange={e => setEditLastName(e.target.value)} className={inputCls} style={inputStyle} placeholder="Last Name" />
+                                    </div>
+                                  </div>
+
+                                  {/* Balances & Stats Grid (Including Deposit Balance) */}
+                                  <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                                    {[
+                                      { label: 'Points', val: editPoints, set: setEditPoints },
+                                      { label: 'Tokens', val: editTokens, set: setEditTokens },
+                                      { label: 'Wallet', val: editWallet, set: setEditWallet },
+                                      { label: 'Deposit Balance', val: editDepositBalance, set: setEditDepositBalance },
+                                      { label: 'Referrals', val: editReferrals, set: setEditReferrals }
+                                    ].map(f => (
                                       <div key={f.label}>
                                         <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">{f.label}</label>
-                                        <input type="number" value={f.val} onChange={e => f.set(Number(e.target.value))} className={inputCls} style={inputStyle} />
+                                        <input type="number" step="any" value={f.val} onChange={e => f.set(Number(e.target.value))} className={inputCls} style={inputStyle} />
                                       </div>
                                     ))}
                                   </div>
