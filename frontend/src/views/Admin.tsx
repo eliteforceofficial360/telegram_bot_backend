@@ -806,6 +806,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [tasks, setTasks] = useState<EForceTask[]>([]);
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [editingTask, setEditingTask] = useState<EForceTask | null>(null);
+  const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
   const blankTask = { title: '', description: '', type: 'channel' as TaskType, reward: 500, tokenReward: 0, url: '', dailyLimit: 0, totalCompletionLimit: 0, expiryDate: '', isEnabled: true, isMandatory: false, autoApprove: true, answer: '', requireSocialConnection: 'none' as const, requireRewardedAd: true, cooldownSeconds: 30 };
   const [taskForm, setTaskForm] = useState(blankTask);
   useEffect(() => { const unsub = subscribeToTasks(setTasks); return unsub; }, []);
@@ -846,9 +847,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       setShowTaskForm(false); setEditingTask(null); setTaskForm(blankTask);
     } catch { showToast('Unexpected error.', 'error'); }
   };
-  const handleDeleteTask = async (t: EForceTask) => {
-    if (!window.confirm(`Delete task "${t.title}"?`)) return;
-    const ok = await deleteTask(t.id);
+  const handleDeleteTask = async (taskId: string) => {
+    const ok = await deleteTask(taskId);
+    setConfirmDeleteTaskId(null);
     ok ? showToast('Task deleted.', 'success') : showToast('Failed to delete task.', 'error');
   };
   const handleToggleTask = async (t: EForceTask) => {
@@ -2092,7 +2093,16 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           {/* Edit */}
                           <button onClick={() => startEditTask(task)} title="Edit mission" className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={btnStyle.edit}><Edit3 size={13} /></button>
                           {/* Delete */}
-                          <button onClick={() => handleDeleteTask(task)} title="Delete mission" className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={btnStyle.danger}><Trash2 size={13} /></button>
+                          {confirmDeleteTaskId === task.id ? (
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => handleDeleteTask(task.id)} className="h-9 px-3 rounded-xl text-[10px] font-black flex items-center gap-1 cursor-pointer" style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.5)', color: '#F87171' }}>
+                                <Trash2 size={11} /> Confirm
+                              </button>
+                              <button onClick={() => setConfirmDeleteTaskId(null)} className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#64748b' }}><X size={12} /></button>
+                            </div>
+                          ) : (
+                            <button onClick={() => setConfirmDeleteTaskId(task.id)} title="Delete mission" className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={btnStyle.danger}><Trash2 size={13} /></button>
+                          )}
                         </div>
                       </motion.div>
                     );
