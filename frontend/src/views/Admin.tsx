@@ -4829,6 +4829,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                     {[
+                      { key: 'coinIconUrl', label: 'Main Tap Coin / Mining Icon', desc: 'Main coin icon displayed on tap mining screen', defaultVal: '/coin.png' },
                       { key: 'loadingLogoUrl', label: 'Loading Screen / Splash Logo', desc: 'Main logo shown during app startup loading screen', defaultVal: '/loading-logo.png' },
                       { key: 'appHeaderLogoUrl', label: 'App Top Header Left Logo', desc: 'Logo image in top navigation header bar (Left)', defaultVal: '/loading-logo.png' },
                       { key: 'appHeaderRightLogoUrl', label: 'App Top Header Right Avatar / Badge', desc: 'Circular avatar icon in top right of Home header bar', defaultVal: '/coin.png' },
@@ -4872,7 +4873,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 }}
                                 onBlur={e => {
                                   const val = e.target.value;
-                                  const updated = { ...settingsRef.current, [item.key]: val };
+                                  const updated = { ...adminSettings, [item.key]: val };
                                   saveAdminSettings(updated).catch(() => {});
                                   showToast(`⚡ ${item.label} saved & synced live!`, 'success');
                                 }}

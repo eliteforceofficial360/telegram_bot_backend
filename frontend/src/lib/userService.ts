@@ -396,9 +396,10 @@ export const upsertUser = async (
     }
 
     let updateFields: any = {
-      firstName: telegramUser.firstName || '',
-      lastName: telegramUser.lastName || '',
-      photoUrl: finalPhotoUrl,
+      firstName: user.firstName ? user.firstName : (telegramUser.firstName || ''),
+      lastName: user.lastName ? user.lastName : (telegramUser.lastName || ''),
+      username: user.username ? user.username : (telegramUser.username || ''),
+      photoUrl: (user.photoUrl && user.photoUrl.trim()) ? user.photoUrl : finalPhotoUrl,
       isTelegramPremium: telegramUser.isPremium,
       isOnline: true,
       lastSeen: serverTimestamp(),
