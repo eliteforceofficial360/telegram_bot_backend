@@ -843,6 +843,7 @@ export const updateUserDatabaseValues = async (
     wallet?: number;
     depositBalance?: number;
     referrals?: number;
+    referralCount?: number;
     riskLevel?: 'safe' | 'medium' | 'high';
     flagCount?: number;
     banStatus?: 'none' | 'temp' | 'permanent';

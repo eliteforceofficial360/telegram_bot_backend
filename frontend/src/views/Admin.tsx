@@ -32,6 +32,7 @@ import {
 import {
   subscribeToReferralTiers, createReferralTier, updateReferralTier, deleteReferralTier, reorderReferralTiers, getTierBadgeWithIcon, type ReferralClaimTier,
 } from '../lib/referralTierService';
+import { syncAndClaimAllReferralRewards } from '../lib/referralService';
 import {
   sendWithdrawNotification,
   sendDepositNotification,
@@ -616,14 +617,37 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     if (!editingUser) return; setSavingUser(true);
     let banUntil = null;
     if (editBanStatus === 'temp') banUntil = Timestamp.fromDate(new Date(Date.now() + editBanDuration * 3600000));
+
+    const oldReferrals = editingUser.referralCount ?? editingUser.referrals ?? 0;
+    const refDiff = editReferrals - oldReferrals;
+
+    let targetWallet = editWallet;
+    let targetPoints = editPoints;
+
+    if (refDiff > 0) {
+      const usdtRate = adminSettings.referralRewardUsdt !== undefined ? adminSettings.referralRewardUsdt : 0.05;
+      const pointsRate = adminSettings.referralRewardPoints !== undefined ? adminSettings.referralRewardPoints : 250;
+      const extraUsdt = Number((refDiff * usdtRate).toFixed(4));
+      const extraPoints = Math.round(refDiff * pointsRate);
+
+      // If admin didn't manually change wallet/points input, auto add referral reward
+      if (editWallet === (editingUser.wallet ?? 0)) {
+        targetWallet = Number(((editingUser.wallet ?? 0) + extraUsdt).toFixed(4));
+      }
+      if (editPoints === (editingUser.points ?? 0)) {
+        targetPoints = (editingUser.points ?? 0) + extraPoints;
+      }
+    }
+
     const ok = await updateUserDatabaseValues(editingUser.telegramId, {
       firstName: editFirstName,
       lastName: editLastName,
-      points: editPoints,
+      points: targetPoints,
       tokens: editTokens,
-      wallet: editWallet,
+      wallet: targetWallet,
       depositBalance: editDepositBalance,
       referrals: editReferrals,
+      referralCount: editReferrals, // Ensure referralCount is synced with referrals
       riskLevel: editRiskLevel,
       banStatus: editBanStatus,
       banUntil,
@@ -633,17 +657,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       photoUrl: editPhotoUrl,
     });
     if (ok) {
+      // Trigger referral reward & tier sync for the user
+      await syncAndClaimAllReferralRewards(editingUser.telegramId).catch(() => {});
+
       const sessionStr = localStorage.getItem('admin_session');
       let adminId = 'unknown'; let adminUsername = 'Admin';
       if (sessionStr) { try { const p = JSON.parse(sessionStr); adminId = p.uid || 'unknown'; adminUsername = p.email || 'Admin'; } catch { } }
       const changes: string[] = [];
       if (editingUser.firstName !== editFirstName) changes.push(`First Name: ${editingUser.firstName} -> ${editFirstName}`);
       if (editingUser.lastName !== editLastName) changes.push(`Last Name: ${editingUser.lastName} -> ${editLastName}`);
-      if (editingUser.points !== editPoints) changes.push(`Points: ${editingUser.points} -> ${editPoints}`);
+      if (editingUser.points !== targetPoints) changes.push(`Points: ${editingUser.points} -> ${targetPoints}`);
       if (editingUser.tokens !== editTokens) changes.push(`Tokens: ${editingUser.tokens} -> ${editTokens}`);
-      if (editingUser.wallet !== editWallet) changes.push(`Wallet: ${editingUser.wallet} -> ${editWallet}`);
+      if (editingUser.wallet !== targetWallet) changes.push(`Wallet: ${editingUser.wallet} -> ${targetWallet}`);
       if ((editingUser.depositBalance ?? 0) !== editDepositBalance) changes.push(`Deposit Balance: ${editingUser.depositBalance ?? 0} -> ${editDepositBalance}`);
-      if (editingUser.referrals !== editReferrals) changes.push(`Referrals: ${editingUser.referrals} -> ${editReferrals}`);
+      if (oldReferrals !== editReferrals) changes.push(`Referrals: ${oldReferrals} -> ${editReferrals}`);
       if (editingUser.riskLevel !== editRiskLevel) changes.push(`Risk: ${editingUser.riskLevel} -> ${editRiskLevel}`);
       if (editingUser.banStatus !== editBanStatus) changes.push(`Ban: ${editingUser.banStatus} -> ${editBanStatus}`);
       if ((editingUser.leaderboardPinned ?? false) !== editLeaderboardPinned) changes.push(`Pinned: ${editingUser.leaderboardPinned ?? false} -> ${editLeaderboardPinned}`);
