@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Copy, Share2, Users, Check, Award, Lock, Sparkles, Zap, Medal, Diamond, Crown, Flame } from 'lucide-react';
 import { UsdtIcon } from '../components/UsdtIcon';
-import { getReferralLink, getUserReferrals, type ReferralRecord } from '../lib/referralService';
+import { getReferralLink, getUserReferrals, syncAndClaimAllReferralRewards, type ReferralRecord } from '../lib/referralService';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import {
   subscribeToReferralTiers,
@@ -57,9 +57,16 @@ export const Referral: React.FC<ReferralProps> = ({
     return unsub;
   }, []);
 
-  // Automatically check and claim unlocked referral tiers on load or referral updates
+  // Automatically check, sync, and claim all unlocked referral rewards & USDT bonuses
   useEffect(() => {
     if (!telegramUser) return;
+    syncAndClaimAllReferralRewards(telegramUser.id).then((syncRes) => {
+      if (syncRes.totalUsdtAdded > 0 && setUsdtBalance) {
+        setUsdtBalance((prev) => prev + syncRes.totalUsdtAdded);
+        showToast(`🎉 +$${syncRes.totalUsdtAdded.toFixed(2)} USDT Referral Reward Credited!`, 'success');
+      }
+    }).catch(() => {});
+
     checkAndAutoClaimReferralTiers(telegramUser.id, liveTiers).then((res) => {
       if (res.claimedCount > 0) {
         if (res.pointsAdded > 0) {

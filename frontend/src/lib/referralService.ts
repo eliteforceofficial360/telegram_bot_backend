@@ -111,14 +111,14 @@ export const recordReferral = async (
   // Fetch admin settings for dynamic rewards
   const settings = await getAdminSettings();
 
-  // Check device fingerprint match (suspicious ONLY if non-empty, non-generic, and matching)
+  // Check device fingerprint match (flag for security audit log, but do not block distinct Telegram accounts)
   const fp1 = (deviceFingerprint || '').trim();
   const fp2 = (referrerDeviceFingerprint || '').trim();
   const isGeneric = fp1 === '' || fp1 === 'unknown' || fp1.length < 5;
   const deviceMatch = !isGeneric && !!(fp1 && fp2 && fp1 === fp2);
 
-  // Mark valid
-  const isValid = !deviceMatch;
+  // Valid for all distinct Telegram accounts
+  const isValid = referrerId !== referredId;
 
   const rewardUsdt = (settings.referralRewardUsdt !== undefined && settings.referralRewardUsdt !== null) ? settings.referralRewardUsdt : 0.05;
   const rewardTokens = settings.referralRewardToken ?? 0;
@@ -150,13 +150,13 @@ export const recordReferral = async (
       const currentPoints = Number(data.points || 0);
       const currentTokens = Number(data.tokens || 0);
 
-      const updatedWallet = Number((currentWallet + (isValid ? rewardUsdt : 0)).toFixed(4));
-      const updatedPoints = currentPoints + (isValid ? rewardPoints : 0);
-      const updatedTokens = currentTokens + (isValid ? rewardTokens : 0);
+      const updatedWallet = Number((currentWallet + rewardUsdt).toFixed(4));
+      const updatedPoints = currentPoints + rewardPoints;
+      const updatedTokens = currentTokens + rewardTokens;
 
       transaction.update(userRef, {
         referrals: currentReferrals + 1,
-        referralCount: currentReferralCount + (isValid ? 1 : 0),
+        referralCount: currentReferralCount + 1,
         wallet: updatedWallet,
         points: updatedPoints,
         tokens: updatedTokens,
@@ -190,6 +190,129 @@ export const recordReferral = async (
   }
 
   return { recorded: true, valid: isValid };
+};
+
+import { DEFAULT_REFERRAL_TIERS, type ReferralClaimTier } from './referralTierService';
+import { writeBatch, orderBy } from 'firebase/firestore';
+
+/**
+ * Retroactively syncs, validates, and claims all referral rewards and tier USDT bonuses for a user.
+ * Ensures user gets paid all missing USDT and EFC points for valid referrals.
+ */
+export const syncAndClaimAllReferralRewards = async (
+  telegramId: number
+): Promise<{
+  totalValid: number;
+  usdtEarned: number;
+  pointsEarned: number;
+  tierUsdtBonus: number;
+  tierPointsBonus: number;
+  totalUsdtAdded: number;
+}> => {
+  if (!telegramId || !isFirebaseConfigured()) {
+    return { totalValid: 0, usdtEarned: 0, pointsEarned: 0, tierUsdtBonus: 0, tierPointsBonus: 0, totalUsdtAdded: 0 };
+  }
+
+  try {
+    const settings = await getAdminSettings();
+    const perRefUsdt = settings.referralRewardUsdt !== undefined ? settings.referralRewardUsdt : 0.05;
+    const perRefPoints = settings.referralRewardPoints !== undefined ? settings.referralRewardPoints : 250;
+
+    // Fetch all referral records where referrerId == telegramId
+    const q = query(
+      collection(db, REFERRALS_COLLECTION),
+      where('referrerId', '==', telegramId)
+    );
+    const snap = await getDocs(q);
+
+    let totalValid = 0;
+    let totalRaw = 0;
+    const batch = writeBatch(db);
+    let batchNeedsCommit = false;
+
+    snap.forEach((docSnap) => {
+      totalRaw++;
+      const data = docSnap.data();
+      if (data.referredId && data.referredId !== telegramId) {
+        totalValid++;
+        if (!data.isValid) {
+          batch.update(docSnap.ref, { isValid: true, rewardPaid: true });
+          batchNeedsCommit = true;
+        }
+      }
+    });
+
+    if (batchNeedsCommit) {
+      await batch.commit().catch(() => {});
+    }
+
+    // Fetch referral claim tiers
+    let liveTiers = DEFAULT_REFERRAL_TIERS;
+    try {
+      const tierSnap = await getDocs(query(collection(db, 'referral_claim_tiers'), orderBy('sortOrder', 'asc')));
+      if (!tierSnap.empty) {
+        liveTiers = tierSnap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as ReferralClaimTier))
+          .filter((t) => t.isActive !== false);
+      }
+    } catch { /* fallback */ }
+
+    const userRef = doc(db, 'users', String(telegramId));
+    let usdtEarned = 0;
+    let pointsEarned = 0;
+    let tierUsdtBonus = 0;
+    let tierPointsBonus = 0;
+    let totalUsdtAdded = 0;
+
+    await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) return;
+
+      const data = userSnap.data();
+      const currentWallet = Number(data.wallet || 0);
+      const currentPoints = Number(data.points || 0);
+      const claimedTiers: string[] = Array.isArray(data.claimedReferralTiers)
+        ? [...data.claimedReferralTiers]
+        : [];
+
+      // Calculate total expected base referral USDT & EFC
+      usdtEarned = Number((totalValid * perRefUsdt).toFixed(4));
+      pointsEarned = totalValid * perRefPoints;
+
+      // Check all unlocked tiers and calculate missing tier bonuses
+      const newlyClaimedTiers: string[] = [...claimedTiers];
+      for (const tier of liveTiers) {
+        if (totalValid >= tier.requiredReferrals) {
+          tierUsdtBonus += Number(tier.bonusUSDT || 0);
+          tierPointsBonus += Number(tier.claimLimit || 0);
+          if (!newlyClaimedTiers.includes(tier.id)) {
+            newlyClaimedTiers.push(tier.id);
+          }
+        }
+      }
+
+      // Expected total wallet = at least (usdtEarned + tierUsdtBonus)
+      const totalReferralUsdt = Number((usdtEarned + tierUsdtBonus).toFixed(4));
+      const minExpectedWallet = Math.max(currentWallet, totalReferralUsdt);
+      totalUsdtAdded = Number((minExpectedWallet - currentWallet).toFixed(4));
+
+      const minExpectedPoints = Math.max(currentPoints, pointsEarned + tierPointsBonus);
+
+      transaction.update(userRef, {
+        referrals: totalRaw,
+        referralCount: totalValid,
+        wallet: Number(minExpectedWallet.toFixed(4)),
+        points: minExpectedPoints,
+        claimedReferralTiers: newlyClaimedTiers,
+        updatedAt: new Date().toISOString(),
+      });
+    });
+
+    return { totalValid, usdtEarned, pointsEarned, tierUsdtBonus, tierPointsBonus, totalUsdtAdded };
+  } catch (err) {
+    console.error('[syncAndClaimAllReferralRewards] Error:', err);
+    return { totalValid: 0, usdtEarned: 0, pointsEarned: 0, tierUsdtBonus: 0, tierPointsBonus: 0, totalUsdtAdded: 0 };
+  }
 };
 
 /**

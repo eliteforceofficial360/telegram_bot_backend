@@ -15,6 +15,7 @@ import { AdminLogin } from './views/AdminLogin';
 import { Support } from './views/Support';
 import { getTelegramWebAppData, type TelegramUser } from './lib/telegramUser';
 import { upsertUser, setUserOffline, syncPointsToFirestore, getOnlineUserCount, subscribeToUser, checkUserBan, updateUserDatabaseValues, type FirestoreUser } from './lib/userService';
+import { syncAndClaimAllReferralRewards } from './lib/referralService';
 import { subscribeToAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings } from './lib/adminSettingsService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from './lib/firebase';
@@ -522,9 +523,13 @@ export default function App() {
           lastSyncedTokensRef.current = dbTokens;
         }
 
-        setReferralsCount(user.referrals ?? 0);
+        setReferralsCount(user.referralCount ?? user.referrals ?? 0);
       }
     });
+
+    // Auto-sync and credit any missing referral rewards & USDT bonuses on app load
+    syncAndClaimAllReferralRewards(telegramUser.id).catch(() => {});
+
     return () => unsubscribe();
   }, [telegramUser]);
 
