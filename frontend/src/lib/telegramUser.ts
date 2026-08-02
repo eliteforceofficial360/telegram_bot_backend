@@ -82,7 +82,13 @@ export const getTelegramWebAppData = (): TelegramWebAppData => {
 /**
  * Returns a display name from a TelegramUser.
  */
-export const getDisplayName = (user: TelegramUser | null): string => {
+export const getDisplayName = (
+  user: TelegramUser | null,
+  dbUser?: { firstName?: string; lastName?: string; username?: string } | null
+): string => {
+  if (dbUser?.firstName || dbUser?.lastName) {
+    return `${dbUser.firstName || ''} ${dbUser.lastName || ''}`.trim();
+  }
   if (!user) return 'EForce Member';
   if (user.firstName && user.lastName) return `${user.firstName} ${user.lastName}`;
   if (user.firstName) return user.firstName;
@@ -93,7 +99,11 @@ export const getDisplayName = (user: TelegramUser | null): string => {
 /**
  * Returns a short name (first name only) for greeting banners.
  */
-export const getShortName = (user: TelegramUser | null): string => {
+export const getShortName = (
+  user: TelegramUser | null,
+  dbUser?: { firstName?: string; username?: string } | null
+): string => {
+  if (dbUser?.firstName) return dbUser.firstName;
   if (!user) return 'Member';
   return user.firstName || user.username || 'Member';
 };

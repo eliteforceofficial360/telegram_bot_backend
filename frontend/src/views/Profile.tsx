@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, 
   Calendar, 
@@ -16,10 +16,11 @@ import {
   Pickaxe,
   Users,
   Headset,
-  MessageSquare
+  MessageSquare,
+  Edit3
 } from 'lucide-react';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
-import { type FirestoreUser } from '../lib/userService';
+import { updateUserDatabaseValues, type FirestoreUser } from '../lib/userService';
 import { UsdtIcon } from '../components/UsdtIcon';
 import { DEFAULT_ADMIN_SETTINGS, type AdminSettings } from '../lib/adminSettingsService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
@@ -58,11 +59,50 @@ export const Profile = ({
   const [copiedId, setCopiedId] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [liveTiers, setLiveTiers] = useState<ReferralClaimTier[]>([]);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editFirstName, setEditFirstName] = useState('');
+  const [editLastName, setEditLastName] = useState('');
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToReferralTiers(setLiveTiers);
     return unsub;
   }, []);
+
+  const handleStartEditName = () => {
+    setEditFirstName(dbUser?.firstName ?? telegramUser?.firstName ?? '');
+    setEditLastName(dbUser?.lastName ?? telegramUser?.lastName ?? '');
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    const userId = telegramUser?.id || dbUser?.telegramId;
+    if (!userId) {
+      showToast('User session not found.', 'warning');
+      return;
+    }
+    if (!editFirstName.trim()) {
+      showToast('First Name cannot be empty.', 'warning');
+      return;
+    }
+    setSavingName(true);
+    try {
+      const ok = await updateUserDatabaseValues(userId, {
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim(),
+      });
+      if (ok) {
+        showToast('✅ Profile name updated successfully!', 'success');
+        setIsEditingName(false);
+      } else {
+        showToast('Failed to update name. Please try again.', 'error');
+      }
+    } catch {
+      showToast('Error updating profile name.', 'error');
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   const handleCopyId = () => {
     if (!telegramUser) return;
@@ -226,8 +266,15 @@ export const Profile = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
               <h2 className="text-base font-extrabold text-white tracking-tight truncate">
-                {getDisplayName(telegramUser)}
+                {getDisplayName(telegramUser, dbUser)}
               </h2>
+              <button
+                onClick={handleStartEditName}
+                className="p-1 px-1.5 rounded-md bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-[9px] font-bold shrink-0"
+                title="Change Your Name"
+              >
+                <Edit3 size={10} className="text-[#FF8A00]" /> Edit
+              </button>
               {dbUser?.isVerified && <VerifiedBadge size={15} className="shrink-0" />}
               {telegramUser?.isPremium && (
                 <span className="text-[8px] font-black uppercase text-[#FFD700] bg-[#FFD700]/15 border border-[#FFD700]/30 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
@@ -471,6 +518,83 @@ export const Profile = ({
           ))}
         </div>
       </motion.div>
+
+      {/* ── Edit Profile Name Modal ────────────────────────────────────────── */}
+      <AnimatePresence>
+        {isEditingName && (
+          <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="w-full max-w-sm glass-panel p-5 rounded-[24px] border-white/10 flex flex-col gap-4 bg-[#0A0D1F] shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative z-50"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-[#FF8A00]/15 border border-[#FF8A00]/25 text-[#FF8A00] flex items-center justify-center font-bold text-xs">
+                    <Edit3 size={14} />
+                  </div>
+                  <h3 className="text-sm font-extrabold text-white">Edit Profile Name</h3>
+                </div>
+                <button
+                  onClick={() => setIsEditingName(false)}
+                  className="w-7 h-7 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer text-xs"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p className="text-[11px] text-slate-400">
+                Customize your name displayed across the Elite Force Web3 ecosystem.
+              </p>
+
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">
+                    First Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    placeholder="First Name"
+                    className="w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#FF8A00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    placeholder="Last Name"
+                    className="w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#FF8A00]"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <button
+                  onClick={handleSaveName}
+                  disabled={savingName}
+                  className="flex-1 h-10 rounded-xl bg-gradient-to-r from-[#FF8A00] to-[#FF5500] text-white text-xs font-bold shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  {savingName ? 'Saving...' : '💾 Save Changes'}
+                </button>
+                <button
+                  onClick={() => setIsEditingName(false)}
+                  className="h-10 px-4 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-xs font-bold hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

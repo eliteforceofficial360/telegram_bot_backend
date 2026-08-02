@@ -352,7 +352,7 @@ export const Home: React.FC<HomeProps> = ({
     }
   };
 
-  const displayName = telegramUser ? getDisplayName(telegramUser) : 'EForce Miner';
+  const displayName = getDisplayName(telegramUser, dbUser);
   const withdrawMinReferrals = settings.withdrawMinReferrals;
   const referralProgress = Math.min((referralsCount / withdrawMinReferrals) * 100, 100);
 
