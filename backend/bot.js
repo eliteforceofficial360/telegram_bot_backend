@@ -2154,6 +2154,39 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 200, { ok: true });
     }
 
+    // ── POST /notify/tier-unlocked ───────────────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/tier-unlocked') {
+      const { telegramId, tierBadge, tierName, requiredReferrals, pointsAdded, usdtAdded } = data;
+      if (!isValidTelegramId(telegramId)) {
+        return sendJson(res, 400, { error: 'valid telegramId required' });
+      }
+
+      const numId = Number(telegramId);
+      const nameStr = tierName || tierBadge || 'New Tier';
+      const reqStr = requiredReferrals !== undefined ? requiredReferrals : 0;
+      const pts = Number(pointsAdded || 0);
+      const usdt = Number(usdtAdded || 0);
+
+      const msgLines = [
+        `🏆 <b>REFERRAL TIER UNLOCKED!</b>`,
+        ``,
+        `Congratulations! You've unlocked the <b>${escapeHTML(nameStr)}</b> tier (${reqStr} valid referrals)!`,
+        ``,
+        `🎁 <b>Reward Auto-Credited:</b>`,
+      ];
+      if (pts > 0) msgLines.push(`⚡ <b>+${pts.toLocaleString()} EFC Points</b>`);
+      if (usdt > 0) msgLines.push(`💰 <b>+$${usdt.toFixed(2)} USDT Bonus</b>`);
+      msgLines.push(``);
+      msgLines.push(`🚀 Keep inviting friends to unlock higher tiers & bigger rewards!`);
+
+      const extra = Markup.inlineKeyboard([
+        [Markup.button.webApp('👥 View Referral Tiers', `${getEffectiveAppUrl()}?startapp=referral`)],
+      ]);
+
+      const ok = await sendToUser(numId, msgLines.join('\n'), extra).catch(() => false);
+      return sendJson(res, 200, { ok: true, sent: ok });
+    }
+
     // ── POST /api/admin/broadcast ─────────────────────────────────────────────
     if (req.method === 'POST' && url === '/api/admin/broadcast') {
       const { targetType, targetIds, campaignId, country, language, isPremiumOnly, templateText, buttonText, buttonTab, imageUrl } = data;

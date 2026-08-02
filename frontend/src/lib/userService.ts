@@ -80,6 +80,7 @@ export interface FirestoreUser {
   referrals: number;
   referralCount: number; // valid only
   referredBy: number | null;
+  claimedReferralTiers?: string[]; // IDs of referral claim tiers already claimed by user
 
   // Daily Check-in
   dailyClaimStreak: number;

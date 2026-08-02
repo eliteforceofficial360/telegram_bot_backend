@@ -11,6 +11,7 @@ import {
   query,
   orderBy,
   writeBatch,
+  runTransaction,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 
@@ -380,3 +381,204 @@ export const getTierBadgeWithIcon = (badge?: string, requiredReferrals: number =
     full: `${icon} ${name}`,
   };
 };
+
+const getBotApiUrl = () => {
+  const stored = localStorage.getItem('adminSettings');
+  if (stored) {
+    try {
+      const s = JSON.parse(stored);
+      if (s.botApiUrl) return s.botApiUrl.replace(/\/$/, '');
+    } catch { /* ignore */ }
+  }
+  return (import.meta.env.VITE_BOT_API_URL || '').trim() || 'https://elite-force-telegram-app.onrender.com';
+};
+
+/**
+ * Triggers a bot notification to the user via Telegram when a referral tier is unlocked.
+ */
+export const triggerTierUnlockedNotification = async (
+  telegramId: number,
+  tier: ReferralClaimTier
+) => {
+  try {
+    const targetApi = getBotApiUrl();
+    const tierName = formatTierBadgeName(tier.badge, tier.requiredReferrals);
+    await fetch(`${targetApi}/notify/tier-unlocked`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegramId,
+        tierBadge: tier.badge || '',
+        tierName,
+        requiredReferrals: tier.requiredReferrals,
+        pointsAdded: tier.claimLimit,
+        usdtAdded: tier.bonusUSDT,
+      }),
+    });
+  } catch (err) {
+    console.warn('[ReferralTierService] Notification send warning:', err);
+  }
+};
+
+/**
+ * Automatically checks all active referral tiers for a user and auto-claims any unlocked rewards.
+ * Credited directly to user's points & wallet, and sends a Telegram bot message notification.
+ */
+export const checkAndAutoClaimReferralTiers = async (
+  telegramId: number,
+  tiersList?: ReferralClaimTier[]
+): Promise<{ claimedCount: number; pointsAdded: number; usdtAdded: number; newlyClaimed: ReferralClaimTier[] }> => {
+  if (!telegramId || !isFirebaseConfigured()) {
+    return { claimedCount: 0, pointsAdded: 0, usdtAdded: 0, newlyClaimed: [] };
+  }
+
+  try {
+    let activeTiers = tiersList || [];
+    if (activeTiers.length === 0) {
+      const colRef = collection(db, COLLECTION_NAME);
+      const snap = await getDocs(query(colRef, orderBy('sortOrder', 'asc')));
+      if (!snap.empty) {
+        activeTiers = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() } as ReferralClaimTier))
+          .filter((t) => t.isActive !== false);
+      } else {
+        activeTiers = DEFAULT_REFERRAL_TIERS;
+      }
+    }
+
+    const userRef = doc(db, 'users', String(telegramId));
+    let totalPointsAdded = 0;
+    let totalUsdtAdded = 0;
+    const newlyClaimed: ReferralClaimTier[] = [];
+
+    await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) return;
+
+      const data = userSnap.data();
+      const currentReferralCount = Number(data.referralCount ?? data.referrals ?? 0);
+      const claimedTiers: string[] = Array.isArray(data.claimedReferralTiers)
+        ? [...data.claimedReferralTiers]
+        : [];
+
+      let currentPoints = Number(data.points || 0);
+      let currentWallet = Number(data.wallet || 0);
+      let updated = false;
+
+      for (const tier of activeTiers) {
+        if (currentReferralCount >= tier.requiredReferrals && !claimedTiers.includes(tier.id)) {
+          const pts = Number(tier.claimLimit || 0);
+          const usdt = Number(tier.bonusUSDT || 0);
+
+          currentPoints += pts;
+          currentWallet += usdt;
+          claimedTiers.push(tier.id);
+          newlyClaimed.push(tier);
+
+          totalPointsAdded += pts;
+          totalUsdtAdded += usdt;
+          updated = true;
+        }
+      }
+
+      if (updated) {
+        transaction.update(userRef, {
+          points: currentPoints,
+          wallet: Number(currentWallet.toFixed(4)),
+          claimedReferralTiers: claimedTiers,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    });
+
+    // Send Telegram Bot notifications for all newly auto-claimed tiers
+    for (const tier of newlyClaimed) {
+      triggerTierUnlockedNotification(telegramId, tier).catch(() => {});
+    }
+
+    return {
+      claimedCount: newlyClaimed.length,
+      pointsAdded: totalPointsAdded,
+      usdtAdded: totalUsdtAdded,
+      newlyClaimed,
+    };
+  } catch (err) {
+    console.error('[ReferralTierService] checkAndAutoClaimReferralTiers error:', err);
+    return { claimedCount: 0, pointsAdded: 0, usdtAdded: 0, newlyClaimed: [] };
+  }
+};
+
+/**
+ * Claim a specific Dynamic Referral Tier Reward manually if ever needed.
+ * Atomically checks referral count, ensures not double claimed,
+ * and adds claimLimit (EFC points) and bonusUSDT (USDT wallet) to user's Firestore record.
+ */
+export const claimReferralTierReward = async (
+  telegramId: number,
+  tier: ReferralClaimTier
+): Promise<{ success: boolean; reason?: string; pointsAdded?: number; usdtAdded?: number }> => {
+  if (!telegramId || !tier || !tier.id) {
+    return { success: false, reason: 'Invalid parameters or user ID.' };
+  }
+
+  if (!isFirebaseConfigured()) {
+    return {
+      success: true,
+      pointsAdded: Number(tier.claimLimit || 0),
+      usdtAdded: Number(tier.bonusUSDT || 0),
+    };
+  }
+
+  try {
+    const userRef = doc(db, 'users', String(telegramId));
+    let pointsAdded = 0;
+    let usdtAdded = 0;
+
+    await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(userRef);
+      if (!snap.exists()) {
+        throw new Error('User profile not found in database.');
+      }
+
+      const data = snap.data();
+      const claimedTiers: string[] = Array.isArray(data.claimedReferralTiers)
+        ? data.claimedReferralTiers
+        : [];
+
+      if (claimedTiers.includes(tier.id)) {
+        throw new Error('You have already claimed this tier reward!');
+      }
+
+      const totalRef = Number(data.referralCount ?? data.referrals ?? 0);
+      if (totalRef < tier.requiredReferrals) {
+        throw new Error(`You need at least ${tier.requiredReferrals} valid referrals to claim this tier.`);
+      }
+
+      pointsAdded = Number(tier.claimLimit || 0);
+      usdtAdded = Number(tier.bonusUSDT || 0);
+
+      const currentPoints = Number(data.points || 0);
+      const currentWallet = Number(data.wallet || 0);
+
+      const updatedPoints = currentPoints + pointsAdded;
+      const updatedWallet = Number((currentWallet + usdtAdded).toFixed(4));
+      const updatedClaimedTiers = [...claimedTiers, tier.id];
+
+      transaction.update(userRef, {
+        points: updatedPoints,
+        wallet: updatedWallet,
+        claimedReferralTiers: updatedClaimedTiers,
+        updatedAt: new Date().toISOString(),
+      });
+    });
+
+    triggerTierUnlockedNotification(telegramId, tier).catch(() => {});
+
+    return { success: true, pointsAdded, usdtAdded };
+  } catch (err: any) {
+    console.error('[ReferralTierService] claimReferralTierReward error:', err);
+    return { success: false, reason: err.message || 'Failed to claim tier reward.' };
+  }
+};
+
+

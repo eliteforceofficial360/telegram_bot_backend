@@ -7,13 +7,17 @@ import {
   subscribeToReferralTiers,
   calculateUserReferralTier,
   formatTierBadgeName,
+  checkAndAutoClaimReferralTiers,
   type ReferralClaimTier,
 } from '../lib/referralTierService';
 import type { TelegramUser } from '../lib/telegramUser';
+import type { FirestoreUser } from '../lib/userService';
 
 interface ReferralProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   setEfcBalance: React.Dispatch<React.SetStateAction<number>>;
+  setUsdtBalance?: React.Dispatch<React.SetStateAction<number>>;
+  dbUser?: FirestoreUser | null;
   hasUnlockedWithdrawal: boolean;
   setHasUnlockedWithdrawal: (unlocked: boolean) => void;
   referralsCount: number;
@@ -24,6 +28,9 @@ interface ReferralProps {
 
 export const Referral: React.FC<ReferralProps> = ({
   showToast,
+  setEfcBalance,
+  setUsdtBalance,
+  dbUser,
   hasUnlockedWithdrawal,
   setHasUnlockedWithdrawal,
   referralsCount,
@@ -37,11 +44,44 @@ export const Referral: React.FC<ReferralProps> = ({
 
   // Real-time Referral Claim Tiers from Firestore backend (never hardcoded)
   const [liveTiers, setLiveTiers] = useState<ReferralClaimTier[]>([]);
+  const [claimedTiers, setClaimedTiers] = useState<string[]>(() => dbUser?.claimedReferralTiers || []);
+
+  useEffect(() => {
+    if (dbUser?.claimedReferralTiers) {
+      setClaimedTiers(dbUser.claimedReferralTiers);
+    }
+  }, [dbUser?.claimedReferralTiers]);
 
   useEffect(() => {
     const unsub = subscribeToReferralTiers(setLiveTiers);
     return unsub;
   }, []);
+
+  // Automatically check and claim unlocked referral tiers on load or referral updates
+  useEffect(() => {
+    if (!telegramUser) return;
+    checkAndAutoClaimReferralTiers(telegramUser.id, liveTiers).then((res) => {
+      if (res.claimedCount > 0) {
+        if (res.pointsAdded > 0) {
+          setEfcBalance((prev) => {
+            const next = prev + res.pointsAdded;
+            try { localStorage.setItem('efcBalance', JSON.stringify(next)); } catch { /* ignore */ }
+            return next;
+          });
+        }
+        if (res.usdtAdded > 0 && setUsdtBalance) {
+          setUsdtBalance((prev) => prev + res.usdtAdded);
+        }
+        setClaimedTiers((prev) => Array.from(new Set([...prev, ...res.newlyClaimed.map((t) => t.id)])));
+
+        const tierNames = res.newlyClaimed.map((t) => formatTierBadgeName(t.badge, t.requiredReferrals)).join(', ');
+        showToast(
+          `🎉 Auto-unlocked ${tierNames}! +${res.pointsAdded.toLocaleString()} EFC ${res.usdtAdded > 0 ? `& +$${res.usdtAdded.toFixed(2)} USDT` : ''} auto-credited!`,
+          'success'
+        );
+      }
+    }).catch(() => {});
+  }, [telegramUser, liveTiers, referralsCount]);
 
   const renderPremiumIcon = (badge: string, requiredReferrals: number = 0) => {
     const name = formatTierBadgeName(badge, requiredReferrals).toLowerCase();
@@ -268,6 +308,7 @@ export const Referral: React.FC<ReferralProps> = ({
         <div className="flex flex-col gap-2">
           {liveTiers.filter(t => t.isActive).map((tier) => {
             const isReached = referralsCount >= tier.requiredReferrals;
+            const isClaimed = claimedTiers.includes(tier.id);
             const isCurrentTier = unlockedTier?.id === tier.id;
 
             return (
@@ -289,7 +330,7 @@ export const Referral: React.FC<ReferralProps> = ({
                       ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
                       : 'bg-white/5 text-slate-500 border border-white/8'
                   }`}>
-                    {isReached ? '✓' : <Lock size={11} />}
+                    {isClaimed ? '✓' : isReached ? '★' : <Lock size={11} />}
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
@@ -309,15 +350,34 @@ export const Referral: React.FC<ReferralProps> = ({
                   </div>
                 </div>
 
-                <div className="text-right flex flex-col gap-0.5">
-                  <span className="text-xs font-black text-[#FF8A00]">
-                    {tier.claimLimit.toLocaleString()} EFC
-                  </span>
-                  {tier.bonusUSDT > 0 && (
-                    <span className="text-[9px] font-bold text-emerald-400 flex items-center justify-end gap-1">
-                      <UsdtIcon size={11} />+${tier.bonusUSDT.toFixed(2)} USDT Bonus
+                <div className="flex items-center gap-3">
+                  <div className="text-right flex flex-col gap-0.5">
+                    <span className="text-xs font-black text-[#FF8A00]">
+                      {tier.claimLimit.toLocaleString()} EFC
                     </span>
-                  )}
+                    {tier.bonusUSDT > 0 && (
+                      <span className="text-[9px] font-bold text-emerald-400 flex items-center justify-end gap-1">
+                        <UsdtIcon size={11} />+${tier.bonusUSDT.toFixed(2)} USDT Bonus
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Auto-Claimed Badge / Active Tier / Locked Status */}
+                  <div className="shrink-0">
+                    {isClaimed ? (
+                      <div className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9.5px] font-extrabold flex items-center gap-1">
+                        <Check size={11} /> Auto-Claimed
+                      </div>
+                    ) : isReached ? (
+                      <div className="px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[9.5px] font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
+                        <Sparkles size={11} className="text-yellow-400" /> Active Tier
+                      </div>
+                    ) : (
+                      <div className="px-2 py-1 rounded-xl bg-white/5 border border-white/8 text-slate-500 text-[9.5px] font-medium flex items-center gap-1">
+                        <Lock size={10} /> Locked
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );

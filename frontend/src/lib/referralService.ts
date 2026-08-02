@@ -14,6 +14,7 @@ import {
   runTransaction,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
+import { checkAndAutoClaimReferralTiers } from './referralTierService';
 
 export interface ReferralRecord {
   id: string;
@@ -161,6 +162,11 @@ export const recordReferral = async (
         tokens: updatedTokens,
       });
     });
+
+    // Auto-claim any unlocked referral tiers for the referrer and dispatch Telegram bot notification
+    if (isValid) {
+      checkAndAutoClaimReferralTiers(referrerId).catch(() => {});
+    }
 
     // Clear savedReferrerId once successfully recorded
     try {

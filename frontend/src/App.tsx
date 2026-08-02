@@ -699,6 +699,8 @@ export default function App() {
           <Referral 
             showToast={showToast} 
             setEfcBalance={setEfcBalance} 
+            setUsdtBalance={setUsdtBalance}
+            dbUser={dbUser}
             hasUnlockedWithdrawal={hasUnlockedWithdrawal} 
             setHasUnlockedWithdrawal={setHasUnlockedWithdrawal} 
             referralsCount={referralsCount}
