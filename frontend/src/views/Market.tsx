@@ -11,12 +11,14 @@ import { FilterDrawer } from './market/components/FilterDrawer';
 import { TaskBuilder } from './market/TaskBuilder';
 import { TaskDetailView } from './market/TaskDetailView';
 import { type TelegramUser } from '../lib/telegramUser';
+import { type FirestoreUser } from '../lib/userService';
 
 interface MarketProps {
   efcBalance: number;
   setEfcBalance: React.Dispatch<React.SetStateAction<number>>;
   usdtBalance?: number;
   setUsdtBalance?: React.Dispatch<React.SetStateAction<number>>;
+  dbUser?: FirestoreUser | null;
   telegramUser: TelegramUser | null;
   adminSettings: any;
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
@@ -170,6 +172,7 @@ export const Market: React.FC<MarketProps> = ({
   setEfcBalance,
   usdtBalance,
   setUsdtBalance,
+  dbUser,
   telegramUser,
   showToast,
   adminSettings,
@@ -543,6 +546,7 @@ export const Market: React.FC<MarketProps> = ({
           <TaskBuilder
             onClose={() => setTaskBuilderOpen(false)}
             telegramUser={telegramUser}
+            dbUser={dbUser}
             efcBalance={efcBalance}
             setEfcBalance={setEfcBalance}
             usdtBalance={usdtBalance ?? 0}

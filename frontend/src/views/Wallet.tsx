@@ -354,32 +354,41 @@ export const Wallet: React.FC<WalletProps> = ({
       </div>
 
       {/* Referral Commission Earnings */}
-      <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-2"
-        style={{ background: 'rgba(255,138,0,0.04)', border: '1px solid rgba(255,138,0,0.12)' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm"
-              style={{ background: 'rgba(255,138,0,0.12)', border: '1px solid rgba(255,138,0,0.2)' }}>
-              💰
+      {(() => {
+        const affiliateCount = dbUser?.referralCount ?? dbUser?.referrals ?? 0;
+        const ratePerAffiliate = adminSettings.referralRewardUsdt !== undefined ? adminSettings.referralRewardUsdt : 0.05;
+        const earnedFromRefs = Number((affiliateCount * ratePerAffiliate).toFixed(2));
+        const displayEarned = Math.max(earnedFromRefs, usdtBalance);
+
+        return (
+          <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-2"
+            style={{ background: 'rgba(255,138,0,0.04)', border: '1px solid rgba(255,138,0,0.12)' }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-full flex items-center justify-center text-sm"
+                  style={{ background: 'rgba(255,138,0,0.12)', border: '1px solid rgba(255,138,0,0.2)' }}>
+                  💰
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Referral Commission</span>
+                  <span className="text-[9px] text-slate-400">${ratePerAffiliate.toFixed(2)} per affiliate</span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-black text-[#FF8A00]">
+                  ${displayEarned.toFixed(2)}
+                </div>
+                <div className="text-[9px] text-slate-400">{affiliateCount} affiliate{affiliateCount !== 1 ? 's' : ''}</div>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Referral Commission</span>
-              <span className="text-[9px] text-slate-600">${(adminSettings.referralRewardUsdt || 0.05).toFixed(2)} per affiliate</span>
+            <div className="w-full h-px bg-white/5 my-0.5" />
+            <div className="flex items-center justify-between text-[10px]">
+              <span className="text-slate-400">Total commission in USDT balance:</span>
+              <span className="text-accent-success font-bold flex items-center gap-1.5"><UsdtIcon size={13} />${usdtBalance.toFixed(2)} USDT</span>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-lg font-black text-[#FF8A00]">
-              ${((dbUser?.referrals ?? 0) * (adminSettings.referralRewardUsdt || 0.05)).toFixed(2)}
-            </div>
-            <div className="text-[9px] text-slate-500">{dbUser?.referrals ?? 0} affiliates</div>
-          </div>
-        </div>
-        <div className="w-full h-px bg-white/5 my-0.5" />
-        <div className="flex items-center justify-between text-[10px]">
-          <span className="text-slate-500">Total commission in USDT balance:</span>
-          <span className="text-accent-success font-bold flex items-center gap-1.5"><UsdtIcon size={13} />${usdtBalance.toFixed(2)} USDT</span>
-        </div>
-      </div>
+        );
+      })()}
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3">
         <span className="text-[10px] text-slate-500 uppercase tracking-widest font-bold">BEP-20 Wallet Address</span>
         {dbUser?.walletAddress && !isEditingAddress ? (

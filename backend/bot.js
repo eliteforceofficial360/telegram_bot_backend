@@ -1452,13 +1452,15 @@ const server = http.createServer(async (req, res) => {
         }
 
         const userData = userSnap.data();
-        const currentBalance = isUsdt ? (userData.wallet || 0) : (userData.points || 0);
+        const currentBalance = isUsdt ? (userData.depositBalance ?? 0) : (userData.points || 0);
 
         if (currentBalance < totalEscrow) {
           return sendJson(res, 400, {
             ok: false,
             insufficientBalance: true,
-            error: `Insufficient balance. Required: ${totalEscrow} ${isUsdt ? 'USDT' : 'EFC'}, Available: ${currentBalance} ${isUsdt ? 'USDT' : 'EFC'}`,
+            error: isUsdt
+              ? `Insufficient Deposit Balance! Required: $${totalEscrow} USDT, Available Deposit Balance: $${currentBalance} USDT. Please deposit USDT into your Wallet to create tasks.`
+              : `Insufficient EFC points balance. Required: ${totalEscrow} EFC, Available: ${currentBalance} EFC`,
           });
         }
 
@@ -1470,14 +1472,15 @@ const server = http.createServer(async (req, res) => {
 
         await db.runTransaction(async (transaction) => {
           const freshUserSnap = await transaction.get(userRef);
-          const freshBalance = isUsdt ? (freshUserSnap.data()?.wallet || 0) : (freshUserSnap.data()?.points || 0);
+          const freshBalance = isUsdt ? (freshUserSnap.data()?.depositBalance ?? 0) : (freshUserSnap.data()?.points || 0);
           if (freshBalance < totalEscrow) {
-            throw new Error(`Insufficient balance during checkout. Available: ${freshBalance} ${isUsdt ? 'USDT' : 'EFC'}`);
+            throw new Error(`Insufficient Deposit Balance during checkout. Available: $${freshBalance} USDT`);
           }
 
-          // Atomic deduction from user wallet + record escrow points
+          // Atomic deduction from user deposit balance & wallet + record escrow points
           if (isUsdt) {
             transaction.update(userRef, {
+              depositBalance: FieldValue.increment(-totalEscrow),
               wallet: FieldValue.increment(-totalEscrow),
               escrow_usdt: FieldValue.increment(totalEscrow),
               spent_usdt: FieldValue.increment(totalEscrow),

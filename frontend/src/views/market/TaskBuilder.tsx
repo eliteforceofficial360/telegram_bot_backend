@@ -7,11 +7,13 @@ import {
   type CreateTaskPayload,
 } from '../../lib/marketService';
 import { type TelegramUser } from '../../lib/telegramUser';
+import { type FirestoreUser } from '../../lib/userService';
 import { PlatformIcon, ActionIcon, getPlatformColor } from './components/PlatformIcons';
 
 interface TaskBuilderProps {
   onClose: () => void;
   telegramUser: TelegramUser | null;
+  dbUser?: FirestoreUser | null;
   efcBalance: number;
   setEfcBalance?: React.Dispatch<React.SetStateAction<number>>;
   usdtBalance?: number;
@@ -21,8 +23,9 @@ interface TaskBuilderProps {
 }
 
 export const TaskBuilder: React.FC<TaskBuilderProps> = ({
-  onClose, telegramUser, efcBalance, setEfcBalance, usdtBalance = 0, setUsdtBalance, showToast, onCreated,
+  onClose, telegramUser, dbUser, efcBalance, setEfcBalance, usdtBalance = 0, setUsdtBalance, showToast, onCreated,
 }) => {
+  void usdtBalance;
   const [selectedPlatform, setSelectedPlatform] = useState<string>('X');
   const [selectedActions, setSelectedActions] = useState<Record<string, boolean>>({ Like: true });
   const [targetUrl, setTargetUrl] = useState<string>('');
@@ -47,6 +50,8 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       [label]: !prev[label],
     }));
   };
+
+  const depositBalance = dbUser?.depositBalance ?? 0.00;
 
   // Memoized Escrow Calculations for fast UI responses
   const {
@@ -77,7 +82,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       ? Number((baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee).toFixed(3))
       : Math.ceil(baseSubtotal + serviceFee + tierCost + verificationCost + reviewFee);
 
-    const availableBalance = isUsdt ? usdtBalance : efcBalance;
+    const availableBalance = isUsdt ? depositBalance : efcBalance;
     const balanceAfter = Number((availableBalance - totalEscrowRequired).toFixed(3));
     const isInsufficientBalance = balanceAfter < 0;
 
@@ -95,7 +100,7 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
       isInsufficientBalance,
       isUsdt,
     };
-  }, [rewardCurrency, rewardPerEach, quantity, minTier, verifiedOnly, selectedPlatform, usdtBalance, efcBalance]);
+  }, [rewardCurrency, rewardPerEach, quantity, minTier, verifiedOnly, selectedPlatform, depositBalance, efcBalance]);
 
   const handleSubmit = () => {
     if (!telegramUser) {
@@ -120,8 +125,11 @@ export const TaskBuilder: React.FC<TaskBuilderProps> = ({
     }
 
     if (isInsufficientBalance) {
-      const availableBalance = isUsdt ? usdtBalance : efcBalance;
-      showToast(`Insufficient balance. Needed: ${totalEscrowRequired} ${currencySymbol}, Available: ${availableBalance} ${currencySymbol}`, 'error');
+      if (isUsdt) {
+        showToast(`Insufficient Deposit Balance! Required: $${totalEscrowRequired.toFixed(2)} USDT, Available Deposit Balance: $${depositBalance.toFixed(2)} USDT. Please deposit USDT into your Wallet to create tasks.`, 'error');
+      } else {
+        showToast(`Insufficient balance. Needed: ${totalEscrowRequired} ${currencySymbol}, Available: ${efcBalance} ${currencySymbol}`, 'error');
+      }
       return;
     }
 

@@ -251,7 +251,7 @@ export const Profile = ({
           </div>
         </div>
 
-        {/* Quick Stats Metrics Row — 4 Metric Cards */}
+        {/* Quick Stats Metrics Row — 5 Metric Cards */}
         <div className="grid grid-cols-2 gap-2.5 pt-2 border-t border-white/8 relative z-10">
           {/* EFC Points */}
           <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
@@ -265,18 +265,26 @@ export const Profile = ({
             <span className="text-sm font-black text-[#B388FF] truncate">{totalTokens.toLocaleString()} EForce</span>
           </div>
 
+          {/* Deposit Balance */}
+          <div className="bg-emerald-500/10 border border-emerald-500/25 p-2.5 rounded-xl flex flex-col gap-0.5 shadow-[0_0_12px_rgba(16,185,129,0.1)]">
+            <span className="text-[8px] text-emerald-400 uppercase tracking-widest font-extrabold flex items-center gap-1">
+              <UsdtIcon size={10} /> Deposit Balance
+            </span>
+            <span className="text-sm font-black text-emerald-400 truncate">${(dbUser?.depositBalance ?? 0.00).toFixed(2)} USDT</span>
+          </div>
+
           {/* USDT Wallet */}
           <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
             <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold flex items-center gap-1">
               <UsdtIcon size={10} /> USDT Wallet
             </span>
-            <span className="text-sm font-black text-accent-success truncate">${(dbUser?.wallet || usdtBalance).toFixed(2)}</span>
+            <span className="text-sm font-black text-slate-200 truncate">${(dbUser?.wallet || usdtBalance).toFixed(2)}</span>
           </div>
 
           {/* Real-time Agent Rank */}
-          <div className="bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex flex-col gap-0.5">
+          <div className="col-span-2 bg-white/[0.03] border border-white/5 p-2.5 rounded-xl flex items-center justify-between">
             <span className="text-[8px] text-slate-500 uppercase tracking-widest font-extrabold">Agent Rank</span>
-            <span className="text-xs font-black text-[#00E5FF] truncate">{tierBadgeInfo.full}</span>
+            <span className="text-xs font-black text-[#00E5FF]">{tierBadgeInfo.full}</span>
           </div>
         </div>
       </motion.div>

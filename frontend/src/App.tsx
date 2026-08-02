@@ -690,6 +690,7 @@ export default function App() {
             setEfcBalance={setEfcBalance}
             usdtBalance={usdtBalance}
             setUsdtBalance={setUsdtBalance}
+            dbUser={dbUser}
             telegramUser={telegramUser}
             adminSettings={adminSettings}
             showToast={showToast}

@@ -74,6 +74,7 @@ export interface FirestoreUser {
   points: number;
   tokens: number;        // EST token balance
   wallet: number;        // USDT balance
+  depositBalance?: number; // Deposited USDT balance
   walletAddress: string; // BEP-20 address
 
   // Referrals
