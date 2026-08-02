@@ -369,11 +369,11 @@ export const Referral: React.FC<ReferralProps> = ({
                     )}
                   </div>
 
-                  {/* Auto-Claimed Badge / Active Tier / Locked Status */}
+                  {/* Claimed Badge / Active Tier / Locked Status */}
                   <div className="shrink-0">
                     {isClaimed ? (
                       <div className="px-2.5 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[9.5px] font-extrabold flex items-center gap-1">
-                        <Check size={11} /> Auto-Claimed
+                        <Check size={11} /> Claimed
                       </div>
                     ) : isReached ? (
                       <div className="px-2.5 py-1 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[9.5px] font-extrabold flex items-center gap-1 shadow-[0_0_10px_rgba(245,158,11,0.2)]">
