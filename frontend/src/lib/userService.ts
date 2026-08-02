@@ -838,6 +838,7 @@ export const updateUserDatabaseValues = async (
   updates: {
     firstName?: string;
     lastName?: string;
+    username?: string;
     points?: number;
     tokens?: number;
     wallet?: number;

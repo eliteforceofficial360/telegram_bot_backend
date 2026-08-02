@@ -62,6 +62,7 @@ export const Profile = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
   const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export const Profile = ({
   const handleStartEditName = () => {
     setEditFirstName(dbUser?.firstName ?? telegramUser?.firstName ?? '');
     setEditLastName(dbUser?.lastName ?? telegramUser?.lastName ?? '');
+    setEditUsername(dbUser?.username ?? telegramUser?.username ?? '');
     setIsEditingName(true);
   };
 
@@ -87,18 +89,20 @@ export const Profile = ({
     }
     setSavingName(true);
     try {
+      const cleanUsername = editUsername.replace(/^@/, '').trim();
       const ok = await updateUserDatabaseValues(userId, {
         firstName: editFirstName.trim(),
         lastName: editLastName.trim(),
+        username: cleanUsername,
       });
       if (ok) {
-        showToast('✅ Profile name updated successfully!', 'success');
+        showToast('✅ Profile name & username updated successfully!', 'success');
         setIsEditingName(false);
       } else {
-        showToast('Failed to update name. Please try again.', 'error');
+        showToast('Failed to update profile. Please try again.', 'error');
       }
     } catch {
-      showToast('Error updating profile name.', 'error');
+      showToast('Error updating profile details.', 'error');
     } finally {
       setSavingName(false);
     }
@@ -571,6 +575,19 @@ export const Profile = ({
                     value={editLastName}
                     onChange={(e) => setEditLastName(e.target.value)}
                     placeholder="Last Name"
+                    className="w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#FF8A00]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-widest block mb-1">
+                    Username (@handle)
+                  </label>
+                  <input
+                    type="text"
+                    value={editUsername}
+                    onChange={(e) => setEditUsername(e.target.value)}
+                    placeholder="@username"
                     className="w-full h-10 rounded-xl bg-white/5 border border-white/10 px-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#FF8A00]"
                   />
                 </div>

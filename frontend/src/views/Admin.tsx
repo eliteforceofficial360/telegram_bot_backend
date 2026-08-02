@@ -204,6 +204,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editingUser, setEditingUser] = useState<FirestoreUser | null>(null);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
+  const [editUsername, setEditUsername] = useState('');
   const [editPoints, setEditPoints] = useState(0);
   const [editTokens, setEditTokens] = useState(0);
   const [editWallet, setEditWallet] = useState(0);
@@ -549,6 +550,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setEditingUser(u);
     setEditFirstName(u.firstName ?? '');
     setEditLastName(u.lastName ?? '');
+    setEditUsername(u.username ?? '');
     setEditPoints(u.points ?? 0);
     setEditTokens(u.tokens ?? 0);
     setEditWallet(u.wallet ?? 0);
@@ -639,9 +641,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       }
     }
 
+    const cleanUsername = editUsername.replace(/^@/, '').trim();
+
     const ok = await updateUserDatabaseValues(editingUser.telegramId, {
       firstName: editFirstName,
       lastName: editLastName,
+      username: cleanUsername,
       points: targetPoints,
       tokens: editTokens,
       wallet: targetWallet,
@@ -1628,8 +1633,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                       </div>
                                     </div>
                                   </div>
-                                  {/* First Name & Last Name Edit Fields */}
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {/* First Name, Last Name & Username Edit Fields */}
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                     <div>
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">First Name</label>
                                       <input type="text" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} className={inputCls} style={inputStyle} placeholder="First Name" />
@@ -1637,6 +1642,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                     <div>
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Last Name</label>
                                       <input type="text" value={editLastName} onChange={e => setEditLastName(e.target.value)} className={inputCls} style={inputStyle} placeholder="Last Name" />
+                                    </div>
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Username (@handle)</label>
+                                      <input type="text" value={editUsername} onChange={e => setEditUsername(e.target.value)} className={inputCls} style={inputStyle} placeholder="@username" />
                                     </div>
                                   </div>
 
