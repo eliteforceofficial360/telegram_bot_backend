@@ -271,18 +271,24 @@ export const syncAndClaimAllReferralRewards = async (
       const data = userSnap.data();
       const currentWallet = Number(data.wallet || 0);
       const currentPoints = Number(data.points || 0);
+      const userDocReferralCount = Number(data.referralCount ?? data.referrals ?? 0);
+      const userDocRawReferrals = Number(data.referrals ?? data.referralCount ?? 0);
+
+      const effectiveValid = Math.max(totalValid, userDocReferralCount);
+      const effectiveRaw = Math.max(totalRaw, userDocRawReferrals);
+
       const claimedTiers: string[] = Array.isArray(data.claimedReferralTiers)
         ? [...data.claimedReferralTiers]
         : [];
 
       // Calculate total expected base referral USDT & EFC
-      usdtEarned = Number((totalValid * perRefUsdt).toFixed(4));
-      pointsEarned = totalValid * perRefPoints;
+      usdtEarned = Number((effectiveValid * perRefUsdt).toFixed(4));
+      pointsEarned = effectiveValid * perRefPoints;
 
       // Check all unlocked tiers and calculate missing tier bonuses
       const newlyClaimedTiers: string[] = [...claimedTiers];
       for (const tier of liveTiers) {
-        if (totalValid >= tier.requiredReferrals) {
+        if (effectiveValid >= tier.requiredReferrals) {
           tierUsdtBonus += Number(tier.bonusUSDT || 0);
           tierPointsBonus += Number(tier.claimLimit || 0);
           if (!newlyClaimedTiers.includes(tier.id)) {
@@ -299,13 +305,15 @@ export const syncAndClaimAllReferralRewards = async (
       const minExpectedPoints = Math.max(currentPoints, pointsEarned + tierPointsBonus);
 
       transaction.update(userRef, {
-        referrals: totalRaw,
-        referralCount: totalValid,
+        referrals: effectiveRaw,
+        referralCount: effectiveValid,
         wallet: Number(minExpectedWallet.toFixed(4)),
         points: minExpectedPoints,
         claimedReferralTiers: newlyClaimedTiers,
         updatedAt: new Date().toISOString(),
       });
+
+      totalValid = effectiveValid;
     });
 
     return { totalValid, usdtEarned, pointsEarned, tierUsdtBonus, tierPointsBonus, totalUsdtAdded };

@@ -105,8 +105,18 @@ export const Referral: React.FC<ReferralProps> = ({
   const settings = adminSettings;
   const botUser = settings.botUsername || 'EliteForceBot';
 
+  const recordValidCount = referralRecords.filter(r => r.isValid).length;
+  const recordSuspiciousCount = referralRecords.filter(r => !r.isValid).length;
+
+  const dbValidCount = dbUser?.referralCount ?? dbUser?.referrals ?? 0;
+  const dbTotalCount = dbUser?.referrals ?? dbUser?.referralCount ?? 0;
+
+  const validReferrals = Math.max(dbValidCount, recordValidCount, referralsCount);
+  const totalReferrals = Math.max(dbTotalCount, referralRecords.length, referralsCount, validReferrals);
+  const suspiciousReferrals = recordSuspiciousCount;
+
   // Calculate live unlocked tier metrics from real-time database state
-  const tierStatus = calculateUserReferralTier(referralsCount, liveTiers);
+  const tierStatus = calculateUserReferralTier(validReferrals, liveTiers);
   const unlockedTier = tierStatus.unlockedTier;
   const nextTier = tierStatus.nextTier;
 
@@ -183,9 +193,6 @@ export const Referral: React.FC<ReferralProps> = ({
     handleCopy();
   };
 
-  const validReferrals = referralRecords.filter(r => r.isValid).length;
-  const suspiciousReferrals = referralRecords.filter(r => !r.isValid).length;
-
   return (
     <div className="flex flex-col gap-5 pb-28">
       {/* Header */}
@@ -258,7 +265,7 @@ export const Referral: React.FC<ReferralProps> = ({
       <div className="grid grid-cols-3 gap-2">
         <div className="glass-panel p-3 rounded-[18px] border-white/5 flex flex-col gap-0.5">
           <span className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">Total</span>
-          <span className="text-lg font-black text-white">{referralsCount}</span>
+          <span className="text-lg font-black text-white">{totalReferrals}</span>
         </div>
         <div className="glass-panel p-3 rounded-[18px] border-white/5 flex flex-col gap-0.5">
           <span className="text-[8px] text-slate-500 uppercase tracking-widest font-bold">Valid</span>
