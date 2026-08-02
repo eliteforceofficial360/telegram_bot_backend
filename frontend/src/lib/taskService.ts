@@ -209,12 +209,29 @@ export const updateTask = async (
 
 /**
  * Admin: Delete a task.
+ * Handles both admin tasks (tasks collection) and market tasks (marketTasks collection).
+ * For market tasks, sets status to 'cancelled' so they disappear from user views immediately via onSnapshot.
  */
 export const deleteTask = async (taskId: string): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
   try {
-    await deleteDoc(doc(db, TASKS_COLLECTION, taskId));
-    return true;
+    // First try to delete from admin tasks collection
+    const adminRef = doc(db, TASKS_COLLECTION, taskId);
+    const { getDoc } = await import('firebase/firestore');
+    const adminSnap = await getDoc(adminRef);
+    if (adminSnap.exists()) {
+      await deleteDoc(adminRef);
+      return true;
+    }
+    // If not found in admin tasks, try marketTasks collection (user-created)
+    const marketRef = doc(db, 'marketTasks', taskId);
+    const marketSnap = await getDoc(marketRef);
+    if (marketSnap.exists()) {
+      // Set status to 'cancelled' so onSnapshot removes it from user views
+      await updateDoc(marketRef, { status: 'cancelled', cancelledAt: serverTimestamp(), cancelledByAdmin: true });
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }

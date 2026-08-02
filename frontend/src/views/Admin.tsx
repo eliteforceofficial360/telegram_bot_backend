@@ -2042,20 +2042,24 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {tasks.map((task, idx) => {
                     const tc = TASK_TYPE_COLORS[task.type] ?? TASK_TYPE_COLORS['website'];
+                    const isMarketTask = !!(task as any).createdBy;
                     return (
                       <motion.div key={task.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.04 }}
                         className="rounded-[22px] p-4 flex flex-col gap-3 relative overflow-hidden transition-all hover:shadow-[0_0_30px_rgba(163,230,53,0.07)]"
-                        style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${task.isEnabled ? 'rgba(163,230,53,0.15)' : 'rgba(255,255,255,0.06)'}` }}>
+                        style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${task.isEnabled ? (isMarketTask ? 'rgba(96,165,250,0.2)' : 'rgba(163,230,53,0.15)') : 'rgba(255,255,255,0.06)'}` }}>
                         {/* Top accent */}
                         <div className="absolute top-0 left-0 right-0 h-0.5 rounded-t-[22px]"
-                          style={{ background: task.isEnabled ? 'linear-gradient(90deg, transparent, rgba(163,230,53,0.5), transparent)' : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }} />
+                          style={{ background: task.isEnabled ? (isMarketTask ? 'linear-gradient(90deg, transparent, rgba(96,165,250,0.5), transparent)' : 'linear-gradient(90deg, transparent, rgba(163,230,53,0.5), transparent)') : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)' }} />
 
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
                             <div className={`w-2 h-2 rounded-full shrink-0 mt-1 ${task.isEnabled ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]' : 'bg-slate-600'}`} />
                             <span className="text-sm font-bold text-white truncate">{task.title}</span>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
+                          <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                            {isMarketTask && (
+                              <span className="text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-wider" style={{ background: 'rgba(96,165,250,0.15)', color: '#60A5FA', border: '1px solid rgba(96,165,250,0.3)' }}>🛒 Market</span>
+                            )}
                             {task.isMandatory && (
                               <span className="text-[8px] font-black px-2 py-1 rounded-full uppercase tracking-wider" style={{ background: 'rgba(255,138,0,0.15)', color: '#FF8A00', border: '1px solid rgba(255,138,0,0.3)' }}>🔒 Required</span>
                             )}
@@ -2064,6 +2068,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         </div>
 
                         {task.description && <p className="text-[10px] text-slate-500 leading-relaxed line-clamp-2">{task.description}</p>}
+                        {isMarketTask && (task as any).createdByName && (
+                          <p className="text-[9px] text-blue-400/70 font-mono">👤 Created by: {(task as any).createdByName}</p>
+                        )}
 
                         <div className="flex items-center gap-2">
                           <div className="flex-1 rounded-xl px-3 py-2" style={{ background: 'rgba(255,138,0,0.07)', border: '1px solid rgba(255,138,0,0.15)' }}>
@@ -2079,29 +2086,37 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         </div>
 
                         <div className="flex items-center gap-2 pt-1 border-t" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
-                          {/* Toggle Active/Disabled */}
-                          <button onClick={() => handleToggleTask(task)}
-                            className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-[10px] font-bold transition-all cursor-pointer flex-1 justify-center"
-                            style={task.isEnabled
-                              ? { background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ADE80' }
-                              : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#64748b' }
-                            }
-                          >
-                            {task.isEnabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
-                            {task.isEnabled ? 'Active' : 'Inactive'}
-                          </button>
-                          {/* Edit */}
-                          <button onClick={() => startEditTask(task)} title="Edit mission" className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={btnStyle.edit}><Edit3 size={13} /></button>
+                          {/* Toggle Active/Disabled — disabled for market tasks */}
+                          {!isMarketTask ? (
+                            <button onClick={() => handleToggleTask(task)}
+                              className="flex items-center gap-1.5 h-9 px-3 rounded-xl text-[10px] font-bold transition-all cursor-pointer flex-1 justify-center"
+                              style={task.isEnabled
+                                ? { background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.25)', color: '#4ADE80' }
+                                : { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.09)', color: '#64748b' }
+                              }
+                            >
+                              {task.isEnabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                              {task.isEnabled ? 'Active' : 'Inactive'}
+                            </button>
+                          ) : (
+                            <div className="flex-1 h-9 px-3 rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5" style={{ background: 'rgba(96,165,250,0.07)', border: '1px solid rgba(96,165,250,0.2)', color: '#60A5FA' }}>
+                              🛒 User Market Task
+                            </div>
+                          )}
+                          {/* Edit — only for admin tasks */}
+                          {!isMarketTask && (
+                            <button onClick={() => startEditTask(task)} title="Edit mission" className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={btnStyle.edit}><Edit3 size={13} /></button>
+                          )}
                           {/* Delete */}
                           {confirmDeleteTaskId === task.id ? (
                             <div className="flex items-center gap-1">
                               <button onClick={() => handleDeleteTask(task.id)} className="h-9 px-3 rounded-xl text-[10px] font-black flex items-center gap-1 cursor-pointer" style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.5)', color: '#F87171' }}>
-                                <Trash2 size={11} /> Confirm
+                                <Trash2 size={11} /> {isMarketTask ? 'Remove' : 'Confirm'}
                               </button>
                               <button onClick={() => setConfirmDeleteTaskId(null)} className="w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: '#64748b' }}><X size={12} /></button>
                             </div>
                           ) : (
-                            <button onClick={() => setConfirmDeleteTaskId(task.id)} title="Delete mission" className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={btnStyle.danger}><Trash2 size={13} /></button>
+                            <button onClick={() => setConfirmDeleteTaskId(task.id)} title={isMarketTask ? 'Remove from market' : 'Delete mission'} className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer" style={btnStyle.danger}><Trash2 size={13} /></button>
                           )}
                         </div>
                       </motion.div>
