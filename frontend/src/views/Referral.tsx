@@ -163,7 +163,14 @@ export const Referral: React.FC<ReferralProps> = ({
   };
 
   const handleShare = () => {
-    const shareText = `🚀 Join Elite Force Web3 & start earning EForce Tokens & USDT today! 💥`;
+    const shareText = `⚡️ ELITE FORCE — Web3 Earning Platform
+
+💰 Earn real USDT + EForce Tokens daily!
+🎯 Complete tasks, refer friends & climb the leaderboard
+🔥 Join thousands of earners already in the ecosystem
+
+👇 Use my referral link & we BOTH get rewarded:`;
+
     const shareUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
 
     if ((window as any).Telegram?.WebApp?.openTelegramLink) {
