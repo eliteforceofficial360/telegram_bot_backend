@@ -495,33 +495,20 @@ export default function App() {
       if (user) {
         setDbUser(user);
         
-        // Two-way robust points synchronization
+        // Real-Time Single Source of Truth from Firestore
         const dbPoints = user.points ?? 0;
-        const currentLocalPoints = Number(localStorage.getItem('efcBalance') || '0');
-        if (dbPoints > currentLocalPoints) {
-          setEfcBalance(dbPoints);
-          lastSyncedPointsRef.current = dbPoints;
-        } else if (currentLocalPoints > dbPoints) {
-          lastSyncedPointsRef.current = currentLocalPoints;
-          syncPointsToFirestore(telegramUser.id, currentLocalPoints).catch(() => {});
-        } else {
-          lastSyncedPointsRef.current = dbPoints;
-        }
+        setEfcBalance(dbPoints);
+        localStorage.setItem('efcBalance', JSON.stringify(dbPoints));
+        lastSyncedPointsRef.current = dbPoints;
 
-        setUsdtBalance(user.wallet ?? 0);
-
-        // Two-way robust tokens synchronization
         const dbTokens = user.tokens ?? 0;
-        const currentLocalTokens = Number(localStorage.getItem('eforceTokens') || '0');
-        if (dbTokens > currentLocalTokens) {
-          setEforceTokens(dbTokens);
-          lastSyncedTokensRef.current = dbTokens;
-        } else if (currentLocalTokens > dbTokens) {
-          lastSyncedTokensRef.current = currentLocalTokens;
-          updateUserDatabaseValues(telegramUser.id, { tokens: currentLocalTokens }).catch(() => {});
-        } else {
-          lastSyncedTokensRef.current = dbTokens;
-        }
+        setEforceTokens(dbTokens);
+        localStorage.setItem('eforceTokens', JSON.stringify(dbTokens));
+        lastSyncedTokensRef.current = dbTokens;
+
+        const dbUsdt = user.wallet ?? 0;
+        setUsdtBalance(dbUsdt);
+        localStorage.setItem('usdtBalance', JSON.stringify(dbUsdt));
 
         setReferralsCount(user.referralCount ?? user.referrals ?? 0);
       }
