@@ -100,7 +100,7 @@ export const Referral = ({
     if (name.includes('gold')) return <Award size={14} className="text-yellow-500 drop-shadow-[0_0_8px_rgba(234,179,8,0.6)]" />;
     if (name.includes('platinum')) return <Diamond size={14} className="text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]" />;
     if (name.includes('diamond')) return <Crown size={14} className="text-fuchsia-400 drop-shadow-[0_0_8px_rgba(232,121,249,0.6)]" />;
-    if (name.includes('master') || name.includes('elite')) return <Flame size={14} className="text-[#FF8A00] drop-shadow-[0_0_8px_rgba(255,138,0,0.6)]" />;
+    if (name.includes('master') || name.includes('grand') || name.includes('elite')) return <Flame size={14} className="text-[#FF8A00] drop-shadow-[0_0_8px_rgba(255,138,0,0.6)]" />;
     return <Award size={14} className="text-[#FF8A00]" />;
   };
 

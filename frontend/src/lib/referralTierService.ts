@@ -344,41 +344,37 @@ export const formatTierBadgeName = (badge?: string, requiredReferrals: number = 
     return 'Master Elite';
   }
 
-  // Remove non-alphanumeric/spaces or emojis to inspect text code
-  const textOnly = badge.replace(/[^\w\s-]/g, '').trim();
-  const lower = textOnly.toLowerCase();
-
-  if (lower === 's' || lower === 'starter' || lower.includes('starter')) {
-    return requiredReferrals >= 10 ? 'Silver' : 'Starter';
-  }
-  if (lower === 'b' || lower === 'bronze' || lower.includes('bronze')) return 'Bronze';
-  if (lower === 'g' || lower === 'gold' || lower.includes('gold')) return 'Gold';
-  if (lower === 'p' || lower === 'platinum' || lower.includes('platinum')) return 'Platinum';
-  if (lower === 'd' || lower === 'diamond' || lower.includes('diamond')) return 'Diamond';
-  if (lower === 'me' || lower === 'master' || lower.includes('master') || lower.includes('elite')) return 'Master Elite';
-
-  return textOnly || badge.trim();
+  return badge.trim();
 };
 
 /**
  * Returns formatted rank badge metadata with matching icon, name, and full label string.
  */
 export const getTierBadgeWithIcon = (badge?: string, requiredReferrals: number = 0): { icon: string; name: string; full: string } => {
-  const name = formatTierBadgeName(badge, requiredReferrals);
-  let icon = '⚡';
-  const lower = name.toLowerCase();
-  if (lower.includes('bronze')) icon = '🥉';
-  else if (lower.includes('silver')) icon = '🥈';
-  else if (lower.includes('gold')) icon = '🥇';
-  else if (lower.includes('platinum')) icon = '💎';
-  else if (lower.includes('diamond')) icon = '👑';
-  else if (lower.includes('master') || lower.includes('elite')) icon = '🔥';
-  else if (lower.includes('starter')) icon = '⚡';
+  const fullBadge = badge && badge.trim() ? badge.trim() : formatTierBadgeName(badge, requiredReferrals);
+  
+  // Try matching leading emoji icon if present
+  const emojiMatch = fullBadge.match(/^([\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F1E6}-\u{1F1FF}])/u);
+  let icon = emojiMatch ? emojiMatch[0] : '';
+  
+  if (!icon) {
+    const lower = fullBadge.toLowerCase();
+    if (lower.includes('bronze')) icon = '🥉';
+    else if (lower.includes('silver')) icon = '🥈';
+    else if (lower.includes('gold')) icon = '🥇';
+    else if (lower.includes('platinum')) icon = '💎';
+    else if (lower.includes('diamond')) icon = '👑';
+    else if (lower.includes('master') || lower.includes('grand')) icon = '🪽';
+    else if (lower.includes('starter')) icon = '⚡';
+    else icon = '🎖️';
+  }
+
+  const name = fullBadge.replace(/^([\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F1E6}-\u{1F1FF}])\s*/u, '').trim() || fullBadge;
 
   return {
     icon,
     name,
-    full: `${icon} ${name}`,
+    full: fullBadge.includes(icon) ? fullBadge : `${icon} ${fullBadge}`,
   };
 };
 
