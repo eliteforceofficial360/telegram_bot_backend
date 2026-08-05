@@ -13,8 +13,8 @@ interface SettingsProps {
 }
 
 const APP_VERSION = '2.0.0';
-const BOT_USERNAME = '@EliteForceEFCBot';
-const SUPPORT_LINK = 'https://t.me/EliteForceEFCBot';
+const BOT_USERNAME = '@Elite_Force_Official_Mining_bot';
+const SUPPORT_LINK = 'https://t.me/Elite_Force_Official_Mining_bot';
 
 export const Settings = ({ showToast, adminSettings, telegramUser = null, dbUser = null }: SettingsProps) => {
 

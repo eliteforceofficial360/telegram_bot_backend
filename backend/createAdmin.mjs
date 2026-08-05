@@ -9,10 +9,10 @@ initializeApp({ credential: cert(serviceAccount) });
 
 const auth = getAuth();
 
-const ADMIN_UID = '3504353451';
-const ADMIN_EMAIL = 'admin@eforce.com';
-const ADMIN_PASSWORD = 'EForce@Admin2025';
-const ADMIN_NAME = 'Sourav (EForce Admin)';
+const ADMIN_UID = process.env.ADMIN_UID || '3504353451';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'sourav.sanyal.dev@gmail.com';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '01307460389';
+const ADMIN_NAME = 'Sourav Sanyal (EForce Admin)';
 
 console.log('🔧 Setting up Firebase Admin user...\n');
 

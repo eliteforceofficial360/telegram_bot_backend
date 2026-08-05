@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   Trophy, 
   Calendar, 
@@ -16,8 +16,7 @@ import {
   Pickaxe,
   Users,
   Headset,
-  MessageSquare,
-  Edit3
+  MessageSquare
 } from 'lucide-react';
 import { getDisplayName, type TelegramUser } from '../lib/telegramUser';
 import { updateUserDatabaseValues, type FirestoreUser } from '../lib/userService';
@@ -59,25 +58,26 @@ export const Profile = ({
   const [copiedId, setCopiedId] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [liveTiers, setLiveTiers] = useState<ReferralClaimTier[]>([]);
-  const [isEditingName, setIsEditingName] = useState(false);
+  const [_isEditingName, setIsEditingName] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
   const [editUsername, setEditUsername] = useState('');
-  const [savingName, setSavingName] = useState(false);
+  const [_savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     const unsub = subscribeToReferralTiers(setLiveTiers);
     return unsub;
   }, []);
 
-  const handleStartEditName = () => {
+  const _handleStartEditName = () => {
     setEditFirstName(dbUser?.firstName ?? telegramUser?.firstName ?? '');
     setEditLastName(dbUser?.lastName ?? telegramUser?.lastName ?? '');
     setEditUsername(dbUser?.username ?? telegramUser?.username ?? '');
     setIsEditingName(true);
   };
+  void _handleStartEditName;
 
-  const handleSaveName = async () => {
+  const _handleSaveName = async () => {
     const userId = telegramUser?.id || dbUser?.telegramId;
     if (!userId) {
       showToast('User session not found.', 'warning');
@@ -107,6 +107,7 @@ export const Profile = ({
       setSavingName(false);
     }
   };
+  void _handleSaveName;
 
   const handleCopyId = () => {
     if (!telegramUser) return;

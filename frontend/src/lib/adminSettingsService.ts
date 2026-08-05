@@ -207,7 +207,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   gracePeriodHours: 24,
   reversalDeductionType: 'full',
   autoReVerificationEnabled: true,
-  botUsername: 'EliteForceBot',
+  botUsername: 'Elite_Force_Official_Mining_bot',
   adminUsername: '',
   adminTelegramId: '',
   discordClientId: '',

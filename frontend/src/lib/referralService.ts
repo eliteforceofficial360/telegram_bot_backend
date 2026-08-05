@@ -35,7 +35,7 @@ const REFERRALS_COLLECTION = 'referrals';
 /**
  * Generates the referral link for a user.
  */
-export const getReferralLink = (telegramId: number, botUsername = 'EliteForceBot'): string => {
+export const getReferralLink = (telegramId: number, botUsername = 'Elite_Force_Official_Mining_bot'): string => {
   return `https://t.me/${botUsername}?start=ref_${telegramId}`;
 };
 

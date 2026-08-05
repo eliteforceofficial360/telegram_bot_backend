@@ -406,7 +406,7 @@ export const Market: React.FC<MarketProps> = ({
           <div className="space-y-2.5">
             <div className="flex items-center justify-between px-1">
               <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">
-                Available Campaigns ({filteredDiscoverTasks.length})
+                {loading ? 'Loading Campaigns...' : `Available Campaigns (${filteredDiscoverTasks.length})`}
               </h3>
             </div>
 

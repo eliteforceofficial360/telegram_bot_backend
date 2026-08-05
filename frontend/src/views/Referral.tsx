@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useEffect } from 'react';
 import { Copy, Share2, Users, Check, Award, Lock, Sparkles, Zap, Medal, Diamond, Crown, Flame } from 'lucide-react';
 import { UsdtIcon } from '../components/UsdtIcon';
 import { getReferralLink, getUserReferrals, syncAndClaimAllReferralRewards, type ReferralRecord } from '../lib/referralService';
@@ -26,7 +27,7 @@ interface ReferralProps {
   adminSettings: AdminSettings;
 }
 
-export const Referral: React.FC<ReferralProps> = ({
+export const Referral = ({
   showToast,
   setEfcBalance,
   setUsdtBalance,
@@ -34,9 +35,10 @@ export const Referral: React.FC<ReferralProps> = ({
   hasUnlockedWithdrawal,
   setHasUnlockedWithdrawal,
   referralsCount,
+  setReferralsCount: _setReferralsCount,
   telegramUser,
   adminSettings,
-}) => {
+}: ReferralProps) => {
   const [copied, setCopied] = useState(false);
   const [referralRecords, setReferralRecords] = useState<ReferralRecord[]>([]);
   const [_loadingReferrals, setLoadingReferrals] = useState(false);
@@ -62,7 +64,7 @@ export const Referral: React.FC<ReferralProps> = ({
     if (!telegramUser) return;
     syncAndClaimAllReferralRewards(telegramUser.id).then((syncRes) => {
       if (syncRes.totalUsdtAdded > 0 && setUsdtBalance) {
-        setUsdtBalance((prev) => prev + syncRes.totalUsdtAdded);
+        setUsdtBalance((prev: number) => prev + syncRes.totalUsdtAdded);
         showToast(`🎉 +$${syncRes.totalUsdtAdded.toFixed(2)} USDT Referral Reward Credited!`, 'success');
       }
     }).catch(() => {});
@@ -70,16 +72,16 @@ export const Referral: React.FC<ReferralProps> = ({
     checkAndAutoClaimReferralTiers(telegramUser.id, liveTiers).then((res) => {
       if (res.claimedCount > 0) {
         if (res.pointsAdded > 0) {
-          setEfcBalance((prev) => {
+          setEfcBalance((prev: number) => {
             const next = prev + res.pointsAdded;
             try { localStorage.setItem('efcBalance', JSON.stringify(next)); } catch { /* ignore */ }
             return next;
           });
         }
         if (res.usdtAdded > 0 && setUsdtBalance) {
-          setUsdtBalance((prev) => prev + res.usdtAdded);
+          setUsdtBalance((prev: number) => prev + res.usdtAdded);
         }
-        setClaimedTiers((prev) => Array.from(new Set([...prev, ...res.newlyClaimed.map((t) => t.id)])));
+        setClaimedTiers((prev: string[]) => Array.from(new Set([...prev, ...res.newlyClaimed.map((t) => t.id)])));
 
         const tierNames = res.newlyClaimed.map((t) => formatTierBadgeName(t.badge, t.requiredReferrals)).join(', ');
         showToast(
@@ -103,7 +105,7 @@ export const Referral: React.FC<ReferralProps> = ({
   };
 
   const settings = adminSettings;
-  const botUser = settings.botUsername || 'EliteForceBot';
+  const botUser = settings.botUsername || 'Elite_Force_Official_Mining_bot';
 
   const recordValidCount = referralRecords.filter(r => r.isValid).length;
   const recordSuspiciousCount = referralRecords.filter(r => !r.isValid).length;
