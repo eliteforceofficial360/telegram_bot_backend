@@ -208,8 +208,8 @@ export const Support: React.FC<SupportProps> = ({
       </AnimatePresence>
 
       {/* Support Top Header */}
-      <div className="px-4 py-3.5 border-b border-white/10 bg-gradient-to-r from-[#0C101B] via-[#0E1322] to-[#0C101B] flex items-center justify-between shrink-0 relative z-20 shadow-lg">
-        <div className="flex items-center gap-3">
+      <div className="px-3.5 py-3 border-b border-white/10 bg-gradient-to-r from-[#0C101B] via-[#0E1322] to-[#0C101B] flex items-center justify-between shrink-0 relative z-20 shadow-lg min-h-[58px]">
+        <div className="flex items-center gap-2.5 min-w-0">
           {onBack && (
             <button
               onClick={onBack}
@@ -221,28 +221,29 @@ export const Support: React.FC<SupportProps> = ({
           
           {/* Animated Agent Avatar */}
           <div className="relative shrink-0">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#00E5FF]/25 via-[#0088FF]/15 to-[#A855F7]/15 border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] shadow-[0_0_20px_rgba(0,229,255,0.25)]">
-              <Headset size={20} />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00E5FF]/25 via-[#0088FF]/15 to-[#A855F7]/15 border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.25)]">
+              <Headset size={18} />
             </div>
-            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-[#070A12] rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" />
+            <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-[#070A12] rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" />
           </div>
 
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xs font-black text-white tracking-wide">Elite Force Support</h2>
-              <span className="flex items-center gap-1 text-[8px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> Live 24/7
+          <div className="min-w-0 flex flex-col justify-center">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h2 className="text-xs font-black text-white tracking-wide truncate">Elite Force Support</h2>
+              <span className="inline-flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0 whitespace-nowrap">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> Live
               </span>
             </div>
-            <p className="text-[9.5px] text-slate-400 flex items-center gap-1 mt-0.5 font-medium">
-              <ShieldCheck size={11} className="text-cyan-400" />
-              Customer Service Agent (Online)
+            <p className="text-[9px] text-slate-400 flex items-center gap-1 mt-0.5 font-medium truncate">
+              <ShieldCheck size={10} className="text-cyan-400 shrink-0" />
+              <span className="truncate">24/7 Agent (Online)</span>
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[9px] font-extrabold text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/25 px-2.5 py-1 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.15)]">
-          <Clock size={11} /> ~Instant Response
+        <div className="flex items-center gap-1 text-[9px] font-extrabold text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/25 px-2.5 py-1 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.15)] shrink-0 whitespace-nowrap ml-2">
+          <Clock size={11} className="shrink-0" />
+          <span>Instant Help</span>
         </div>
       </div>
 

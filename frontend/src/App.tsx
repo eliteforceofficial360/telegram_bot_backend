@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, CheckCircle, Info, ShieldAlert, Lock, ShieldCheck } from 'lucide-react';
+import { AlertCircle, CheckCircle, Info, ShieldAlert, Lock, ShieldCheck, Headset } from 'lucide-react';
 import { ActiveTab, Navigation } from './components/Navigation';
 import { Home } from './views/Home';
 import { Tasks } from './views/Tasks';
@@ -996,6 +996,25 @@ export default function App() {
             </motion.div>
           </AnimatePresence>
         </div>
+
+        {/* Global Floating Support Button (Visible on all user pages except Support view) */}
+        {activeTab !== 'support' && (
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            whileHover={{ scale: 1.06 }}
+            whileTap={{ scale: 0.94 }}
+            onClick={() => setActiveTab('support')}
+            className="absolute bottom-20 right-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-full text-black text-xs font-black border border-[#00E5FF]/40 cursor-pointer shadow-[0_0_20px_rgba(0,229,255,0.35)] transition-all bg-gradient-to-r from-[#00E5FF] via-[#00B4D8] to-[#0088FF] group"
+            title="Open Live Support"
+          >
+            <div className="relative flex items-center justify-center">
+              <Headset size={16} className="text-black group-hover:rotate-12 transition-transform" />
+              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-black animate-ping" />
+            </div>
+            <span className="text-black font-black text-[10px] tracking-wider uppercase">Support</span>
+          </motion.button>
+        )}
 
         {/* Floating Navigation */}
         <Navigation 
