@@ -746,9 +746,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     catch { showToast('Failed to delete user.', 'error'); }
   };
   const handleResetLeaderboard = async () => {
-    if (!confirm("Reset ALL users' points to 0? This cannot be undone.")) return;
-    try { const count = await adminResetLeaderboard(); showToast(`🔄 Leaderboard reset — ${count} users cleared.`, 'warning'); fetchUsers(); }
-    catch { showToast('Failed to reset leaderboard.', 'error'); }
+    if (!confirm("Reset ALL users' balances (Points, EST Tokens, USDT Wallet, & Referrals) to 0? This cannot be undone.")) return;
+    try { const count = await adminResetLeaderboard(); showToast(`🔄 All user balances reset — ${count} users set to 0.`, 'warning'); fetchUsers(); }
+    catch { showToast('Failed to reset user balances.', 'error'); }
   };
   const handleAddUser = async () => {
     const id = parseInt(addUserId);

@@ -1586,20 +1586,29 @@ export const adminAddUser = async (
 };
 
 /**
- * Reset all users' leaderboard points to 0.
+ * Reset all users' points, tokens, wallet balances, and referrals to 0.
  */
 export const adminResetLeaderboard = async (): Promise<number> => {
   if (!isFirebaseConfigured()) return 0;
-  const q = query(collection(db, USERS_COLLECTION), orderBy('points', 'desc'), limit(500));
+  const q = query(collection(db, USERS_COLLECTION));
   const snap = await getDocs(q);
   let count = 0;
-  const batch: Promise<void>[] = [];
+  const promises: Promise<void>[] = [];
   snap.forEach((docSnap) => {
-    batch.push(updateDoc(docSnap.ref, { points: 0, totalDailyPoints: 0 }));
+    promises.push(updateDoc(docSnap.ref, {
+      points: 0,
+      tokens: 0,
+      wallet: 0,
+      depositBalance: 0,
+      referrals: 0,
+      referralCount: 0,
+      totalDailyPoints: 0,
+      claimedReferralTiers: [],
+    }));
     count++;
   });
-  await Promise.all(batch);
-  await writeAuditLog('LEADERBOARD_RESET', 0, `Leaderboard reset — ${count} users cleared`);
+  await Promise.all(promises);
+  await writeAuditLog('LEADERBOARD_RESET', 0, `All balances reset — ${count} users reset to 0 points, tokens, wallet, and referrals`);
   return count;
 };
 
