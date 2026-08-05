@@ -423,17 +423,15 @@ export default function App() {
         if (res.ok) {
           const data = await res.json();
           if (data.isMember) {
-            // Only maintain verified state if user ALREADY completed explicit verification click
-            if (localStorage.getItem('isForceJoinVerified') === 'true') {
-              setIsForceJoinVerified(true);
-              setIsAccessRestricted(false);
-            }
+            // User is a verified member of both channel & group -> grant access!
+            setIsForceJoinVerified(true);
+            setIsAccessRestricted(false);
+            localStorage.setItem('isForceJoinVerified', 'true');
           } else {
-            // If user left channel/group after verifying, revoke access
+            // User is missing from channel or group -> restrict access
             setIsForceJoinVerified(false);
             setIsAccessRestricted(true);
             localStorage.setItem('isForceJoinVerified', 'false');
-            updateUserDatabaseValues(telegramUser.id, { isVerified: false }).catch(() => {});
           }
         }
       } catch {

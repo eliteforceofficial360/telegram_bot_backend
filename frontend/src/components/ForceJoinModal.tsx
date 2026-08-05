@@ -83,6 +83,9 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
             setChannelJoined(cJoined);
             setGroupJoined(gJoined);
           }
+          if (data.isMember) {
+            onVerificationSuccess();
+          }
         }
       } catch {
         /* silent catch on auto-check */
