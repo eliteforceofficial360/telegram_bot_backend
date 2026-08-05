@@ -1,6 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Upload, Headset, ShieldCheck, ChevronLeft, CheckCheck, Clock, MessageSquare, X, Eye, RefreshCw } from 'lucide-react';
+import { 
+  Send, 
+  Upload, 
+  Headset, 
+  ShieldCheck, 
+  ChevronLeft, 
+  CheckCheck, 
+  Clock, 
+  X, 
+  Eye, 
+  RefreshCw,
+  Sparkles,
+  CreditCard,
+  Wallet,
+  Lock,
+  UserCheck,
+  ChevronRight,
+  Bot
+} from 'lucide-react';
 import {
   sendUserSupportMessage,
   subscribeToUserSupportMessages,
@@ -18,11 +36,48 @@ interface SupportProps {
   onBack?: () => void;
 }
 
-const QUICK_INQUIRIES = [
-  'How to deposit USDT/EForce?',
-  'Why is my withdrawal pending?',
-  'How to complete mandatory tasks?',
-  'Account verification help',
+interface QuickTopic {
+  id: string;
+  icon: React.ReactNode;
+  title: string;
+  query: string;
+  badge: string;
+  color: string;
+}
+
+const QUICK_TOPICS: QuickTopic[] = [
+  {
+    id: 'deposit',
+    icon: <CreditCard size={15} className="text-emerald-400" />,
+    title: 'How to deposit USDT/EForce?',
+    query: 'How to deposit USDT or EForce points into my account?',
+    badge: 'Deposit Guide',
+    color: 'from-emerald-500/10 to-teal-500/5 border-emerald-500/20 hover:border-emerald-500/50',
+  },
+  {
+    id: 'withdrawal',
+    icon: <Wallet size={15} className="text-amber-400" />,
+    title: 'Why is my withdrawal pending?',
+    query: 'Why is my payout withdrawal pending or taking time to process?',
+    badge: 'Payout Help',
+    color: 'from-amber-500/10 to-orange-500/5 border-amber-500/20 hover:border-amber-500/50',
+  },
+  {
+    id: 'tasks',
+    icon: <Lock size={15} className="text-cyan-400" />,
+    title: 'How to complete mandatory tasks?',
+    query: 'How do I complete mandatory tasks to unlock withdrawal?',
+    badge: 'Tasks Guide',
+    color: 'from-cyan-500/10 to-blue-500/5 border-cyan-500/20 hover:border-cyan-500/50',
+  },
+  {
+    id: 'verification',
+    icon: <UserCheck size={15} className="text-purple-400" />,
+    title: 'Account verification & Ref help',
+    query: 'How does account verification and referral tracking work?',
+    badge: 'Account & Ref',
+    color: 'from-purple-500/10 to-pink-500/5 border-purple-500/20 hover:border-purple-500/50',
+  },
 ];
 
 export const Support: React.FC<SupportProps> = ({
@@ -125,7 +180,8 @@ export const Support: React.FC<SupportProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-210px)] max-h-[720px] min-h-[420px] max-w-2xl mx-auto w-full rounded-[28px] overflow-hidden bg-[#0A0D14] border border-white/10 shadow-2xl relative mb-24 md:mb-0">
+    <div className="flex flex-col h-[calc(100vh-140px)] max-h-[750px] min-h-[480px] max-w-2xl mx-auto w-full rounded-[30px] overflow-hidden bg-[#070A12] border border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.8)] relative mb-20 md:mb-0">
+      
       {/* Image Lightbox Modal */}
       <AnimatePresence>
         {previewImage && (
@@ -151,65 +207,95 @@ export const Support: React.FC<SupportProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Support Top Navigation Header */}
-      <div className="px-3.5 py-3 border-b border-white/10 bg-[#0E121B] flex items-center justify-between shrink-0 relative z-20">
-        <div className="flex items-center gap-2.5">
+      {/* Support Top Header */}
+      <div className="px-4 py-3.5 border-b border-white/10 bg-gradient-to-r from-[#0C101B] via-[#0E1322] to-[#0C101B] flex items-center justify-between shrink-0 relative z-20 shadow-lg">
+        <div className="flex items-center gap-3">
           {onBack && (
             <button
               onClick={onBack}
-              className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0"
+              className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 hover:bg-white/10"
             >
               <ChevronLeft size={18} />
             </button>
           )}
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00E5FF]/30 to-[#0088FF]/10 border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.3)] shrink-0">
-            <Headset size={19} />
+          
+          {/* Animated Agent Avatar */}
+          <div className="relative shrink-0">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#00E5FF]/25 via-[#0088FF]/15 to-[#A855F7]/15 border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] shadow-[0_0_20px_rgba(0,229,255,0.25)]">
+              <Headset size={20} />
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-400 border-2 border-[#070A12] rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)] animate-pulse" />
           </div>
+
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-black text-white tracking-wide">Elite Force Support</h2>
               <span className="flex items-center gap-1 text-[8px] font-black px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> Live 24/7
               </span>
             </div>
-            <p className="text-[9px] text-slate-400 flex items-center gap-1 mt-0.5">
-              <ShieldCheck size={10} className="text-cyan-400" />
-              Customer Service Agent (24/7)
+            <p className="text-[9.5px] text-slate-400 flex items-center gap-1 mt-0.5 font-medium">
+              <ShieldCheck size={11} className="text-cyan-400" />
+              Customer Service Agent (Online)
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 text-[9.5px] font-bold text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/20 px-2.5 py-1 rounded-xl">
-          <Clock size={11} /> 24h Auto Reset
+        <div className="flex items-center gap-1.5 text-[9px] font-extrabold text-[#00E5FF] bg-[#00E5FF]/10 border border-[#00E5FF]/25 px-2.5 py-1 rounded-xl shadow-[0_0_12px_rgba(0,229,255,0.15)]">
+          <Clock size={11} /> ~Instant Response
         </div>
       </div>
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-3.5 space-y-3 bg-[#080B12] scrollbar-thin scrollbar-thumb-white/10 relative">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#060810] scrollbar-thin scrollbar-thumb-white/10 relative">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center text-center py-6 px-4 space-y-3 my-auto">
-            <div className="w-14 h-14 rounded-2xl bg-[#00E5FF]/10 border border-[#00E5FF]/30 flex items-center justify-center text-[#00E5FF] shadow-[0_0_25px_rgba(0,229,255,0.2)]">
-              <MessageSquare size={26} />
+          <div className="flex flex-col items-center justify-center text-center py-4 px-3 space-y-4 my-auto">
+            
+            {/* Glowing Bot Avatar */}
+            <div className="relative">
+              <div className="w-16 h-16 rounded-3xl bg-gradient-to-tr from-[#00E5FF]/20 via-[#0088FF]/15 to-[#A855F7]/20 border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] shadow-[0_0_35px_rgba(0,229,255,0.3)]">
+                <Bot size={32} />
+              </div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-[#00E5FF]/20 border border-[#00E5FF]/50 flex items-center justify-center text-[10px]">
+                ⚡
+              </div>
             </div>
+
             <div>
-              <h3 className="text-sm font-black text-white">How can we help you today?</h3>
-              <p className="text-[11px] text-slate-400 mt-1 max-w-xs leading-relaxed">
-                Type your inquiry or select a quick option below. Our support agents respond instantly!
+              <h3 className="text-base font-black text-white tracking-tight">How can we help you today?</h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-xs leading-relaxed">
+                Type your inquiry or select a quick topic below. Our support agents respond instantly!
               </p>
             </div>
 
+            {/* Quick Inquiry Cards */}
             <div className="w-full max-w-sm pt-2 space-y-2">
-              <p className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider text-left px-1">
-                Frequently Asked Topics
-              </p>
-              {QUICK_INQUIRIES.map((q) => (
+              <div className="flex items-center justify-between px-1 mb-1">
+                <span className="text-[10px] font-mono font-extrabold text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                  <Sparkles size={11} className="text-[#00E5FF]" /> FREQUENTLY ASKED TOPICS
+                </span>
+              </div>
+
+              {QUICK_TOPICS.map((topic) => (
                 <button
-                  key={q}
-                  onClick={() => handleSendMessage(q)}
-                  className="w-full text-left p-2.5 rounded-xl bg-white/[0.03] hover:bg-[#00E5FF]/10 border border-white/10 hover:border-[#00E5FF]/30 text-xs font-semibold text-slate-200 hover:text-white transition-all flex items-center justify-between group cursor-pointer"
+                  key={topic.id}
+                  onClick={() => handleSendMessage(topic.query)}
+                  className={`w-full text-left p-3 rounded-2xl bg-gradient-to-r ${topic.color} border transition-all flex items-center justify-between group cursor-pointer shadow-sm hover:shadow-md hover:scale-[1.01]`}
                 >
-                  <span>{q}</span>
-                  <ChevronLeft size={14} className="rotate-180 text-slate-500 group-hover:text-[#00E5FF] transition-all" />
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-white/5 border border-white/10 shrink-0">
+                      {topic.icon}
+                    </div>
+                    <div>
+                      <span className="text-xs font-extrabold text-white block group-hover:text-[#00E5FF] transition-colors">
+                        {topic.title}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-mono font-medium block">
+                        Tap for instant response
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-500 group-hover:text-[#00E5FF] group-hover:translate-x-0.5 transition-all shrink-0" />
                 </button>
               ))}
             </div>
@@ -224,15 +310,22 @@ export const Support: React.FC<SupportProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 className={`flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
               >
-                <span className="text-[8.5px] font-mono text-slate-500 mb-1 px-1">
-                  {isUser ? userName || 'You' : '🛡️ Elite Force Support'}
+                <span className="text-[8.5px] font-mono text-slate-400 mb-1 px-1 flex items-center gap-1">
+                  {isUser ? (
+                    <>You</>
+                  ) : (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF]" />
+                      🛡️ Elite Force Support Agent
+                    </>
+                  )}
                 </span>
 
                 <div
-                  className={`max-w-[88%] rounded-2xl p-3 shadow-md relative text-xs leading-relaxed ${
+                  className={`max-w-[86%] rounded-2xl p-3.5 shadow-md relative text-xs leading-relaxed ${
                     isUser
-                      ? 'bg-gradient-to-r from-[#00E5FF] to-[#0088FF] text-black rounded-tr-xs font-semibold shadow-[0_4px_15px_rgba(0,229,255,0.2)]'
-                      : 'bg-[#141A28] border border-white/10 text-slate-100 rounded-tl-xs shadow-md'
+                      ? 'bg-gradient-to-r from-[#00E5FF] to-[#0099FF] text-black rounded-tr-xs font-bold shadow-[0_4px_20px_rgba(0,229,255,0.25)]'
+                      : 'bg-[#121724] border border-[#00E5FF]/20 text-slate-100 rounded-tl-xs shadow-[0_4px_20px_rgba(0,0,0,0.3)]'
                   }`}
                 >
                   {msg.imageUrl && (
@@ -246,7 +339,7 @@ export const Support: React.FC<SupportProps> = ({
                         className="max-h-56 w-full object-cover group-hover:scale-105 transition-transform duration-200"
                       />
                       <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-[10px] font-bold gap-1">
-                        <Eye size={14} /> View Full
+                        <Eye size={14} /> View Full Image
                       </div>
                     </div>
                   )}
@@ -254,13 +347,13 @@ export const Support: React.FC<SupportProps> = ({
                   <div className="whitespace-pre-wrap break-words font-sans">{msg.text}</div>
 
                   <div
-                    className={`flex items-center gap-1 justify-end text-[8px] font-mono mt-1 ${
-                      isUser ? 'text-black/70 font-bold' : 'text-slate-400'
+                    className={`flex items-center gap-1 justify-end text-[8.5px] font-mono mt-1.5 ${
+                      isUser ? 'text-black/75 font-bold' : 'text-slate-400'
                     }`}
                   >
-                    <Clock size={8} />
+                    <Clock size={9} />
                     <span>{formatTime(msg.createdAt)}</span>
-                    {isUser && <CheckCheck size={10} className="text-black/80 ml-0.5" />}
+                    {isUser && <CheckCheck size={11} className="text-black/90 ml-0.5" />}
                   </div>
                 </div>
               </motion.div>
@@ -278,11 +371,11 @@ export const Support: React.FC<SupportProps> = ({
             <span className="text-[8.5px] font-mono text-[#00E5FF] mb-1 px-1 flex items-center gap-1 font-bold">
               <RefreshCw size={9} className="animate-spin" /> Uploading Screenshot...
             </span>
-            <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 p-3 rounded-2xl text-xs text-[#00E5FF] flex items-center gap-2.5 shadow-[0_0_15px_rgba(0,229,255,0.2)]">
+            <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 p-3.5 rounded-2xl text-xs text-[#00E5FF] flex items-center gap-2.5 shadow-[0_0_15px_rgba(0,229,255,0.2)]">
               <div className="w-6 h-6 rounded-lg bg-[#00E5FF]/20 flex items-center justify-center shrink-0">
                 <RefreshCw size={14} className="animate-spin text-[#00E5FF]" />
               </div>
-              <span className="font-semibold text-[11px]">Uploading image & sending to support...</span>
+              <span className="font-semibold text-[11px]">Uploading screenshot & sending to support...</span>
             </div>
           </motion.div>
         )}
@@ -292,21 +385,21 @@ export const Support: React.FC<SupportProps> = ({
 
       {/* Quick Suggestions bar if messages exist */}
       {messages.length > 0 && (
-        <div className="px-3 py-1.5 bg-[#0E121B] border-t border-white/5 flex items-center gap-1.5 overflow-x-auto shrink-0 scrollbar-none">
-          {QUICK_INQUIRIES.map((q) => (
+        <div className="px-3 py-2 bg-[#0A0E18] border-t border-white/5 flex items-center gap-2 overflow-x-auto shrink-0 scrollbar-none">
+          {QUICK_TOPICS.map((t) => (
             <button
-              key={q}
-              onClick={() => handleSendMessage(q)}
-              className="px-2.5 py-1 rounded-full bg-white/5 hover:bg-[#00E5FF]/15 border border-white/10 text-[9.5px] text-slate-300 hover:text-[#00E5FF] shrink-0 transition-all cursor-pointer font-medium"
+              key={t.id}
+              onClick={() => handleSendMessage(t.query)}
+              className="px-3 py-1 rounded-full bg-white/5 hover:bg-[#00E5FF]/15 border border-white/10 hover:border-[#00E5FF]/30 text-[9.5px] text-slate-300 hover:text-[#00E5FF] shrink-0 transition-all cursor-pointer font-bold flex items-center gap-1"
             >
-              {q}
+              {t.title}
             </button>
           ))}
         </div>
       )}
 
-      {/* Input controls — Elevated above bottom bar */}
-      <div className="p-2.5 bg-[#0E121B] border-t border-white/10 shrink-0 relative z-20">
+      {/* Modern Floating Input Bar */}
+      <div className="p-3 bg-[#0A0E18] border-t border-white/10 shrink-0 relative z-20">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -314,11 +407,11 @@ export const Support: React.FC<SupportProps> = ({
           }}
           className="flex items-center gap-2"
         >
-          <label className="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-40">
+          <label className="w-10 h-10 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white border border-white/10 flex items-center justify-center transition-all cursor-pointer shrink-0 disabled:opacity-40 shadow-sm">
             {uploadingImg ? (
-              <RefreshCw size={15} className="animate-spin text-[#00E5FF]" />
+              <RefreshCw size={16} className="animate-spin text-[#00E5FF]" />
             ) : (
-              <Upload size={15} />
+              <Upload size={16} />
             )}
             <input
               type="file"
@@ -335,19 +428,19 @@ export const Support: React.FC<SupportProps> = ({
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             disabled={sending || uploadingImg}
-            className="flex-1 h-9 px-3 rounded-xl bg-white/[0.05] border border-white/12 text-xs text-white placeholder-slate-500 outline-none focus:border-[#00E5FF] transition-all"
+            className="flex-1 h-10 px-4 rounded-2xl bg-white/[0.04] border border-white/12 text-xs text-white placeholder-slate-500 outline-none focus:border-[#00E5FF] focus:bg-white/[0.06] transition-all shadow-inner"
           />
 
           <button
             type="submit"
             disabled={!inputText.trim() || sending || uploadingImg}
-            className="h-9 px-3.5 rounded-xl text-black font-extrabold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-40 hover:brightness-110 active:scale-[0.98] transition-all shrink-0"
+            className="h-10 px-4 rounded-2xl text-black font-black text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-md disabled:opacity-40 hover:brightness-110 active:scale-[0.98] transition-all shrink-0"
             style={{
-              background: 'linear-gradient(135deg, #00E5FF 0%, #00B4D8 100%)',
-              boxShadow: '0 0 15px rgba(0, 229, 255, 0.3)',
+              background: 'linear-gradient(135deg, #00E5FF 0%, #0088FF 100%)',
+              boxShadow: '0 0 20px rgba(0, 229, 255, 0.35)',
             }}
           >
-            <Send size={13} />
+            {sending ? <RefreshCw size={14} className="animate-spin text-black" /> : <Send size={14} />}
             <span>Send</span>
           </button>
         </form>
