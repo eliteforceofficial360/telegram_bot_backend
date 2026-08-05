@@ -8,6 +8,7 @@ import {
   subscribeToReferralTiers,
   calculateUserReferralTier,
   formatTierBadgeName,
+  getTierBadgeWithIcon,
   checkAndAutoClaimReferralTiers,
   type ReferralClaimTier,
 } from '../lib/referralTierService';
@@ -345,33 +346,42 @@ export const Referral = ({
                     : 'border-white/5 bg-white/[0.02] opacity-75'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
-                    isCurrentTier
-                      ? 'bg-[#FF8A00] text-black shadow-md'
-                      : isReached
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                      : 'bg-white/5 text-slate-500 border border-white/8'
-                  }`}>
-                    {isClaimed ? '✓' : isReached ? '★' : <Lock size={11} />}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      {renderPremiumIcon(tier.badge || '', tier.requiredReferrals)}
-                      <span className="text-xs font-black text-white">
-                        {formatTierBadgeName(tier.badge, tier.requiredReferrals)}
-                      </span>
-                      {isCurrentTier && (
-                        <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FF8A00] text-black">
-                          ACTIVE
+                {(() => {
+                  const badgeInfo = getTierBadgeWithIcon(tier.badge, tier.requiredReferrals);
+                  return (
+                    <div className="flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 overflow-hidden relative ${
+                        isCurrentTier
+                          ? 'bg-[#FF8A00]/20 text-[#FF8A00] border border-[#FF8A00]/40 shadow-[0_0_12px_rgba(255,138,0,0.3)]'
+                          : isReached
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-white/5 text-slate-500 border border-white/8'
+                      }`}>
+                        {tier.badgeIconUrl ? (
+                          <img src={tier.badgeIconUrl} alt={badgeInfo.name} className="w-full h-full object-cover rounded-xl" />
+                        ) : (
+                          <span className="text-base">{badgeInfo.icon}</span>
+                        )}
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-black text-white">
+                            {badgeInfo.name}
+                          </span>
+                          {isCurrentTier && (
+                            <span className="text-[8px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#FF8A00] text-black">
+                              ACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[9.5px] text-slate-400 font-mono">
+                          {tier.requiredReferrals === 0 ? 'Base Starter' : `${tier.requiredReferrals} Referrals Required`}
                         </span>
-                      )}
+                      </div>
                     </div>
-                    <span className="text-[9.5px] text-slate-400 font-mono">
-                      {tier.requiredReferrals === 0 ? 'Base Starter' : `${tier.requiredReferrals} Referrals Required`}
-                    </span>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 <div className="flex items-center gap-3">
                   <div className="text-right flex flex-col gap-0.5">

@@ -398,16 +398,41 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [newTierLimit, setNewTierLimit] = useState<number>(10000);
   const [newTierBonus, setNewTierBonus] = useState<number>(0.05);
   const [newTierBadge, setNewTierBadge] = useState<string>('🥉 Bronze');
+  const [newTierBadgeIconUrl, setNewTierBadgeIconUrl] = useState<string>('');
+
   const [editingTierId, setEditingTierId] = useState<string | null>(null);
   const [editTierRefs, setEditTierRefs] = useState<number>(0);
   const [editTierLimit, setEditTierLimit] = useState<number>(0);
   const [editTierBonus, setEditTierBonus] = useState<number>(0);
   const [editTierBadge, setEditTierBadge] = useState<string>('');
+  const [editTierBadgeIconUrl, setEditTierBadgeIconUrl] = useState<string>('');
+  const [uploadingTierLogo, setUploadingTierLogo] = useState<boolean>(false);
 
   useEffect(() => {
     const unsub = subscribeToReferralTiers(setReferralTiers);
     return unsub;
   }, []);
+
+  const handleTierLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setUploadingTierLogo(true);
+    showToast('🖼️ Uploading tier logo image...', 'info');
+    try {
+      const url = await _upload(file, `tier_logo_${Date.now()}`, 'tier_badges');
+      if (isEdit) {
+        setEditTierBadgeIconUrl(url);
+      } else {
+        setNewTierBadgeIconUrl(url);
+      }
+      showToast('✅ Tier logo image uploaded successfully!', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to upload tier logo', 'error');
+    } finally {
+      setUploadingTierLogo(false);
+    }
+  };
 
   const handleAddReferralTier = async () => {
     if (newTierRefs < 0 || newTierLimit <= 0) {
@@ -420,6 +445,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       claimLimit: Number(newTierLimit),
       bonusUSDT: Number(newTierBonus),
       badge: newTierBadge.trim() || '⚡ Level',
+      badgeIconUrl: newTierBadgeIconUrl.trim(),
       isActive: true,
       sortOrder: maxSort + 1,
     });
@@ -428,6 +454,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       setNewTierRefs(prev => prev + 5);
       setNewTierLimit(prev => prev + 5000);
       setNewTierBonus(prev => Number((prev + 0.05).toFixed(2)));
+      setNewTierBadgeIconUrl('');
     } else {
       showToast('Failed to create referral tier.', 'error');
     }
@@ -439,6 +466,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setEditTierLimit(tier.claimLimit);
     setEditTierBonus(tier.bonusUSDT);
     setEditTierBadge(tier.badge || '');
+    setEditTierBadgeIconUrl(tier.badgeIconUrl || '');
   };
 
   const handleSaveEditTier = async (id: string) => {
@@ -446,14 +474,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       showToast('Please enter valid required referrals and claim limit.', 'warning');
       return;
     }
-    const currentTier = referralTiers.find(t => t.id === id);
     const ok = await updateReferralTier(id, {
       requiredReferrals: Number(editTierRefs),
       claimLimit: Number(editTierLimit),
       bonusUSDT: Number(editTierBonus),
       badge: editTierBadge.trim(),
-      isActive: currentTier?.isActive ?? true,
-      sortOrder: currentTier?.sortOrder ?? 1,
+      badgeIconUrl: editTierBadgeIconUrl.trim(),
     });
     if (ok) {
       showToast('✅ Referral Tier updated & live pushed to users!', 'success');
@@ -4390,6 +4416,29 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           />
                         </div>
                       </div>
+
+                      {/* Custom Logo Image Upload for New Tier */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="text"
+                          placeholder="Custom Logo Image URL (Optional)..."
+                          value={newTierBadgeIconUrl}
+                          onChange={e => setNewTierBadgeIconUrl(e.target.value)}
+                          className={`${inputCls} flex-1 text-[10px]`}
+                          style={inputStyle}
+                        />
+                        <label className="h-8 px-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-all select-none">
+                          {uploadingTierLogo ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />} Upload Logo
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={e => handleTierLogoUpload(e, false)}
+                            className="hidden"
+                            disabled={uploadingTierLogo}
+                          />
+                        </label>
+                      </div>
+
                       <button
                         onClick={handleAddReferralTier}
                         className="h-9 px-4 rounded-xl bg-gradient-to-r from-[#FF8A00] to-[#FFB347] text-black text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.01] transition-all ml-auto mt-1"
@@ -4445,7 +4494,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                     />
                                   </div>
                                   <div>
-                                    <label className="text-[8px] text-slate-400 font-bold block mb-1">Badge</label>
+                                    <label className="text-[8px] text-slate-400 font-bold block mb-1">Badge Label</label>
                                     <input
                                       type="text"
                                       value={editTierBadge}
@@ -4454,6 +4503,26 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                       style={inputStyle}
                                     />
                                   </div>
+                                </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                  <input
+                                    type="text"
+                                    placeholder="Premium Logo Image URL (Optional)..."
+                                    value={editTierBadgeIconUrl}
+                                    onChange={e => setEditTierBadgeIconUrl(e.target.value)}
+                                    className={`${inputCls} flex-1 text-[10px]`}
+                                    style={inputStyle}
+                                  />
+                                  <label className="h-8 px-3 rounded-xl bg-white/5 border border-white/10 text-slate-300 hover:text-white text-[10px] font-bold flex items-center gap-1 cursor-pointer shrink-0 transition-all select-none">
+                                    {uploadingTierLogo ? <RefreshCw size={10} className="animate-spin" /> : <Upload size={10} />} Upload Logo
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={e => handleTierLogoUpload(e, true)}
+                                      className="hidden"
+                                      disabled={uploadingTierLogo}
+                                    />
+                                  </label>
                                 </div>
                                 <div className="flex items-center gap-2 justify-end mt-1">
                                   <button

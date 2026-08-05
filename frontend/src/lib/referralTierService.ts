@@ -21,6 +21,7 @@ export interface ReferralClaimTier {
   claimLimit: number;
   bonusUSDT: number;
   badge?: string;
+  badgeIconUrl?: string;
   isActive: boolean;
   sortOrder: number;
   createdAt?: string;
@@ -154,6 +155,7 @@ export const subscribeToReferralTiers = (
             claimLimit: Number(data.claimLimit ?? 5000),
             bonusUSDT: Number(data.bonusUSDT ?? 0),
             badge: data.badge || '',
+            badgeIconUrl: data.badgeIconUrl || '',
             isActive: data.isActive ?? true,
             sortOrder: Number(data.sortOrder ?? 0),
             createdAt: data.createdAt,
@@ -189,6 +191,7 @@ export const createReferralTier = async (
       claimLimit: Number(tierData.claimLimit || 5000),
       bonusUSDT: Number(tierData.bonusUSDT || 0),
       badge: tierData.badge || '',
+      badgeIconUrl: tierData.badgeIconUrl || '',
       isActive: tierData.isActive ?? true,
       sortOrder: Number(tierData.sortOrder || 1),
       createdAt: now,
@@ -220,6 +223,7 @@ export const updateReferralTier = async (
     if (tierData.claimLimit !== undefined) cleanData.claimLimit = Number(tierData.claimLimit);
     if (tierData.bonusUSDT !== undefined) cleanData.bonusUSDT = Number(tierData.bonusUSDT);
     if (tierData.badge !== undefined) cleanData.badge = String(tierData.badge).trim();
+    if (tierData.badgeIconUrl !== undefined) cleanData.badgeIconUrl = String(tierData.badgeIconUrl).trim();
     if (tierData.isActive !== undefined) cleanData.isActive = Boolean(tierData.isActive);
     if (tierData.sortOrder !== undefined) cleanData.sortOrder = Number(tierData.sortOrder);
 
