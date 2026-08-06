@@ -1,0 +1,77 @@
+[33m1e0b06e[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Fix Support header layout responsiveness and add global floating support button on all pages
+[33m78e5e9e[m Upgrade Support Chat UI with interactive quick topic cards and premium glassmorphism styling
+[33me060c63[m Auto-unlock access when membership check verifies user is in channel and group
+[33m8983a43[m Support custom premium badge logo URLs and fix duplicate tier icons
+[33m78207cf[m Allow fully dynamic admin custom referral tier badges to sync and update live on user app
+[33m1a2bee0[m Enable instant real-time sync of admin user edits (balances, status, badges) to user app
+[33mbbe4131[m Reset all user balances (Points, Tokens, USDT, Referrals) to 0 and enhance Admin Reset LB button
+[33m1d3b18d[m Fix Task Market default campaigns loading, type checks, and update Firebase deployment settings
+[33mb042b54[m feat: upgrade referral invite share message to be more compelling and engaging
+[33m729981c[m fix: remove profile name edit button and modal — users cannot change their own name
+[33m712cffc[m fix: delete task removes from both tasks and marketTasks collections, realtime remove from user views
+[33m796723a[m fix: replace window.confirm with inline confirm UI for task delete button
+[33m7504749[m fix: preserve user doc profile values in upsertUser and fix admin settings branding icon persistence
+[33m1ee3ca4[m feat: add username edit input in admin edit drawer and user profile modal
+[33ma3f15ab[m feat: allow users to edit and update their profile name in profile view
+[33mf3c44f9[m fix: preserve user doc referral counts and align UI unlocked tier, valid/total counters, and balance rewards
+[33m06deff6[m feat: sync referralCount and auto-credit referral rewards when admin increases user referral count
+[33m8a424ed[m feat: add first name, last name, and deposit balance editing to admin user drawer
+[33ma001313[m fix: display deposit balance on profile, fix referral commission card, enforce deposit balance for market task creation
+[33me74bd6f[m fix: update tier claim badge text to Claimed
+[33m23685cf[m fix: resolve referral reward and USDT payout calculation issue
+[33m8f57f9d[m fix: resolve vite config build error and update referral rewards
+[33mde212f3[m fix: resolve image upload display issue for admin and ensure permanent storage via automatic high-performance image compression
+[33m6c95ad0[m feat: add image uploading loading animation and real-time chat upload bubbles for user and admin
+[33mdb1f15f[m feat: add screenshot and image attachment support for both user and admin in live chat with full-screen lightbox modal
+[33m3796ff5[m feat: add dedicated /notify/support/reply bot route so user receives instant Telegram bot message when admin replies
+[33m20fcb1e[m feat: add glowing unread message count badge to Live Support tab in Admin Sidebar
+[33mc5f8343[m feat: implement 24-hour auto-reset policy and automatic Firestore document purge for support chat
+[33m233d5fa[m feat: add real-time Telegram Bot notifications for live support chat messages to admin and user
+[33m66dbca4[m fix: elevate Support input form above bottom navigation and add web testing fallback ID
+[33m46a8b34[m fix: adjust Support view layout height and input bar positioning above bottom navigation
+[33meb920c0[m style: elevate Live Support card design with glassmorphism and glowing CTA
+[33m96735d7[m chore: ignore .firebase cache
+[33mf1f2212[m feat: add real-time live support chat system for users and admin panel
+[33m91352b0[m fix: resolve referral claim tier and admin settings firestore permissions and save handler
+[33m80bf130[m fix: make task expiry timer dynamic based strictly on user custom input
+[33mcfea6ab[m perf: eliminate layout shift for 0.00 CLS score
+[33m1b2aa3d[m perf: optimize hero banner rendering and image preloads for instant LCP
+[33mb7f6be2[m feat: add private admin telegram id and automated request bot notifications
+[33mba690e8[m feat: initialize frontend application with base HTML structure and Firebase hosting configuration
+[33mf9a0b47[m feat: implement referral dashboard with dynamic tier tracking and invitation management
+[33m34caf0e[m feat: implement automated cloud mining engine and daily check-in system with Telegram Premium support
+[33mad5decf[m feat: implement Market maintenance overlay with countdown and notification reminders
+[33m3de6af5[m feat: implement automated cloud mining engine and daily check-in system with Telegram Premium logic in Home view
+[33m3366eee[m feat: add automated cloud mining system with premium tier support to Home view
+[33m761d04e[m feat: initialize project frontend with index.html and build cache files
+[33m911ce58[m feat: initialize backend Telegram bot service and add frontend task management and market view modules
+[33mf59e263[m fix: resolve market task submit API routing, firebase auth, and INP performance
+[33m700df13[m feat: display full referral tier rank names and sync live badge with profile view
+[33mf2ac1a3[m feat: add missing telegram notification templates and admin controls
+[33m152d84b[m fix(build): resolve unused TS variable in TaskBuilder
+[33m4491097[m feat(audit): implement production updates - remove OAuth 2.0, enforce USDT task funding, auto-publish supported tasks, prevent self completion, sync in-app notifications and rewarded ad verification
+[33m07983fe[m fix(notify): fix escaped newlines and route deposit notifications through /notify/deposit
+[33m78af3f7[m fix(bot): remove duplicate const isUsdt declaration in market task create route
+[33m66fc37b[m fix(deposit): fix deposit modal overflow UI and add bot telegram notifications for deposit submit/approve/reject
+[33m5c9ade6[m fix(market): fix task creation payload and calculation logic, resolve taskRef error
+[33mb5b8541[m feat: Manual X connection, USDT market task EFC points bonus
+[33mec7ac9a[m feat: add premium icons and deposit notifications
+[33me33d902[m fix: make Deposit modal and TaskBuilder escrow 100% USDT with zero EFC mixup
+[33m89a6464[m feat: add admin BEP-20 deposit address config & deposit approval verification queue in Admin panel
+[33md96a676[m fix: elevate Wallet deposit modal z-index & add bottom safe padding
+[33maaf9d52[m feat: add USDT (BEP-20) payment currency support to TaskBuilder escrow & marketService
+[33m56c4ae4[m feat: render premium vector SVG brand icons in TaskBuilder platform & action selectors
+[33mf055bfe[m fix: position TaskBuilder CTA button above bottom navigation bar with pb-24 padding
+[33md5f0480[m fix: elevate TaskBuilder modal z-index & add bottom padding to submit CTA button
+[33m1eed9c7[m fix: remove top right Task Market button from Earn page & make TaskBuilder single-screen view
+[33mcb85030[m fix: remove My tasks and + Create buttons from Tasks page header, keep only Earn Missions
+[33mdbdfa53[m fix: resolve Market routing props and integrate native task creation in Market
+[33m348b44c[m feat: add task market fee settings and BEP-20 deposit system
+[33me779dd6[m feat: implement Home view with automated cloud mining and daily check-in functionality
+[33mff555e6[m feat: implement automated cloud mining system with premium tier support in Home view
+[33m8bf0837[m fix: resolve scrolling and flex height constraints in TaskBuilder modal for smooth touch and container scrolling
+[33m4d08f24[m fix: use setDoc merge in updateReferralTier to allow seamless updates for initial or seeded tiers in Admin panel
+[33mbe073e2[m feat: complete Create Task module with multi-action dynamic inputs, atomic Firestore escrow transactions, and exact itemized summary UI
+[33m03bfed1[m feat: complete TaskBuilder wizard overhaul matching reference designs (3 steps, platform pills, multi-action checkboxes, steps checklist, input fields picker, notes to reviewers, start paused, cost breakdown)
+[33mfdf989b[m feat: update market platforms to X/Instagram/WhatsApp/Reddit/Google, fix X actions (Like/Repost/Bookmark/Reply/Views), improve proof submission with auto-filled user details
+[33
