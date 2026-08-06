@@ -27,7 +27,7 @@ if (!token) {
 const BASE_APP_URL = 'https://mini-telegram-app-c0fb4.web.app';
 let webAppUrlRaw = (process.env.MINI_APP_URL || BASE_APP_URL).trim();
 const webAppUrl = webAppUrlRaw.includes('firebaseapp.com') || webAppUrlRaw.includes('web.app') || webAppUrlRaw.includes('localhost') ? (webAppUrlRaw.endsWith('/') ? webAppUrlRaw.slice(0, -1) : webAppUrlRaw) : BASE_APP_URL;
-const API_PORT = process.env.API_PORT || 4000;
+const API_PORT = process.env.PORT || process.env.API_PORT || 4000;
 const API_SECRET = process.env.API_SECRET || '';
 if (!process.env.API_SECRET) {
   console.warn('⚠️ API_SECRET env var not set. Protected endpoints will reject all requests.');
