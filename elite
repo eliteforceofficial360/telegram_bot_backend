@@ -74,4 +74,80 @@
 [33mbe073e2[m feat: complete Create Task module with multi-action dynamic inputs, atomic Firestore escrow transactions, and exact itemized summary UI
 [33m03bfed1[m feat: complete TaskBuilder wizard overhaul matching reference designs (3 steps, platform pills, multi-action checkboxes, steps checklist, input fields picker, notes to reviewers, start paused, cost breakdown)
 [33mfdf989b[m feat: update market platforms to X/Instagram/WhatsApp/Reddit/Google, fix X actions (Like/Repost/Bookmark/Reply/Views), improve proof submission with auto-filled user details
-[33
+[33m8879d37[m feat: add interactive Telegram user ID picker and 1-click broadcast target integration in Admin panel
+[33m9ab51b4[m feat: add Task Market Maintenance Controller, time limit countdown timer lock, and SVG icons in TaskBuilder grid
+[33m5397efa[m style: replace emojis with platform SVG icons across market module
+[33mf351543[m chore: update firestore rules for Market engine and X verification
+[33mbebb5e8[m feat: implement Elite Force Market P2P task marketplace and escrow engine
+[33mebd9ee4[m fix: remove all X OAuth dead code, replace with username-based verification
+[33mcfafd42[m feat: add task campaign marketplace with Earn/My Tasks/Create tabs
+[33mff070b2[m feat: add EForce Token display to Profile stats and make Agent Rank real-time based on points and referrals
+[33m0e6be13[m refactor: update task reward text labels from EForce to EFC Points
+[33m66704e5[m feat: replace X OAuth 2.0 with username-based verification - remove PKCE/OAuth/callback, add saveXUsername API, Bearer Token task verification
+[33mc86070c[m fix: resolve production audit issues, race conditions, X OAuth endpoints, and UI alignment
+[33m4294580[m fix: rotate GLB model -90deg on X axis so main EF emblem face tilts into XY plane facing camera
+[33m4000946[m fix: set 3D GLB model rotation to (0,0,0) so main EF emblem face directly faces camera (+Z)
+[33m1f33873[m fix: center 3D GLB model in reactor circle and scale down to avoid overlapping rate badge
+[33mc7cccc9[m fix: rotate 3D GLB model 90deg on X axis so coin stands upright facing camera
+[33md9aefa3[m feat: render user custom 3D GLB model ImageToStl.com_Untitled+design+(10).glb using Three.js GLTFLoader on home screen
+[33m55afff0[m feat: render 100% exact 3D coin animation using video recording asset — seamless loop during mining and static frame 0 when idle
+[33m8e973f4[m fix: clean 3D gold EF coin redesign — solid black background, smooth cylinder edge, no floating dashes
+[33me0eaf6a[m fix: replace GLB point-cloud with procedural Three.js gold EF coin — proper geometry and canvas texture
+[33m0d27190[m chore: exclude large 3D GLB files from git tracking
+[33m6217551[m fix: optimize 954MB GLB to 778KB and render real 3D coin on home screen with gold material
+[33med7ae57[m feat: add 3dsvg.glb asset and update firebase hosting cache mapping
+[33m8807b0f[m feat: render true 3D GLB model 3dsvg.glb using Three.js GLTFLoader on user home screen
+[33m488cf76[m feat: lock permanent 3D EF Gold Coin on home screen and remove coinIconUrl field from admin panel
+[33medcbb9b[m fix: subscribe App.tsx to real-time adminSettings updates from Firestore
+[33ma6607df[m build: update packages and deploy hosting
+[33medc9394[m feat: animate 3D mining coin during active mining and stay still when idle
+[33m7d5a437[m feat: production-grade upload system overhaul
+[33m715810a[m fix: video upload no longer fails due to Render cold start — data URL fallback 700KB→5MB
+[33mc7375e9[m fix: image/video upload and profile photo update not reflecting
+[33m21face3[m fix: try ImgBB first for images (no backend needed), Bot API secondary - eliminates Render sleep dependency
+[33m2825deb[m fix: always use fallback Render URL for uploads even when botApiUrl not set in settings
+[33m395b4a4[m fix: add server wake-up ping + retry logic for uploads, add /health endpoint to backend, fix CORS GET method
+[33mc484681[m fix: increase upload timeouts, fix video/image CDN upload flow, remove 500KB hard limit
+[33meda280f[m fix: resolve banner revert - remove includeMetadataChanges, fix stale closure in branding upload, fix video upload to use Cloudinary
+[33m5ad905b[m fix: prevent stale settingsRef from overwriting branding settings on input blur
+[33m9cd4c00[m fix: resolve video banner upload and admin unban functionality
+[33m459397a[m feat: support image and video uploads across all banner slots
+[33mefdcf09[m fix: resolve admin banner carousel upload and live sync issue
+[33md579be4[m fix: complete X OAuth 2.0 PKCE flow - replace bogus client-side PKCE with backend-driven S256, add OAuthCallbackPage, sessionToken verification, startapp deep link return
+[33m47b2f53[m feat: implement Telegram startapp deep link OAuth return with start_param handler
+[33ma3f5b93[m fix: remove redundant single Home Dashboard Hero Banner field from Admin branding list
+[33maa0d407[m feat: add video banner upload and HTML5 auto-play carousel support
+[33m8216d79[m feat: implement Universal Reward Reversal System with Grace Period and Admin configuration panel
+[33mab865c4[m feat: implement 10-minute follow retention audit engine and deduction logic according to specification
+[33ma6a79b1[m feat: mandate social account authentication for tasks and add automatic OAuth return redirect to Telegram bot
+[33mdbbe2cb[m perf: optimize claim animation particle counts and GPU composition to eliminate mobile lag
+[33m6e6bb4a[m fix: resolve phone freezing on link clicks and mandate explicit verification button click for entry
+[33mc3ee6d2[m feat: implement instant ad launch and mandatory minimum watch duration check to prevent early reward exploits
+[33m056a957[m fix: optimize image compression to WebP to eliminate Firestore document size limit error for multi-banner slider
+[33m1f9a424[m fix: enable instant auto-save, auto-username extraction, and robust membership verification for Force Join Gate
+[33mdcb36f2[m fix: resolve hero multi-banner slider upload and addition in Admin panel
+[33mba6f923[m feat: add minimum EForce Token withdrawal limit setting to Admin panel and Wallet validation
+[33m1c6ed61[m fix: resolve Telegram channel membership verification and referral tracking system
+[33m39a9b5e[m feat: implement real-time global country auto-detection and normalization for regional analytics
+[33mfbe6aef[m fix: resolve photo broadcasting issue with native Telegraf Buffer upload and fallback handler
+[33m6fd5edc[m fix: resolve Share Now button using Telegram WebApp openTelegramLink native sharing
+[33m2857507[m feat: implement Production-ready Campaign Task Verification & Social Connections Security Flow
+[33m231e2fa[m feat: implement Production-ready Force Join + CAPTCHA Verification + Rewarded Ad Flow
+[33mda7eee5[m feat: add automatic local service account json auto-detection for firebase admin
+[33mc940d0f[m fix: remove stray closing brace in bot.js causing syntax error
+[33mcc72c2a[m fix: add BOT_TOKEN fallback and dropPendingUpdates to prevent exit status 1 on Render
+[33m8158259[m fix: use firestore rest api fallback for admin settings to eliminate GCP ADC warnings on render
+[33m8b06dd3[m fix: resolve firebase admin ADC credentials error and add process rejection guard
+[33m3346837[m feat: add dynamic admin config for telegram bot welcome message and app link
+[33m3b7eaf5[m fix: ensure bot /start button strictly uses https://mini-telegram-app-c0fb4.web.app
+[33m4a26b75[m fix: add default fallbacks for IMGBB_API_KEY, FIREBASE_API_KEY, and API_SECRET to prevent Render deployment exit crash
+[33mea6dac0[m feat: match user task cards UI with Admin Mission Control (dual reward boxes EFORCE & TOKEN, REQUIRED badges, type tags)
+[33m82345d9[m feat: redesign Tasks UI to match categorized platform cards design (X, Discord, Video, Telegram, General)
+[33m98f06b3[m security & refactor: apply env checks, timingSafeEqual, fail-closed membership checks, and clean JSON helpers in bot.js
+[33m7fee2ac[m fix: update /start welcome message button URL to https://mini-telegram-app-c0fb4.web.app
+[33m8e2bc81[m feat: add Discord OpenID Connect OAuth integration with Firebase v11+
+[33me39034c[m feat: fix broadcast images, add 2 channel & group verification, and 0-50 referral claim limit tier system
+[33mba46895[m fix: update Telegram bot /start WebApp link to https://mini-telegram-app-c0fb4.web.app
+[33mb7e263c[m feat: upgrade to Elite Force X Verification Engine v2.0 with structured error codes & fraud detection
+[33m6dcef93[m style: refine connected social account UI with checkmark badge and underline disconnect button
+[33mda1b90c[m fix: update X OAuth callback URL to /auth/x/callback route
