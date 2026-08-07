@@ -380,7 +380,7 @@ export const verifyXTaskWithBackend = async (
   task: EForceTask,
   botApiUrl?: string
 ): Promise<{ success: boolean; status?: string; reason?: string; reward?: number }> => {
-  const baseUrl = botApiUrl || 'https://elite-force-telegram-app.onrender.com';
+  const baseUrl = botApiUrl || import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com';
   try {
     const res = await fetch(`${baseUrl.replace(/\/$/, '')}/api/x/verify-task`, {
       method: 'POST',
@@ -426,7 +426,7 @@ export const verifyTaskWithServer = async (
   adCompleted?: boolean,
   botApiUrl?: string
 ): Promise<{ success: boolean; reward?: number; tokenReward?: number; error?: string; reason?: string; requirePlatform?: string }> => {
-  const baseUrl = botApiUrl ? botApiUrl.replace(/\/$/, '') : 'https://elite-force-telegram-app.onrender.com';
+  const baseUrl = botApiUrl ? botApiUrl.replace(/\/$/, '') : (import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com');
   try {
     const res = await fetch(`${baseUrl}/api/tasks/verify`, {
       method: 'POST',

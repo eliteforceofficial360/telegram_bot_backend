@@ -8,14 +8,14 @@ import { getAnalytics, isSupported } from 'firebase/analytics';
 // Firebase web config — these are public client-side keys (safe per Google docs).
 // Env variable overrides are supported for local development flexibility.
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyA3flAWMnQiYeVAOCv_je0SLExI5Vxol4Y',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'mini-telegram-app-c0fb4.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'mini-telegram-app-c0fb4.firebasestorage.app',
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '1025915018170',
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:1025915018170:web:f31a5fcfc923f908ecdb83',
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://mini-telegram-app-c0fb4-default-rtdb.firebaseio.com',
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-QBB1K2WGFB',
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyDMsN_z5Wn6fZkHeWt5dsfHIJt8bJb3czg',
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'elite-force-844d0.firebaseapp.com',
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'elite-force-844d0',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'elite-force-844d0.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '230856129702',
+  appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:230856129702:web:1baa7bd1bf0af496be4867',
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || 'https://elite-force-844d0-default-rtdb.firebaseio.com',
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || 'G-Q1S2FGG94T',
 };
 
 // Prevent duplicate app initialization in hot-reload environments

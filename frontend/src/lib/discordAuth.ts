@@ -59,7 +59,8 @@ export const loginWithDiscord = async (): Promise<{
     const isTelegram = !!(window as any).Telegram?.WebApp;
     if (isTelegram || popupErr?.code === 'auth/popup-blocked' || popupErr?.code === 'auth/popup-closed-by-user') {
       const clientId = '1529919990235529397';
-      const redirectUri = encodeURIComponent('https://mini-telegram-app-c0fb4.web.app/auth/discord/callback');
+      const origin = window.location.origin || 'https://elite-force-844d0.web.app';
+      const redirectUri = encodeURIComponent(`${origin}/auth/discord/callback`);
       const scope = encodeURIComponent('openid identify email');
       const discordAuthUrl = `https://discord.com/oauth2/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&scope=${scope}`;
 

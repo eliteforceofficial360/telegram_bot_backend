@@ -23,8 +23,8 @@
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const IMGBB_API_KEY = '6d70077319714757c9a96e622b78edc3';
-const FALLBACK_BOT_URL = 'https://elite-force-telegram-app.onrender.com';
-const BOT_API_SECRET = 'https://elite-force-telegram-app.onrender.com'; // matches API_SECRET in .env
+const FALLBACK_BOT_URL = (import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com').trim();
+const BOT_API_SECRET = (import.meta.env.VITE_BOT_API_SECRET || 'elite_force_secret_2024').trim();
 
 /** Maximum base64 string length we'll store as a data URL in Firestore (≈ 3.7MB file) */
 const MAX_DATA_URL_LENGTH = 5 * 1024 * 1024;

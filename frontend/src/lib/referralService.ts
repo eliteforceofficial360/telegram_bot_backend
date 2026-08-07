@@ -175,7 +175,7 @@ export const recordReferral = async (
     } catch { /* noop */ }
 
     // Notify referrer via bot API if enabled
-    const targetApi = settings.botApiUrl || 'https://elite-force-telegram-app.onrender.com';
+    const targetApi = settings.botApiUrl || import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com';
     const notifySecret = settings.botApiUrl ? (settings as any).botApiSecret || '' : '';
     fetch(`${targetApi.replace(/\/$/, '')}/notify/referral`, {
       method: 'POST',

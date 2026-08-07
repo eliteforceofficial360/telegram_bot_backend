@@ -118,16 +118,19 @@ export async function uploadToCloudinary(dataUrl, options = {}) {
       await new Promise((r) => setTimeout(r, delay));
     }
 
-    try {
-      const result = await _streamUpload(dataUrl, {
+      const uploadOptions = {
         folder,
         public_id: publicId,
         resource_type: resourceType,
         overwrite,
-        quality: 'auto',
-        fetch_format: 'auto',
         secure: true,
-      });
+      };
+      if (resourceType === 'image') {
+        uploadOptions.quality = 'auto';
+        uploadOptions.fetch_format = 'auto';
+      }
+
+      const result = await _streamUpload(dataUrl, uploadOptions);
 
       return {
         secureUrl:    result.secure_url,

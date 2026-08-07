@@ -7,7 +7,7 @@ const BOT_API = () => {
       if (s.botApiUrl) return s.botApiUrl.replace(/\/$/, '');
     } catch { /* ignore */ }
   }
-  return (import.meta.env.VITE_BOT_API_URL || '').trim() || 'https://elite-force-telegram-app.onrender.com';
+  return (import.meta.env.VITE_BOT_API_URL || '').trim() || 'https://telegram-bot-backend-zbvn.onrender.com';
 };
 
 export interface MarketTask {

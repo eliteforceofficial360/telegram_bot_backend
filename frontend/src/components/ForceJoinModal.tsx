@@ -65,7 +65,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
     let isMounted = true;
     const performInitialCheck = async () => {
       try {
-        const targetApi = botApiUrl ? botApiUrl.replace(/\/$/, '') : 'https://elite-force-telegram-app.onrender.com';
+        const targetApi = botApiUrl ? botApiUrl.replace(/\/$/, '') : (import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com');
         const res = await fetch(`${targetApi}/check-membership`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -173,7 +173,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
       setVerifyingText('Verifying Security Credentials... 🔐');
       await new Promise((r) => setTimeout(r, 700));
 
-      const targetApi = botApiUrl ? botApiUrl.replace(/\/$/, '') : 'https://elite-force-telegram-app.onrender.com';
+      const targetApi = botApiUrl ? botApiUrl.replace(/\/$/, '') : (import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com');
       const checkRes = await fetch(`${targetApi}/check-membership`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

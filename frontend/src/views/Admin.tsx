@@ -1012,7 +1012,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [notifSending, setNotifSending] = useState(false);
   const [notifApiSecret] = useState(() => {
     const saved = localStorage.getItem('admin_api_secret');
-    return (saved && saved.trim() !== '') ? saved : 'https://elite-force-telegram-app.onrender.com';
+    return (saved && saved.trim() !== '') ? saved : 'elite_force_secret_2024';
   });
   const [notifImageUrl, setNotifImageUrl] = useState('');
   const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
@@ -1195,26 +1195,38 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       showToast('Please provide or upload a banner image URL', 'warning');
       return;
     }
+    const cleanUrl = newBannerUrl.trim();
+    if (cleanUrl.startsWith('data:') && cleanUrl.length > 700000) {
+      showToast('⚠️ Data URL is too large (>700KB) for Firestore. Please use Cloudinary or a hosted URL.', 'error');
+      return;
+    }
+
     const newBanner: { id: string; imageUrl: string; title?: string; linkUrl?: string } = {
       id: String(Date.now()),
-      imageUrl: newBannerUrl.trim(),
+      imageUrl: cleanUrl,
     };
     if (newBannerTitle.trim()) newBanner.title = newBannerTitle.trim();
     if (newBannerLink.trim()) newBanner.linkUrl = newBannerLink.trim();
 
-    const updatedBanners = [...(settings.heroBanners || []), newBanner];
-    const updatedSettings = { ...settings, heroBanners: updatedBanners };
+    const currentBanners = settingsRef.current.heroBanners || [];
+    const updatedBanners = [...currentBanners, newBanner];
+    const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
     setSettings(updatedSettings);
-    await saveAdminSettings(updatedSettings);
-    setNewBannerUrl('');
-    setNewBannerTitle('');
-    setNewBannerLink('');
-    showToast('✅ New Carousel Banner added!', 'success');
+    const saved = await saveAdminSettings(updatedSettings);
+    if (saved) {
+      setNewBannerUrl('');
+      setNewBannerTitle('');
+      setNewBannerLink('');
+      showToast('✅ New Carousel Banner added!', 'success');
+    } else {
+      showToast('❌ Failed to save banner to Firestore. Check file size.', 'error');
+    }
   };
 
   const handleRemoveHeroBanner = async (index: number) => {
-    const updatedBanners = (settings.heroBanners || []).filter((_, i) => i !== index);
-    const updatedSettings = { ...settings, heroBanners: updatedBanners };
+    const currentBanners = settingsRef.current.heroBanners || [];
+    const updatedBanners = currentBanners.filter((_, i) => i !== index);
+    const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
     setSettings(updatedSettings);
     await saveAdminSettings(updatedSettings);
     showToast('Banner removed.', 'info');
@@ -1230,6 +1242,17 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     try {
       const url = await _upload(file, `hero_banner_${Date.now()}`, 'banner');
 
+      // Populate input URL box so user can see the uploaded URL
+      setNewBannerUrl(url);
+
+      if (url.startsWith('data:') && url.length > 700000) {
+        showToast(
+          '⚠️ File uploaded locally as Data URL, but is too large for Firestore config (>700KB). Please set CLOUDINARY_URL in backend .env on Render, or use an external URL.',
+          'warning'
+        );
+        return;
+      }
+
       const newBanner: { id: string; imageUrl: string; title?: string; linkUrl?: string } = {
         id: String(Date.now()),
         imageUrl: url,
@@ -1237,14 +1260,19 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       if (newBannerTitle.trim()) newBanner.title = newBannerTitle.trim();
       if (newBannerLink.trim()) newBanner.linkUrl = newBannerLink.trim();
 
-      const updatedBanners = [...(settings.heroBanners || []), newBanner];
-      const updatedSettings = { ...settings, heroBanners: updatedBanners };
+      const currentBanners = settingsRef.current.heroBanners || [];
+      const updatedBanners = [...currentBanners, newBanner];
+      const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
       setSettings(updatedSettings);
-      await saveAdminSettings(updatedSettings);
-      setNewBannerUrl('');
-      setNewBannerTitle('');
-      setNewBannerLink('');
-      showToast(isVideo ? '🎬 Video Banner added to Carousel!' : '✅ Banner Image added to Carousel!', 'success');
+      const saved = await saveAdminSettings(updatedSettings);
+      if (saved) {
+        setNewBannerUrl('');
+        setNewBannerTitle('');
+        setNewBannerLink('');
+        showToast(isVideo ? '🎬 Video Banner added to Carousel!' : '✅ Banner Image added to Carousel!', 'success');
+      } else {
+        showToast('❌ Failed to save banner to Firestore. File size may exceed Firestore 1MB document limit.', 'error');
+      }
     } catch (err: any) {
       showToast(err.message || 'Upload failed.', 'error');
     }
@@ -4630,7 +4658,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       <span className="text-[9px] text-slate-500">The URL opened when users click the bot button</span>
                       <input
                         type="text"
-                        placeholder="https://mini-telegram-app-c0fb4.web.app"
+                        placeholder="https://elite-force-844d0.web.app"
                         value={settings.miniAppUrl || ''}
                         onChange={e => setSettings(prev => ({ ...prev, miniAppUrl: e.target.value }))}
                         className="w-full h-9 rounded-xl px-3 text-xs text-white outline-none font-mono"

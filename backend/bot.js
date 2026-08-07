@@ -8,7 +8,7 @@ import {
   getUploadFolder,
   getCloudinaryStatus,
 } from './uploadService.js';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { db, FieldValue } from './firebaseAdmin.js';
 import {
   verifyXTask,
   runXPeriodicMonitoring,
@@ -24,7 +24,7 @@ if (!token) {
   process.exit(1);
 }
 
-const BASE_APP_URL = 'https://mini-telegram-app-c0fb4.web.app';
+const BASE_APP_URL = 'https://elite-force-844d0.web.app';
 let webAppUrlRaw = (process.env.MINI_APP_URL || BASE_APP_URL).trim();
 const webAppUrl = webAppUrlRaw.includes('firebaseapp.com') || webAppUrlRaw.includes('web.app') || webAppUrlRaw.includes('localhost') ? (webAppUrlRaw.endsWith('/') ? webAppUrlRaw.slice(0, -1) : webAppUrlRaw) : BASE_APP_URL;
 const API_PORT = process.env.PORT || process.env.API_PORT || 4000;
@@ -38,7 +38,6 @@ const RECAPTCHA_PROJECT_ID = process.env.RECAPTCHA_PROJECT_ID; // e.g. 'balmy-ac
 const RECAPTCHA_SITE_KEY = process.env.RECAPTCHA_SITE_KEY;
 
 export const bot = new Telegraf(token);
-const db = getFirestore();
 
 // ── Dynamic Admin Settings Cache & Firestore Real-time Listener ──────────────
 let dynamicSettings = {
@@ -106,8 +105,9 @@ You've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Forc
 // REST API sync for Firestore admin settings (works 100% on Render without GCP Service Account / ADC credentials)
 async function syncAdminSettingsFromRest() {
   try {
+    const projectId = process.env.FIREBASE_PROJECT_ID || 'elite-force-844d0';
     const res = await fetch(
-      'https://firestore.googleapis.com/v1/projects/mini-telegram-app-c0fb4/databases/(default)/documents/adminSettings/config'
+      `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/adminSettings/config`
     );
     if (!res.ok) return;
     const json = await res.json();
@@ -677,8 +677,9 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   // Restrict CORS to the known app origin and localhost for dev
   const allowedOrigins = [
+    'https://elite-force-844d0.web.app',
+    'https://elite-force-844d0.firebaseapp.com',
     'https://mini-telegram-app-c0fb4.web.app',
-    'https://mini-telegram-app-c0fb4.firebaseapp.com',
     BASE_APP_URL,
   ].filter(Boolean);
   const origin = req.headers['origin'] || '';
@@ -2282,19 +2283,34 @@ const server = http.createServer(async (req, res) => {
 
 // ── Launch & Periodical Scheduler ─────────────────────────────────────────────
 
-console.log('Starting Elite Force bot...');
-bot.launch({ dropPendingUpdates: true }).then(() => {
-  console.log('✅ Bot running! Send /start in Telegram to test.');
+async function startBotWithRetry(maxRetries = 5, delayMs = 5000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Starting Elite Force bot (attempt ${attempt}/${maxRetries})...`);
+      await bot.launch({ dropPendingUpdates: true });
+      console.log('✅ Bot running! Send /start in Telegram to test.');
 
-  console.log('⏱️ Initializing X Task Anti-Fraud Scheduler (15 min interval)...');
-  setInterval(() => {
-    runXPeriodicMonitoring(sendToUser).catch((err) => {
-      console.error('[X Scheduler] Interval execution error:', err.message);
-    });
-  }, 15 * 60 * 1000);
-}).catch((err) => {
-  console.error('⚠️ Bot launch warning:', err.message);
-});
+      console.log('⏱️ Initializing X Task Anti-Fraud Scheduler (15 min interval)...');
+      setInterval(() => {
+        runXPeriodicMonitoring(sendToUser).catch((err) => {
+          console.error('[X Scheduler] Interval execution error:', err.message);
+        });
+      }, 15 * 60 * 1000);
+      return;
+    } catch (err) {
+      const isConflict = err.message?.includes('409') || err.message?.includes('Conflict');
+      if (isConflict && attempt < maxRetries) {
+        console.warn(`⚠️ Bot launch 409 Conflict (previous bot instance still shutting down). Retrying in ${delayMs / 1000}s...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      } else {
+        console.error('⚠️ Bot launch warning:', err.message);
+        break;
+      }
+    }
+  }
+}
+
+startBotWithRetry();
 
 server.listen(API_PORT, () => {
   console.log(`🌐 Notification API listening on port ${API_PORT}`);

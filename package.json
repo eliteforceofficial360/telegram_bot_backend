@@ -24,6 +24,7 @@
     "@types/node": "^26.1.1"
   },
   "dependencies": {
-    "3dsvg": "^0.2.1"
+    "3dsvg": "^0.2.1",
+    "cloudinary": "^2.10.0"
   }
 }

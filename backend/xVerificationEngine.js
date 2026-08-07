@@ -4,62 +4,7 @@
 import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-
-function getFirebaseAdminCredential() {
-  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    try {
-      const raw = process.env.FIREBASE_SERVICE_ACCOUNT.trim();
-      const parsed = raw.startsWith('{') ? JSON.parse(raw) : JSON.parse(Buffer.from(raw, 'base64').toString('utf8'));
-      return cert(parsed);
-    } catch (e) {
-      console.warn('[Firebase Admin] Failed to parse FIREBASE_SERVICE_ACCOUNT:', e.message);
-    }
-  }
-  if (process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
-    try {
-      return cert({
-        projectId: process.env.FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4',
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-      });
-    } catch (e) {
-      console.warn('[Firebase Admin] Failed to parse clientEmail/privateKey:', e.message);
-    }
-  }
-  try {
-    const searchDirs = [process.cwd(), path.join(process.cwd(), 'backend')];
-    for (const dir of searchDirs) {
-      if (fs.existsSync(dir)) {
-        const files = fs.readdirSync(dir);
-        const saFile = files.find(f => f.includes('firebase-adminsdk') && f.endsWith('.json'));
-        if (saFile) {
-          const content = fs.readFileSync(path.join(dir, saFile), 'utf8');
-          return cert(JSON.parse(content));
-        }
-      }
-    }
-  } catch (e) { /* silent */ }
-  return null;
-}
-
-if (!getApps().length) {
-  try {
-    const credential = getFirebaseAdminCredential();
-    if (credential) {
-      initializeApp({ credential });
-      console.log('✅ [Firebase Admin] Initialized with Service Account Credentials!');
-    } else {
-      initializeApp({ projectId: process.env.FIREBASE_PROJECT_ID || 'mini-telegram-app-c0fb4' });
-      console.log('⚠️ [Firebase Admin] Initialized with Project ID only.');
-    }
-  } catch (err) {
-    console.warn('[Firebase Admin] Initialization warning:', err.message);
-  }
-}
-
-const db = getFirestore();
+import { db, FieldValue } from './firebaseAdmin.js';
 const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || '';
 const verificationRateLimits = new Map();
 const USERNAME_REGEX = /^[A-Za-z0-9_]{1,15}$/;

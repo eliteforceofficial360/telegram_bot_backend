@@ -405,7 +405,7 @@ export default function App() {
   useEffect(() => {
     if (!telegramUser || !(adminSettings.forceJoinEnabled ?? true)) return;
 
-    const targetApi = adminSettings.botApiUrl ? adminSettings.botApiUrl.replace(/\/$/, '') : 'https://elite-force-telegram-app.onrender.com';
+    const targetApi = adminSettings.botApiUrl ? adminSettings.botApiUrl.replace(/\/$/, '') : (import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com');
     const channelId = adminSettings.telegramChannelId || '@EliteForceChannel';
     const groupId = adminSettings.telegramGroupId || '@EliteForceGroup';
 
