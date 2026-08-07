@@ -3,7 +3,8 @@ import { motion } from 'framer-motion';
 import { Trophy, Search, RefreshCw, Star, HelpCircle } from 'lucide-react';
 import { getLeaderboardUsers, type FirestoreUser } from '../lib/userService';
 import { VerifiedBadge } from '../components/VerifiedBadge';
-import { type AdminSettings } from '../lib/adminSettingsService';
+import { DEFAULT_ADMIN_SETTINGS, type AdminSettings } from '../lib/adminSettingsService';
+import { HeroBannerSlider } from '../components/HeroBannerSlider';
 
 interface LeaderboardProps {
   telegramUser: { id: number; username?: string; firstName?: string; lastName?: string; photoUrl?: string } | null;
@@ -58,26 +59,13 @@ export const Leaderboard = ({ telegramUser, efcBalance, showToast, dbUser, admin
         <p className="text-xs text-slate-400 mt-1">Global ecosystem rankings by EFC Points.</p>
       </div>
 
-      {/* Header Banner (if set by Admin) */}
-      {adminSettings?.leaderboardBannerUrl && (
-        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          {adminSettings.leaderboardBannerUrl.toLowerCase().includes('.mp4') ||
-           adminSettings.leaderboardBannerUrl.toLowerCase().includes('.webm') ||
-           adminSettings.leaderboardBannerUrl.toLowerCase().includes('.mov') ||
-           adminSettings.leaderboardBannerUrl.toLowerCase().startsWith('data:video/') ? (
-            <video src={adminSettings.leaderboardBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-          ) : (
-            <img
-              src={adminSettings.leaderboardBannerUrl}
-              alt="Leaderboard Banner"
-              className="w-full h-full object-cover"
-              loading="eager"
-              decoding="async"
-              {...{ fetchpriority: 'high' }}
-            />
-          )}
-        </div>
-      )}
+      {/* Dynamic Multi-Banner Slider (or fallback to Leaderboard Banner) */}
+      <HeroBannerSlider
+        adminSettings={adminSettings || DEFAULT_ADMIN_SETTINGS}
+        fallbackUrl={adminSettings?.leaderboardBannerUrl || '/coin-logo.jpg'}
+        defaultTitle="Global Leaderboard"
+        heightClass="h-32 min-h-[128px]"
+      />
 
       {/* Current User Rank Card */}
       {telegramUser && dbUser?.leaderboardHidden !== true && (

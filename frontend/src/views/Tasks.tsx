@@ -29,6 +29,7 @@ import type { TelegramUser } from '../lib/telegramUser';
 import { type AdminSettings } from '../lib/adminSettingsService';
 import { showRewardedAd } from '../lib/monetag';
 import { claimDailyAdVideoReward, syncPointsToFirestore, syncTokensToFirestore, type FirestoreUser } from '../lib/userService';
+import { HeroBannerSlider } from '../components/HeroBannerSlider';
 
 interface TasksProps {
   efcBalance: number;
@@ -634,26 +635,13 @@ export const Tasks = ({
       {/* ── EARN CONTENT ── */}
       <div className="flex flex-col gap-5">
 
-      {/* Header Banner (if set by Admin) */}
-      {adminSettings.tasksBannerUrl && (
-        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          {adminSettings.tasksBannerUrl.toLowerCase().includes('.mp4') ||
-           adminSettings.tasksBannerUrl.toLowerCase().includes('.webm') ||
-           adminSettings.tasksBannerUrl.toLowerCase().includes('.mov') ||
-           adminSettings.tasksBannerUrl.toLowerCase().startsWith('data:video/') ? (
-            <video src={adminSettings.tasksBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-          ) : (
-            <img
-               src={adminSettings.tasksBannerUrl}
-               alt="Tasks Banner"
-               className="w-full h-full object-cover"
-               loading="eager"
-               decoding="async"
-               {...{ fetchpriority: 'high' }}
-             />
-          )}
-        </div>
-      )}
+      {/* Dynamic Multi-Banner Slider (or fallback to Tasks Banner) */}
+      <HeroBannerSlider
+        adminSettings={adminSettings}
+        fallbackUrl={adminSettings.tasksBannerUrl || '/coin-logo.jpg'}
+        defaultTitle="Missions & Earn"
+        heightClass="h-32 min-h-[128px]"
+      />
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-3">

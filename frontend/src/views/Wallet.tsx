@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet as WalletIcon, Clock, ShieldCheck, Lock, CheckCircle, ShieldAlert, X, Edit3, Save, RefreshCw, Copy } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { type AdminSettings } from '../lib/adminSettingsService';
+import { HeroBannerSlider } from '../components/HeroBannerSlider';
 import { UsdtIcon } from '../components/UsdtIcon';
 import { showRewardedAd } from '../lib/monetag';
 import {
@@ -295,26 +296,13 @@ export const Wallet: React.FC<WalletProps> = ({
         </div>
       </div>
 
-      {/* Header Banner (if set by Admin) */}
-      {settings.walletBannerUrl && (
-        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          {settings.walletBannerUrl.toLowerCase().includes('.mp4') ||
-           settings.walletBannerUrl.toLowerCase().includes('.webm') ||
-           settings.walletBannerUrl.toLowerCase().includes('.mov') ||
-           settings.walletBannerUrl.toLowerCase().startsWith('data:video/') ? (
-            <video src={settings.walletBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-          ) : (
-            <img
-               src={settings.walletBannerUrl}
-               alt="Wallet Banner"
-               className="w-full h-full object-cover"
-               loading="eager"
-               decoding="async"
-               {...{ fetchpriority: 'high' }}
-             />
-          )}
-        </div>
-      )}
+      {/* Dynamic Multi-Banner Slider (or fallback to Wallet Banner) */}
+      <HeroBannerSlider
+        adminSettings={settings}
+        fallbackUrl={settings.walletBannerUrl || '/coin.jpg'}
+        defaultTitle="Wallet & Payouts"
+        heightClass="h-32 min-h-[128px]"
+      />
 
       {/* Hero Wallet Card */}
       <div className="glass-panel p-6 rounded-[24px] border-white/6 relative overflow-hidden flex flex-col justify-between shadow-[0_20px_50px_rgba(0,0,0,0.4)]">

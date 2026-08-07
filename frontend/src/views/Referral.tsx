@@ -4,6 +4,7 @@ import { Copy, Share2, Users, Check, Award, Lock, Sparkles, Zap, Medal, Diamond,
 import { UsdtIcon } from '../components/UsdtIcon';
 import { getReferralLink, getUserReferrals, syncAndClaimAllReferralRewards, type ReferralRecord } from '../lib/referralService';
 import { type AdminSettings } from '../lib/adminSettingsService';
+import { HeroBannerSlider } from '../components/HeroBannerSlider';
 import {
   subscribeToReferralTiers,
   calculateUserReferralTier,
@@ -211,26 +212,13 @@ export const Referral = ({
         <p className="text-xs text-slate-400 mt-1">Invite friends, earn USDT & EForce Token together</p>
       </div>
 
-      {/* Header Banner (if set by Admin) */}
-      {adminSettings.referralBannerUrl && (
-        <div className="w-full h-32 rounded-[22px] overflow-hidden border border-white/10 relative shadow-[0_12px_30px_rgba(0,0,0,0.5)]">
-          {adminSettings.referralBannerUrl.toLowerCase().includes('.mp4') ||
-           adminSettings.referralBannerUrl.toLowerCase().includes('.webm') ||
-           adminSettings.referralBannerUrl.toLowerCase().includes('.mov') ||
-           adminSettings.referralBannerUrl.toLowerCase().startsWith('data:video/') ? (
-            <video src={adminSettings.referralBannerUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
-          ) : (
-            <img 
-              src={adminSettings.referralBannerUrl} 
-              alt="Referral Banner" 
-              className="w-full h-full object-cover"
-              loading="eager"
-              decoding="async"
-              {...{ fetchpriority: 'high' }}
-            />
-          )}
-        </div>
-      )}
+      {/* Dynamic Multi-Banner Slider (or fallback to Referral Banner) */}
+      <HeroBannerSlider
+        adminSettings={adminSettings}
+        fallbackUrl={adminSettings.referralBannerUrl || '/coin-logo.jpg'}
+        defaultTitle="Referral & Earn"
+        heightClass="h-32 min-h-[128px]"
+      />
 
       {/* Live Unlocked Tier Status Card */}
       <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-3 relative overflow-hidden bg-gradient-to-br from-[#12182C] via-[#0E1325] to-[#0A0D1B]">
