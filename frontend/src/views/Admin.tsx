@@ -1009,12 +1009,16 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     }
   };
   // --- Notifications tab ---
+  const [settings, setSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
+  const settingsRef = useRef<AdminSettings>(settings);
+  useEffect(() => { settingsRef.current = settings; }, [settings]);
+
+  const [savingSettings, setSavingSettings] = useState(false);
+  useEffect(() => { const unsub = subscribeToAdminSettings(setSettings); return unsub; }, []);
+
   const [notifMessage, setNotifMessage] = useState('');
   const [notifSending, setNotifSending] = useState(false);
-  const [notifApiSecret] = useState(() => {
-    const saved = localStorage.getItem('admin_api_secret');
-    return (saved && saved.trim() !== '') ? saved : 'elite_force_secret_2024';
-  });
+  const notifApiSecret = settings.apiSecret || localStorage.getItem('admin_api_secret') || 'elite_force_secret_2024';
   const [notifImageUrl, setNotifImageUrl] = useState('');
   const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
   // ── Notification Center States ──────────────────────────────────────────
@@ -1155,13 +1159,6 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       setUploadingNotificationImage(false);
     }
   };
-
-  const [settings, setSettings] = useState<AdminSettings>(DEFAULT_ADMIN_SETTINGS);
-  const settingsRef = useRef<AdminSettings>(settings);
-  useEffect(() => { settingsRef.current = settings; }, [settings]);
-
-  const [savingSettings, setSavingSettings] = useState(false);
-  useEffect(() => { const unsub = subscribeToAdminSettings(setSettings); return unsub; }, []);
 
   const handleSaveSettings = async () => {
     setSavingSettings(true);

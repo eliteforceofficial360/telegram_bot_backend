@@ -109,6 +109,7 @@ export interface AdminSettings {
   botUsername: string;
   adminUsername: string;
   adminTelegramId?: string;
+  apiSecret?: string;
 
   // Social Connections & OAuth
   discordClientId?: string;
@@ -220,6 +221,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   xAuthUrl: 'https://x.com/oauth2/authorize?client_id=',
   whatsappNumber: '+9613578241',
   botApiUrl: 'https://telegram-bot-backend-zbvn.onrender.com',
+  apiSecret: 'elite_force_secret_2024',
   miniAppUrl: 'https://elite-force-844d0.web.app',
   botStartMessage: `🔥 <b>ELITE FORCE — EForce Token</b> 🔥\n\n👋 Welcome, <b>{name}</b>!\n\nYou've just entered the <b>next-generation Web3 mining ecosystem</b>. Elite Force rewards you for every action.\n\n━━━━━━━━━━━━━━━━━━━━\n⛏️  <b>Mine</b> EForce tokens passively\n✅  <b>Complete missions</b> & earn rewards\n🏆  <b>Climb</b> the global leaderboard\n👥  <b>Refer friends</b> and earn commissions\n💸  <b>Withdraw</b> USDT to your BEP-20 wallet\n━━━━━━━━━━━━━━━━━━━━\n\n🚀 Tap the button below to launch your dashboard!`,
   botStartButtonText: '🔥 Launch Elite Force App 🔥',
