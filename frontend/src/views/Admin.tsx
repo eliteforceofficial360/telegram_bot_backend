@@ -4653,11 +4653,52 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
                     <div className="flex items-center gap-2">
                       <span className="text-base">🤖</span>
-                      <span className="text-sm font-black text-white">Telegram Bot Start Message & App Link</span>
+                      <span className="text-sm font-black text-white">Telegram Bot API & Start Message Customization</span>
                     </div>
-                    <p className="text-[9px] text-slate-500 mt-0.5">Customize the /start welcome message, button text, and Mini App URL sent in Telegram</p>
+                    <p className="text-[9px] text-slate-500 mt-0.5">Customize Bot API backend server URL, /start welcome message, button text, and Mini App URL</p>
                   </div>
                   <div className="p-4 flex flex-col gap-3">
+                    {/* Bot API Backend Server URL */}
+                    <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white/[0.02] border border-white/5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs text-white font-bold">Bot API Backend URL</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSettings(prev => ({ ...prev, botApiUrl: 'https://telegram-bot-backend-zbvn.onrender.com' }));
+                            showToast('✅ Preset to Render Live Backend URL!', 'info');
+                          }}
+                          className="text-[10px] text-[#00E5FF] font-bold underline hover:text-cyan-300 cursor-pointer"
+                        >
+                          ⚡ Set Render Live URL
+                        </button>
+                      </div>
+                      <span className="text-[9px] text-slate-400">The backend server URL processing tasks, membership verification, and bot webhooks</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <input
+                          type="text"
+                          placeholder="https://telegram-bot-backend-zbvn.onrender.com"
+                          value={settings.botApiUrl || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, botApiUrl: e.target.value }))}
+                          className="w-full h-9 rounded-xl px-3 text-xs text-white outline-none font-mono"
+                          style={inputStyle}
+                        />
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const url = (settings.botApiUrl || 'https://telegram-bot-backend-zbvn.onrender.com').trim();
+                            const updated = { ...settings, botApiUrl: url };
+                            setSettings(updated);
+                            await saveAdminSettings(updated);
+                            showToast('✅ Bot API Backend URL saved to Firestore & live synced!', 'success');
+                          }}
+                          className="h-9 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-black shrink-0 hover:scale-[1.02] transition-all cursor-pointer shadow-md"
+                        >
+                          Save API URL
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-1">
                       <label className="text-xs text-slate-300 font-bold">Mini App URL (Web App Link)</label>
                       <span className="text-[9px] text-slate-500">The URL opened when users click the bot button</span>
