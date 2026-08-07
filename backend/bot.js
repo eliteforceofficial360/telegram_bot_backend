@@ -607,11 +607,58 @@ function sendJson(res, status, payload) {
   res.end(JSON.stringify(payload));
 }
 
-// ── Bot commands ──────────────────────────────────────────────────────────────
+// ── Bot commands & Auto User Registration Middleware ─────────────────────────
+
+bot.use(async (ctx, next) => {
+  if (ctx.from && ctx.from.id) {
+    try {
+      const u = ctx.from;
+      const userRef = db.collection('users').doc(String(u.id));
+      const snap = await userRef.get();
+      const nowIso = new Date().toISOString();
+
+      if (!snap.exists) {
+        await userRef.set({
+          telegramId: u.id,
+          firstName: u.first_name || '',
+          lastName: u.last_name || '',
+          username: u.username || '',
+          isPremium: !!u.is_premium,
+          isTelegramPremium: !!u.is_premium,
+          language: u.language_code || 'en',
+          points: 0,
+          tokens: 0,
+          wallet: 0,
+          depositBalance: 0,
+          referrals: 0,
+          referralCount: 0,
+          createdAt: nowIso,
+          lastActive: nowIso,
+          banStatus: 'none',
+          riskLevel: 'safe',
+          flagCount: 0,
+        }, { merge: true });
+        console.log(`[Bot Middleware] Registered NEW user ${u.id} (${u.first_name}) in Firestore!`);
+      } else {
+        await userRef.update({
+          firstName: u.first_name || '',
+          lastName: u.last_name || '',
+          username: u.username || '',
+          isPremium: !!u.is_premium,
+          isTelegramPremium: !!u.is_premium,
+          lastActive: nowIso,
+        }).catch(() => {});
+      }
+    } catch (err) {
+      console.warn('[Bot Middleware] User registration error:', err.message);
+    }
+  }
+  return next();
+});
 
 bot.start(async (ctx) => {
   await syncAdminSettingsFromRest().catch(() => { });
-  const username = ctx.from.first_name || 'Force Agent';
+  const username = ctx.from?.first_name || 'Force Agent';
   const payload = ctx.startPayload || '';
   const currentAppUrl = getEffectiveAppUrl();
   const finalUrl = payload ? `${currentAppUrl}?tgWebAppStartParam=${encodeURIComponent(payload)}` : currentAppUrl;
