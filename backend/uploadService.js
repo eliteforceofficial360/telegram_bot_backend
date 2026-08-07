@@ -118,6 +118,7 @@ export async function uploadToCloudinary(dataUrl, options = {}) {
       await new Promise((r) => setTimeout(r, delay));
     }
 
+    try {
       const uploadOptions = {
         folder,
         public_id: publicId,
