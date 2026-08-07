@@ -2238,7 +2238,12 @@ const server = http.createServer(async (req, res) => {
 
     // ── POST /api/admin/broadcast ─────────────────────────────────────────────
     if (req.method === 'POST' && url === '/api/admin/broadcast') {
-      const { targetType, targetIds, campaignId, country, language, isPremiumOnly, templateText, includeButton, buttonText, buttonTab, imageUrl } = data;
+      const {
+        targetType, targetIds, campaignId, country, language, isPremiumOnly, templateText,
+        includeButton, buttonText, buttonTab, buttonUrl,
+        includeSecondButton, secondButtonText, secondButtonTab, secondButtonUrl,
+        imageUrl,
+      } = data;
       if (!templateText) {
         return sendJson(res, 400, { success: false, error: 'templateText is required' });
       }
@@ -2288,12 +2293,34 @@ const server = http.createServer(async (req, res) => {
         }
 
         let extra = {};
-        const shouldAttachButton = includeButton !== false && Boolean(buttonText && String(buttonText).trim());
-        if (shouldAttachButton) {
-          const appUrl = `${getEffectiveAppUrl()}?startapp=${buttonTab || 'home'}`;
-          extra = Markup.inlineKeyboard([
-            [Markup.button.webApp(String(buttonText).trim(), appUrl)]
-          ]);
+        const buttonsRow = [];
+
+        // Button #1
+        if (includeButton !== false && Boolean(buttonText && String(buttonText).trim())) {
+          const label1 = String(buttonText).trim();
+          if (buttonTab === 'url' && buttonUrl && buttonUrl.trim().startsWith('http')) {
+            buttonsRow.push(Markup.button.url(label1, buttonUrl.trim()));
+          } else {
+            const tab1 = buttonTab || 'home';
+            const appUrl1 = `${getEffectiveAppUrl()}?startapp=${tab1}`;
+            buttonsRow.push(Markup.button.webApp(label1, appUrl1));
+          }
+        }
+
+        // Button #2 (Optional)
+        if (includeSecondButton === true && Boolean(secondButtonText && String(secondButtonText).trim())) {
+          const label2 = String(secondButtonText).trim();
+          if (secondButtonTab === 'url' && secondButtonUrl && secondButtonUrl.trim().startsWith('http')) {
+            buttonsRow.push(Markup.button.url(label2, secondButtonUrl.trim()));
+          } else {
+            const tab2 = secondButtonTab || 'home';
+            const appUrl2 = `${getEffectiveAppUrl()}?startapp=${tab2}`;
+            buttonsRow.push(Markup.button.webApp(label2, appUrl2));
+          }
+        }
+
+        if (buttonsRow.length > 0) {
+          extra = Markup.inlineKeyboard(buttonsRow.map(btn => [btn]));
         }
 
         const broadcastRes = await broadcast(targetTelegramIds, templateText, extra, imageUrl);

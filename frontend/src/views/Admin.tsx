@@ -1031,7 +1031,12 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [bcastIsPremiumOnly] = useState(false);
   const [bcastButtonText, setBcastButtonText] = useState('Open Elite Force');
   const [bcastButtonTab, setBcastButtonTab] = useState('home');
+  const [bcastButtonUrl, setBcastButtonUrl] = useState('');
   const [bcastIncludeButton, setBcastIncludeButton] = useState(true);
+  const [bcastIncludeSecondButton, setBcastIncludeSecondButton] = useState(false);
+  const [bcastSecondButtonText, setBcastSecondButtonText] = useState('📢 Join Telegram Channel');
+  const [bcastSecondButtonTab, setBcastSecondButtonTab] = useState('url');
+  const [bcastSecondButtonUrl, setBcastSecondButtonUrl] = useState('');
   const [bcastSearchQuery, setBcastSearchQuery] = useState('');
 
   const targetIdArray = useMemo(() => {
@@ -1128,6 +1133,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
           includeButton: bcastIncludeButton,
           buttonText: bcastIncludeButton ? bcastButtonText : '',
           buttonTab: bcastButtonTab,
+          buttonUrl: bcastButtonUrl,
+          includeSecondButton: bcastIncludeSecondButton,
+          secondButtonText: bcastIncludeSecondButton ? bcastSecondButtonText : '',
+          secondButtonTab: bcastSecondButtonTab,
+          secondButtonUrl: bcastSecondButtonUrl,
           imageUrl: notifImageUrl,
         }),
       });
@@ -3648,33 +3658,119 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       </div>
 
                       {bcastIncludeButton ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-white/5">
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Inline Button Label</label>
-                            <input
-                              type="text"
-                              placeholder="Open Elite Force"
-                              value={bcastButtonText}
-                              onChange={(e) => setBcastButtonText(e.target.value)}
-                              className={inputCls}
-                              style={inputStyle}
-                            />
+                        <div className="flex flex-col gap-3 pt-2 border-t border-white/5">
+                          {/* Button 1 Row */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Button #1 Label</label>
+                              <input
+                                type="text"
+                                placeholder="Open Elite Force"
+                                value={bcastButtonText}
+                                onChange={(e) => setBcastButtonText(e.target.value)}
+                                className={inputCls}
+                                style={inputStyle}
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Button #1 Target Action</label>
+                              <select
+                                value={bcastButtonTab}
+                                onChange={(e) => setBcastButtonTab(e.target.value)}
+                                className={`${inputCls} cursor-pointer`}
+                                style={{ ...inputStyle, background: '#0D1220' }}
+                              >
+                                <option value="home">🏠 Home / Mine Dashboard</option>
+                                <option value="tasks">🎯 Missions & Tasks</option>
+                                <option value="market">🛒 P2P Task Market</option>
+                                <option value="leaderboard">🏆 Global Leaderboard</option>
+                                <option value="friends">👥 Referrals & Earn</option>
+                                <option value="wallet">💳 Wallet & Withdraw</option>
+                                <option value="support">💬 Live Support & Chat</option>
+                                <option value="profile">👤 Profile & Connections</option>
+                                <option value="url">🔗 External Web / Telegram Link</option>
+                              </select>
+                            </div>
                           </div>
-                          <div className="flex flex-col gap-1">
-                            <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Target App Tab</label>
-                            <select
-                              value={bcastButtonTab}
-                              onChange={(e) => setBcastButtonTab(e.target.value)}
-                              className={`${inputCls} cursor-pointer`}
-                              style={{ ...inputStyle, background: '#0D1220' }}
-                            >
-                              <option value="home">Home / Mine</option>
-                              <option value="tasks">Missions & Tasks</option>
-                              <option value="profile">Profile & Connections</option>
-                              <option value="friends">Referrals / Friends</option>
-                              <option value="wallet">Wallet & Withdraw</option>
-                              <option value="support">Support</option>
-                            </select>
+
+                          {/* Custom URL Input for Button 1 if URL option selected */}
+                          {bcastButtonTab === 'url' && (
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] text-amber-400 font-bold uppercase tracking-wider">Button #1 External URL / Telegram Link</label>
+                              <input
+                                type="text"
+                                placeholder="https://t.me/EliteForceChannel or https://example.com"
+                                value={bcastButtonUrl}
+                                onChange={(e) => setBcastButtonUrl(e.target.value)}
+                                className={inputCls}
+                                style={inputStyle}
+                              />
+                            </div>
+                          )}
+
+                          {/* Toggle for 2nd Optional Button */}
+                          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/5 flex flex-col gap-2.5 mt-1">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-xs">➕</span>
+                                <span className="text-xs font-bold text-white">Attach 2nd Inline Button (Optional Dual Button)</span>
+                              </div>
+                              <Toggle
+                                on={bcastIncludeSecondButton}
+                                onToggle={() => setBcastIncludeSecondButton(prev => !prev)}
+                                accentColor="#38BDF8"
+                              />
+                            </div>
+
+                            {bcastIncludeSecondButton && (
+                              <div className="flex flex-col gap-2.5 pt-2 border-t border-white/5">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Button #2 Label</label>
+                                    <input
+                                      type="text"
+                                      placeholder="📢 Join Telegram Channel"
+                                      value={bcastSecondButtonText}
+                                      onChange={(e) => setBcastSecondButtonText(e.target.value)}
+                                      className={inputCls}
+                                      style={inputStyle}
+                                    />
+                                  </div>
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Button #2 Target Action</label>
+                                    <select
+                                      value={bcastSecondButtonTab}
+                                      onChange={(e) => setBcastSecondButtonTab(e.target.value)}
+                                      className={`${inputCls} cursor-pointer`}
+                                      style={{ ...inputStyle, background: '#0D1220' }}
+                                    >
+                                      <option value="home">🏠 Home / Mine Dashboard</option>
+                                      <option value="tasks">🎯 Missions & Tasks</option>
+                                      <option value="market">🛒 P2P Task Market</option>
+                                      <option value="leaderboard">🏆 Global Leaderboard</option>
+                                      <option value="friends">👥 Referrals & Earn</option>
+                                      <option value="wallet">💳 Wallet & Withdraw</option>
+                                      <option value="support">💬 Live Support & Chat</option>
+                                      <option value="profile">👤 Profile & Connections</option>
+                                      <option value="url">🔗 External Web / Telegram Link</option>
+                                    </select>
+                                  </div>
+                                </div>
+                                {bcastSecondButtonTab === 'url' && (
+                                  <div className="flex flex-col gap-1">
+                                    <label className="text-[9px] text-cyan-400 font-bold uppercase tracking-wider">Button #2 External URL / Telegram Link</label>
+                                    <input
+                                      type="text"
+                                      placeholder="https://t.me/EliteForceChannel"
+                                      value={bcastSecondButtonUrl}
+                                      onChange={(e) => setBcastSecondButtonUrl(e.target.value)}
+                                      className={inputCls}
+                                      style={inputStyle}
+                                    />
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                       ) : (
