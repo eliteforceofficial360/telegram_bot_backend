@@ -1293,16 +1293,20 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       const url = await _upload(file, key, file.type.startsWith('video/') ? 'video' : 'icon');
       const updated = { ...settingsRef.current, [targetField]: url };
       setSettings(updated);
-      // Guard: never write base64 data URLs > 700KB directly into adminSettings
-      // (Firestore 1MB doc limit — large data URLs cause silent write failures)
-      if (url.startsWith('data:') && url.length > 700000) {
+
+      if (url.startsWith('data:') && url.length > 14000000) {
         showToast(
-          '⚠️ File stored locally. Configure Cloudinary for persistent CDN storage.',
+          '⚠️ File uploaded locally as Data URL, but is too large (>10MB). Please set CLOUDINARY_URL on Render, or use an external URL.',
           'warning'
         );
+        return;
+      }
+
+      const saved = await saveAdminSettings(updated);
+      if (saved) {
+        showToast(`✅ ${key} uploaded & live saved across the app!`, 'success');
       } else {
-        await saveAdminSettings(updated);
-        showToast(`✅ ${key} uploaded & live synced!`, 'success');
+        showToast(`❌ Failed to save ${key} to Firestore. Check file size.`, 'error');
       }
     } catch (err: any) {
       showToast(err.message || 'Upload failed.', 'error');
