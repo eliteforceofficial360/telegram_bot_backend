@@ -486,7 +486,7 @@ async function sendEventNotification({ telegramId, eventType, eventId, params = 
 
   try {
     const numId = Number(telegramId);
-    const dbInstance = getFirestore();
+    const dbInstance = db;
 
     // 1. Fetch Notification Settings
     const settingsDoc = await dbInstance.collection('adminSettings').doc('global').get();
@@ -1193,7 +1193,7 @@ const server = http.createServer(async (req, res) => {
         const numId = Number(telegramId);
         const platformKey = String(platform).toLowerCase();
         const cleanHandle = handle.trim().startsWith('@') ? handle.trim() : `@${handle.trim()}`;
-        const dbInstance = getFirestore();
+        const dbInstance = db;
 
         await dbInstance.collection('users').doc(String(numId)).set({
           socialConnections: {
@@ -1243,7 +1243,7 @@ const server = http.createServer(async (req, res) => {
       try {
         const numId = Number(telegramId);
         const platformKey = String(platform).toLowerCase();
-        const dbInstance = getFirestore();
+        const dbInstance = db;
 
         await dbInstance.collection('users').doc(String(numId)).set({
           socialConnections: {
@@ -1305,7 +1305,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       const numId = Number(telegramId);
-      const dbInstance = getFirestore();
+      const dbInstance = db;
 
       try {
         // 1. Check Duplicate Task Completion
@@ -2244,7 +2244,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
-        const dbInstance = getFirestore();
+        const dbInstance = db;
         let targetTelegramIds = [];
 
         if (targetType === 'specific' && Array.isArray(targetIds) && targetIds.length > 0) {
@@ -2304,7 +2304,7 @@ const server = http.createServer(async (req, res) => {
     // ── GET /api/admin/notifications/history ──────────────────────────────
     if (req.method === 'GET' && url.startsWith('/api/admin/notifications/history')) {
       try {
-        const dbInstance = getFirestore();
+        const dbInstance = db;
         const snap = await dbInstance.collection('notificationHistory').orderBy('timestamp', 'desc').limit(100).get();
         const logs = [];
         snap.forEach(docSnap => {
