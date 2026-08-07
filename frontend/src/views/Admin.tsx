@@ -1031,6 +1031,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [bcastIsPremiumOnly] = useState(false);
   const [bcastButtonText, setBcastButtonText] = useState('Open Elite Force');
   const [bcastButtonTab, setBcastButtonTab] = useState('home');
+  const [bcastIncludeButton, setBcastIncludeButton] = useState(true);
   const [bcastSearchQuery, setBcastSearchQuery] = useState('');
 
   const targetIdArray = useMemo(() => {
@@ -1124,7 +1125,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
           language: bcastLanguage,
           isPremiumOnly: bcastIsPremiumOnly || bcastTargetType === 'premium',
           templateText: notifMessage,
-          buttonText: bcastButtonText,
+          includeButton: bcastIncludeButton,
+          buttonText: bcastIncludeButton ? bcastButtonText : '',
           buttonTab: bcastButtonTab,
           imageUrl: notifImageUrl,
         }),
@@ -3628,35 +3630,58 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       </div>
                     </div>
 
-                    {/* Inline Keyboard Controls */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Inline Button Label</label>
-                        <input
-                          type="text"
-                          placeholder="Open Elite Force"
-                          value={bcastButtonText}
-                          onChange={(e) => setBcastButtonText(e.target.value)}
-                          className={inputCls}
-                          style={inputStyle}
+                    {/* Inline Keyboard Controls Toggle & Inputs */}
+                    <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs">🔘</span>
+                          <div>
+                            <span className="text-xs font-bold text-white block">Attach WebApp Inline Button</span>
+                            <span className="text-[9px] text-slate-400 block">Include an interactive button below the Telegram push message to launch the Mini App</span>
+                          </div>
+                        </div>
+                        <Toggle
+                          on={bcastIncludeButton}
+                          onToggle={() => setBcastIncludeButton(prev => !prev)}
+                          accentColor="#C084FC"
                         />
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Target App Tab</label>
-                        <select
-                          value={bcastButtonTab}
-                          onChange={(e) => setBcastButtonTab(e.target.value)}
-                          className={`${inputCls} cursor-pointer`}
-                          style={{ ...inputStyle, background: '#0D1220' }}
-                        >
-                          <option value="home">Home / Mine</option>
-                          <option value="tasks">Missions & Tasks</option>
-                          <option value="profile">Profile & Connections</option>
-                          <option value="friends">Referrals / Friends</option>
-                          <option value="wallet">Wallet & Withdraw</option>
-                          <option value="support">Support</option>
-                        </select>
-                      </div>
+
+                      {bcastIncludeButton ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-white/5">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Inline Button Label</label>
+                            <input
+                              type="text"
+                              placeholder="Open Elite Force"
+                              value={bcastButtonText}
+                              onChange={(e) => setBcastButtonText(e.target.value)}
+                              className={inputCls}
+                              style={inputStyle}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Target App Tab</label>
+                            <select
+                              value={bcastButtonTab}
+                              onChange={(e) => setBcastButtonTab(e.target.value)}
+                              className={`${inputCls} cursor-pointer`}
+                              style={{ ...inputStyle, background: '#0D1220' }}
+                            >
+                              <option value="home">Home / Mine</option>
+                              <option value="tasks">Missions & Tasks</option>
+                              <option value="profile">Profile & Connections</option>
+                              <option value="friends">Referrals / Friends</option>
+                              <option value="wallet">Wallet & Withdraw</option>
+                              <option value="support">Support</option>
+                            </select>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="pt-2 border-t border-white/5 text-[10px] text-amber-400/90 font-mono">
+                          ⚡ <strong>Inline Button Disabled:</strong> Broadcast message will be sent cleanly without any inline button attached.
+                        </div>
+                      )}
                     </div>
 
                     {/* Action Button */}

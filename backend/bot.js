@@ -2238,7 +2238,7 @@ const server = http.createServer(async (req, res) => {
 
     // ── POST /api/admin/broadcast ─────────────────────────────────────────────
     if (req.method === 'POST' && url === '/api/admin/broadcast') {
-      const { targetType, targetIds, campaignId, country, language, isPremiumOnly, templateText, buttonText, buttonTab, imageUrl } = data;
+      const { targetType, targetIds, campaignId, country, language, isPremiumOnly, templateText, includeButton, buttonText, buttonTab, imageUrl } = data;
       if (!templateText) {
         return sendJson(res, 400, { success: false, error: 'templateText is required' });
       }
@@ -2287,10 +2287,14 @@ const server = http.createServer(async (req, res) => {
           return sendJson(res, 400, { success: false, error: 'No matching users found for this broadcast target.' });
         }
 
-        const appUrl = `${getEffectiveAppUrl()}?startapp=${buttonTab || 'home'}`;
-        const extra = Markup.inlineKeyboard([
-          [Markup.button.webApp(buttonText || 'Open Elite Force', appUrl)]
-        ]);
+        let extra = {};
+        const shouldAttachButton = includeButton !== false && Boolean(buttonText && String(buttonText).trim());
+        if (shouldAttachButton) {
+          const appUrl = `${getEffectiveAppUrl()}?startapp=${buttonTab || 'home'}`;
+          extra = Markup.inlineKeyboard([
+            [Markup.button.webApp(String(buttonText).trim(), appUrl)]
+          ]);
+        }
 
         const broadcastRes = await broadcast(targetTelegramIds, templateText, extra, imageUrl);
 
