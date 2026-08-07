@@ -5,7 +5,12 @@ import {
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
+  collection,
   onSnapshot,
+  QuerySnapshot,
+  DocumentData,
+  QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 
@@ -52,7 +57,6 @@ export interface AdminSettings {
   adTokenReward: number;         // Tokens reward per ad watch task
   adDailyLimitNormal: number;    // Ad watch limit normal
   adDailyLimitPremium: number;   // Ad watch limit premium
-
 
   // Bot Notifications & App Configuration
   botApiUrl: string;             // Backend bot API URL for push notifications
@@ -137,16 +141,16 @@ export interface AdminSettings {
   loadingLogoUrl: string;
   coinIconUrl: string;
   faviconUrl: string;
-  appHeaderLogoUrl: string;
-  appHeaderRightLogoUrl: string;
-  welcomeBannerUrl: string;
+  appHeaderLogoUrl?: string;
+  appHeaderRightLogoUrl?: string;
+  welcomeBannerUrl?: string;
   heroBanners?: { id: string; imageUrl: string; linkUrl?: string; title?: string }[];
-  referralBannerUrl: string;
-  tasksBannerUrl: string;
-  walletBannerUrl: string;
-  leaderboardBannerUrl: string;
-  usdtIconUrl: string;
-  eforceTokenIconUrl: string;
+  referralBannerUrl?: string;
+  tasksBannerUrl?: string;
+  walletBannerUrl?: string;
+  leaderboardBannerUrl?: string;
+  usdtIconUrl?: string;
+  eforceTokenIconUrl?: string;
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -158,10 +162,10 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   bep20DepositRate: 100,
   bep20DepositMinAmount: 1.0,
   bep20DepositInstructions: 'Send USDT (BEP-20 / BSC Network) to the address below, then submit your transaction hash (TxHash) for verification.',
-  swapRate: 1000,
+  swapRate: 100,
   eforceTokenValue: 0.05,
   tapReward: 1,
-  comboReward: 3,
+  comboReward: 2,
   energyMax: 1000,
   dailyClaimRewards: [100, 150, 200, 300, 500, 750, 1000],
   premiumDailyClaimRewards: [200, 300, 400, 600, 1000, 1500, 2000],
@@ -176,7 +180,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   referralRewardPoints: 250,
   withdrawMinReferrals: 10,
   withdrawMinAmount: 0.20,
-  withdrawMinTokenAmount: 4.0,
+  withdrawMinTokenAmount: 5.0,
   referralBaseLimit: 5000,
   referralStepLimit: 5000,
   adEnabled: true,
@@ -193,7 +197,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   adDailyLimitPremium: 20,
   tokenSaleActive: false,
   tokenSalePrice: 0.05,
-  tokenSaleTotalSupply: 500000,
+  tokenSaleTotalSupply: 1000000,
   tokenSaleMinPurchase: 10,
   tokenSaleMaxPurchase: 1000,
   swapOpen: false,
@@ -256,17 +260,84 @@ export const subscribeToAdminSettings = (
     callback(DEFAULT_ADMIN_SETTINGS);
     return () => {};
   }
-  const ref = doc(db, 'adminSettings', 'config');
-  return onSnapshot(ref, (snap) => {
+
+  let currentConfig: Partial<AdminSettings> = {};
+  let currentBannersFromColl: { id: string; imageUrl: string; linkUrl?: string; title?: string }[] = [];
+
+  const emit = () => {
+    const combinedBanners = [...(currentConfig.heroBanners || [])];
+    currentBannersFromColl.forEach((b) => {
+      if (!combinedBanners.some((existing) => existing.id === b.id)) {
+        combinedBanners.push(b);
+      }
+    });
+    callback({
+      ...DEFAULT_ADMIN_SETTINGS,
+      ...currentConfig,
+      heroBanners: combinedBanners,
+    } as AdminSettings);
+  };
+
+  const refConfig = doc(db, 'adminSettings', 'config');
+  const unsubConfig = onSnapshot(refConfig, (snap) => {
     if (snap.exists()) {
-      callback({ ...DEFAULT_ADMIN_SETTINGS, ...snap.data() } as AdminSettings);
+      currentConfig = snap.data() || {};
     } else {
-      callback(DEFAULT_ADMIN_SETTINGS);
+      currentConfig = {};
     }
-  }, (err) => {
+    emit();
+  }, (err: any) => {
     console.warn('[AdminSettings] Firestore listener error:', err);
     callback(DEFAULT_ADMIN_SETTINGS);
   });
+
+  const refBanners = collection(db, 'heroBanners');
+  const unsubBanners = onSnapshot(refBanners, (snap: QuerySnapshot<DocumentData>) => {
+    const banners: any[] = [];
+    snap.forEach((docSnap: QueryDocumentSnapshot<DocumentData>) => {
+      banners.push({ id: docSnap.id, ...docSnap.data() });
+    });
+    currentBannersFromColl = banners;
+    emit();
+  }, (err: any) => {
+    console.warn('[AdminSettings] Hero banners collection listener warning:', err.message);
+  });
+
+  return () => {
+    unsubConfig();
+    unsubBanners();
+  };
+};
+
+/**
+ * Save a single Hero Banner to dedicated heroBanners collection in Firestore
+ */
+export const saveHeroBannerToFirestore = async (banner: { id: string; imageUrl: string; linkUrl?: string; title?: string }): Promise<boolean> => {
+  if (!isFirebaseConfigured()) return false;
+  try {
+    const bannerRef = doc(db, 'heroBanners', banner.id);
+    const cleanBanner = JSON.parse(JSON.stringify(banner));
+    await setDoc(bannerRef, cleanBanner, { merge: true });
+    return true;
+  } catch (err) {
+    console.error('[AdminSettingsService] saveHeroBanner failed:', err);
+    return false;
+  }
+};
+
+/**
+ * Delete a Hero Banner from dedicated heroBanners collection in Firestore
+ */
+export const deleteHeroBannerFromFirestore = async (bannerId: string): Promise<boolean> => {
+  if (!isFirebaseConfigured()) return false;
+  try {
+    const bannerRef = doc(db, 'heroBanners', bannerId);
+    await deleteDoc(bannerRef);
+    return true;
+  } catch (err) {
+    console.error('[AdminSettingsService] deleteHeroBanner failed:', err);
+    return false;
+  }
 };
 
 /**

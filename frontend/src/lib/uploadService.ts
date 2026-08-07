@@ -26,8 +26,8 @@ const IMGBB_API_KEY = '6d70077319714757c9a96e622b78edc3';
 const FALLBACK_BOT_URL = (import.meta.env.VITE_BOT_API_URL || 'https://telegram-bot-backend-zbvn.onrender.com').trim();
 const BOT_API_SECRET = (import.meta.env.VITE_BOT_API_SECRET || 'elite_force_secret_2024').trim();
 
-/** Maximum base64 string length we'll store as a data URL in Firestore (≈ 3.7MB file) */
-const MAX_DATA_URL_LENGTH = 5 * 1024 * 1024;
+/** Maximum base64 string length we'll store as a data URL in Firestore (≈ 10MB file) */
+const MAX_DATA_URL_LENGTH = 14 * 1024 * 1024;
 
 // Allowed MIME types and their max sizes
 const ALLOWED_TYPES: Record<string, { maxBytes: number; label: string }> = {
@@ -272,7 +272,7 @@ async function _doUpload(
   throw _error(
     isVideo ? 'VIDEO_TOO_LARGE' : 'IMAGE_UPLOAD_FAILED',
     isVideo
-      ? `Video upload failed and the file is too large (${(dataUrl.length / (1024 * 1024)).toFixed(1)}MB) to store locally. Please paste a hosted video URL (Cloudinary, YouTube, etc.) or use a smaller video under 3.7MB. Server: ${lastErr?.message || 'unreachable'}.`
+      ? `Video upload failed and the file is too large (${(dataUrl.length / (1024 * 1024)).toFixed(1)}MB) to store locally. Please paste a hosted video URL (Cloudinary, YouTube, etc.) or use a smaller video under 10MB. Server: ${lastErr?.message || 'unreachable'}.`
       : `Image upload failed. ${lastErr?.message || 'Please try again or use a smaller image.'}`
   );
 }

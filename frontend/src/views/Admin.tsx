@@ -28,6 +28,7 @@ import {
 } from '../lib/taskService';
 import {
   subscribeToAdminSettings, saveAdminSettings, DEFAULT_ADMIN_SETTINGS, type AdminSettings,
+  saveHeroBannerToFirestore, deleteHeroBannerFromFirestore,
 } from '../lib/adminSettingsService';
 import {
   subscribeToReferralTiers, createReferralTier, updateReferralTier, deleteReferralTier, reorderReferralTiers, getTierBadgeWithIcon, type ReferralClaimTier,
@@ -1196,8 +1197,8 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       return;
     }
     const cleanUrl = newBannerUrl.trim();
-    if (cleanUrl.startsWith('data:') && cleanUrl.length > 700000) {
-      showToast('⚠️ Data URL is too large (>700KB) for Firestore. Please use Cloudinary or a hosted URL.', 'error');
+    if (cleanUrl.startsWith('data:') && cleanUrl.length > 14000000) {
+      showToast('⚠️ Data URL is too large (>10MB). Please use Cloudinary or a hosted URL.', 'error');
       return;
     }
 
@@ -1208,23 +1209,25 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     if (newBannerTitle.trim()) newBanner.title = newBannerTitle.trim();
     if (newBannerLink.trim()) newBanner.linkUrl = newBannerLink.trim();
 
+    await saveHeroBannerToFirestore(newBanner);
     const currentBanners = settingsRef.current.heroBanners || [];
     const updatedBanners = [...currentBanners, newBanner];
     const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
     setSettings(updatedSettings);
-    const saved = await saveAdminSettings(updatedSettings);
-    if (saved) {
-      setNewBannerUrl('');
-      setNewBannerTitle('');
-      setNewBannerLink('');
-      showToast('✅ New Carousel Banner added!', 'success');
-    } else {
-      showToast('❌ Failed to save banner to Firestore. Check file size.', 'error');
-    }
+    await saveAdminSettings(updatedSettings);
+
+    setNewBannerUrl('');
+    setNewBannerTitle('');
+    setNewBannerLink('');
+    showToast('✅ New Carousel Banner added!', 'success');
   };
 
   const handleRemoveHeroBanner = async (index: number) => {
     const currentBanners = settingsRef.current.heroBanners || [];
+    const bannerToRemove = currentBanners[index];
+    if (bannerToRemove?.id) {
+      await deleteHeroBannerFromFirestore(bannerToRemove.id);
+    }
     const updatedBanners = currentBanners.filter((_, i) => i !== index);
     const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
     setSettings(updatedSettings);
@@ -1245,9 +1248,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       // Populate input URL box so user can see the uploaded URL
       setNewBannerUrl(url);
 
-      if (url.startsWith('data:') && url.length > 700000) {
+      if (url.startsWith('data:') && url.length > 14000000) {
         showToast(
-          '⚠️ File uploaded locally as Data URL, but is too large for Firestore config (>700KB). Please set CLOUDINARY_URL in backend .env on Render, or use an external URL.',
+          '⚠️ File uploaded locally as Data URL, but is too large (>10MB). Please set CLOUDINARY_URL in backend .env on Render, or use an external URL.',
           'warning'
         );
         return;
@@ -1260,19 +1263,17 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       if (newBannerTitle.trim()) newBanner.title = newBannerTitle.trim();
       if (newBannerLink.trim()) newBanner.linkUrl = newBannerLink.trim();
 
+      await saveHeroBannerToFirestore(newBanner);
       const currentBanners = settingsRef.current.heroBanners || [];
       const updatedBanners = [...currentBanners, newBanner];
       const updatedSettings = { ...settingsRef.current, heroBanners: updatedBanners };
       setSettings(updatedSettings);
-      const saved = await saveAdminSettings(updatedSettings);
-      if (saved) {
-        setNewBannerUrl('');
-        setNewBannerTitle('');
-        setNewBannerLink('');
-        showToast(isVideo ? '🎬 Video Banner added to Carousel!' : '✅ Banner Image added to Carousel!', 'success');
-      } else {
-        showToast('❌ Failed to save banner to Firestore. File size may exceed Firestore 1MB document limit.', 'error');
-      }
+      await saveAdminSettings(updatedSettings);
+
+      setNewBannerUrl('');
+      setNewBannerTitle('');
+      setNewBannerLink('');
+      showToast(isVideo ? '🎬 Video Banner added to Carousel!' : '✅ Banner Image added to Carousel!', 'success');
     } catch (err: any) {
       showToast(err.message || 'Upload failed.', 'error');
     }
