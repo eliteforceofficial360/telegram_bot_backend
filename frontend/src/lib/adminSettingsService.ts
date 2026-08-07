@@ -271,11 +271,20 @@ export const subscribeToAdminSettings = (
         combinedBanners.push(b);
       }
     });
-    callback({
+    const finalSettings = {
       ...DEFAULT_ADMIN_SETTINGS,
       ...currentConfig,
       heroBanners: combinedBanners,
-    } as AdminSettings);
+    } as AdminSettings;
+
+    if (!finalSettings.botApiUrl || !finalSettings.botApiUrl.trim()) {
+      finalSettings.botApiUrl = 'https://telegram-bot-backend-zbvn.onrender.com';
+    }
+    if (!finalSettings.miniAppUrl || !finalSettings.miniAppUrl.trim()) {
+      finalSettings.miniAppUrl = 'https://elite-force-844d0.web.app';
+    }
+
+    callback(finalSettings);
   };
 
   const refConfig = doc(db, 'adminSettings', 'config');
@@ -288,7 +297,11 @@ export const subscribeToAdminSettings = (
     emit();
   }, (err: any) => {
     console.warn('[AdminSettings] Firestore listener error:', err);
-    callback(DEFAULT_ADMIN_SETTINGS);
+    callback({
+      ...DEFAULT_ADMIN_SETTINGS,
+      botApiUrl: 'https://telegram-bot-backend-zbvn.onrender.com',
+      miniAppUrl: 'https://elite-force-844d0.web.app',
+    });
   });
 
   const refBanners = collection(db, 'heroBanners');
@@ -347,7 +360,12 @@ export const getAdminSettings = async (): Promise<AdminSettings> => {
   if (!isFirebaseConfigured()) return DEFAULT_ADMIN_SETTINGS;
   try {
     const snap = await getDoc(doc(db, 'adminSettings', 'config'));
-    if (snap.exists()) return { ...DEFAULT_ADMIN_SETTINGS, ...snap.data() } as AdminSettings;
+    if (snap.exists()) {
+      const res = { ...DEFAULT_ADMIN_SETTINGS, ...snap.data() } as AdminSettings;
+      if (!res.botApiUrl || !res.botApiUrl.trim()) res.botApiUrl = 'https://telegram-bot-backend-zbvn.onrender.com';
+      if (!res.miniAppUrl || !res.miniAppUrl.trim()) res.miniAppUrl = 'https://elite-force-844d0.web.app';
+      return res;
+    }
   } catch { /* noop */ }
   return DEFAULT_ADMIN_SETTINGS;
 };
