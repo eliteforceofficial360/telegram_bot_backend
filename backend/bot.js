@@ -2250,22 +2250,37 @@ const server = http.createServer(async (req, res) => {
         if (targetType === 'specific' && Array.isArray(targetIds) && targetIds.length > 0) {
           targetTelegramIds = targetIds.map(id => Number(id)).filter(id => !isNaN(id) && id > 0);
         } else {
-          const snapshot = await dbInstance.collection('users').get();
-          snapshot.forEach(docSnap => {
-            const u = docSnap.data();
-            const uid = Number(docSnap.id);
-            if (!uid || isNaN(uid)) return;
+          try {
+            const snapshot = await dbInstance.collection('users').get();
+            snapshot.forEach(docSnap => {
+              const u = docSnap.data();
+              const uid = Number(docSnap.id);
+              if (!uid || isNaN(uid)) return;
 
-            let matches = true;
-            if (isPremiumOnly && !u.isPremium) matches = false;
-            if (country && u.country && String(u.country).toLowerCase() !== String(country).toLowerCase()) matches = false;
-            if (language && u.language && String(u.language).toLowerCase() !== String(language).toLowerCase()) matches = false;
-            if (campaignId && Array.isArray(u.completedCampaigns) && !u.completedCampaigns.includes(campaignId)) matches = false;
+              let matches = true;
+              if (isPremiumOnly && !u.isPremium) matches = false;
+              if (country && u.country && String(u.country).toLowerCase() !== String(country).toLowerCase()) matches = false;
+              if (language && u.language && String(u.language).toLowerCase() !== String(language).toLowerCase()) matches = false;
+              if (campaignId && Array.isArray(u.completedCampaigns) && !u.completedCampaigns.includes(campaignId)) matches = false;
 
-            if (matches) {
-              targetTelegramIds.push(uid);
+              if (matches) {
+                targetTelegramIds.push(uid);
+              }
+            });
+          } catch (fsErr) {
+            console.warn('[Broadcast] Admin SDK fetch users failed, attempting REST API fallback:', fsErr.message);
+            const projectId = process.env.FIREBASE_PROJECT_ID || 'elite-force-844d0';
+            const restRes = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/users?pageSize=3000`);
+            if (restRes.ok) {
+              const json = await restRes.json();
+              const docs = json.documents || [];
+              docs.forEach(docItem => {
+                const docId = docItem.name?.split('/').pop();
+                const uid = Number(docId);
+                if (uid && !isNaN(uid)) targetTelegramIds.push(uid);
+              });
             }
-          });
+          }
         }
 
         if (targetTelegramIds.length === 0) {
@@ -2279,15 +2294,17 @@ const server = http.createServer(async (req, res) => {
 
         const broadcastRes = await broadcast(targetTelegramIds, templateText, extra, imageUrl);
 
-        await dbInstance.collection('notificationHistory').add({
-          userId: 0,
-          eventType: 'ADMIN_BROADCAST',
-          eventId: `broadcast_${Date.now()}`,
-          timestamp: new Date().toISOString(),
-          deliveryStatus: `sent:${broadcastRes.sent},failed:${broadcastRes.failed}`,
-          content: templateText,
-          params: { targetType, count: targetTelegramIds.length, sent: broadcastRes.sent, failed: broadcastRes.failed },
-        });
+        try {
+          await dbInstance.collection('notificationHistory').add({
+            userId: 0,
+            eventType: 'ADMIN_BROADCAST',
+            eventId: `broadcast_${Date.now()}`,
+            timestamp: new Date().toISOString(),
+            deliveryStatus: `sent:${broadcastRes.sent},failed:${broadcastRes.failed}`,
+            content: templateText,
+            params: { targetType, count: targetTelegramIds.length, sent: broadcastRes.sent, failed: broadcastRes.failed },
+          });
+        } catch { /* silent catch */ }
 
         return sendJson(res, 200, {
           success: true,
