@@ -17,10 +17,17 @@ export const HeroBannerSlider: React.FC<HeroBannerSliderProps> = ({
 }) => {
   const validBanners = (adminSettings?.heroBanners || []).filter((b) => b && b.imageUrl);
 
+  // Check if fallbackUrl is a custom uploaded banner (not a default asset path like /coin-logo.jpg or /coin.jpg)
+  const isCustomFallback =
+    fallbackUrl &&
+    !fallbackUrl.startsWith('/coin') &&
+    !fallbackUrl.includes('coin-logo') &&
+    fallbackUrl.trim().length > 0;
+
   const activeBanners = validBanners.length > 0
     ? validBanners
-    : fallbackUrl
-      ? [{ id: 'default', imageUrl: fallbackUrl, title: defaultTitle }]
+    : isCustomFallback
+      ? [{ id: 'custom_fallback', imageUrl: fallbackUrl, title: defaultTitle }]
       : [];
 
   const [currentIndex, setCurrentIndex] = useState(0);

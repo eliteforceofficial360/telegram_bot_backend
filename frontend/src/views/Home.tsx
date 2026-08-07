@@ -95,9 +95,17 @@ export const Home: React.FC<HomeProps> = ({
 
   // --- Multi-Banner Hero Carousel (Right-to-Left Auto Slider) ---
   const validHeroBanners = (settings.heroBanners || []).filter(b => b && b.imageUrl);
+  const isCustomWelcomeBanner =
+    settings.welcomeBannerUrl &&
+    !settings.welcomeBannerUrl.startsWith('/coin') &&
+    !settings.welcomeBannerUrl.includes('coin-logo') &&
+    settings.welcomeBannerUrl.trim().length > 0;
+
   const activeBanners = validHeroBanners.length > 0
     ? validHeroBanners
-    : [{ id: 'default', imageUrl: settings.welcomeBannerUrl || '/coin-logo.jpg', title: '' }];
+    : isCustomWelcomeBanner
+      ? [{ id: 'default', imageUrl: settings.welcomeBannerUrl, title: '', linkUrl: '' }]
+      : [];
 
   const [currentBannerIndex, setCurrentBannerIndex] = useState(0);
 
