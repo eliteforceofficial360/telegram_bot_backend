@@ -408,67 +408,44 @@ export const Profile = ({
         </div>
       </motion.div>
 
-      {/* Official Mini App Developer Profile Sector */}
+      {/* Official Mini App Developer Profile Sector — Sleek Reference Style */}
       {adminSettings?.devAppShowCard !== false && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative p-4 rounded-[24px] overflow-hidden flex flex-col gap-3"
-          style={{
-            background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, rgba(10, 15, 30, 0.95) 50%, rgba(139, 92, 246, 0.1) 100%)',
-            border: '1px solid rgba(0, 229, 255, 0.35)',
-            boxShadow: '0 8px 30px rgba(0, 229, 255, 0.15)',
-          }}
+          onClick={() => setShowDevModal(true)}
+          className="relative p-4 rounded-[22px] bg-[#0C1222] border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-lg group"
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-[0_0_15px_rgba(0,229,255,0.3)] shrink-0">
-                <Laptop size={20} />
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h3 className="text-xs font-black text-white tracking-wider uppercase">DEVELOPER PROFILE SECTOR</h3>
-                  <button
-                    type="button"
-                    onClick={() => setShowDevModal(true)}
-                    className="text-[8.5px] font-extrabold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.25)] flex items-center gap-1 shrink-0"
-                    title="Click to view full developer details"
-                  >
-                    {adminSettings?.devAppVerifiedBadge || '⚡ OFFICIAL CREATOR'}
-                  </button>
-                </div>
-                <span className="text-[11px] font-extrabold text-cyan-400 block mt-0.5">
-                  {adminSettings?.devAppName || 'Elite Force Dev Team'}
-                </span>
+          {/* Subtle Glow Header Line */}
+          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent opacity-60 group-hover:opacity-100 transition-all" />
+
+          {/* Left Side: Icon & Title/Role */}
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 group-hover:scale-105 transition-all">
+              <Laptop size={18} />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                DEVELOPER PROFILE SECTOR
+              </span>
+              <div className="text-xs md:text-sm font-black text-white truncate group-hover:text-cyan-300 transition-all mt-0.5">
+                {adminSettings?.devAppName || 'Elite Force Dev Team'} <span className="text-slate-500 font-medium">• {adminSettings?.devAppRole || 'Full-Stack Developer'}</span>
               </div>
             </div>
           </div>
 
-          <div className="text-[10px] font-bold text-purple-300 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20 w-fit">
-            📌 {adminSettings?.devAppRole || 'Full-Stack Telegram Mini App & Systems Developer'}
-          </div>
-
-          <p className="text-[11px] text-slate-300 bg-white/[0.03] p-3 rounded-xl border border-white/5 font-medium leading-relaxed">
-            {adminSettings?.devAppBio || 'Creator & Lead Systems Developer of the Elite Force Telegram Mini App & Web3 Ecosystem.'}
-          </p>
-
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <button
-              type="button"
-              onClick={() => setShowDevModal(true)}
-              className="text-[10px] font-extrabold text-cyan-400 hover:text-white underline transition-all cursor-pointer flex items-center gap-1"
-            >
-              <span>🔍 View Full Details</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOpenDeveloperLink(adminSettings?.devAppContactUrl)}
-              className="h-9 px-4 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-500/50 text-cyan-300 text-[11px] font-extrabold flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:scale-105 active:scale-95"
-            >
-              <MessageSquare size={13} />
-              <span>{adminSettings?.devAppButtonText || `Contact Developer (${adminSettings?.devAppTelegram || '@EliteForceDev'})`}</span>
-            </button>
-          </div>
+          {/* Right Side: Pill Badge Button */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowDevModal(true);
+            }}
+            className="h-8 px-3 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 hover:bg-emerald-500/25 hover:scale-105 active:scale-95 text-[10px] font-extrabold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+          >
+            <Zap size={11} className="text-emerald-400" />
+            <span>{adminSettings?.devAppVerifiedBadge || 'Active Node'}</span>
+          </button>
         </motion.div>
       )}
 
