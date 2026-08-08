@@ -9,6 +9,7 @@ interface AdminHeaderProps {
   onRefresh: () => void;
   isRefreshing: boolean;
   adminUsername?: string;
+  onBellClick?: () => void;
 }
 
 const tabMeta: Record<AdminTab, { title: string; sub: string; faIcon: string; accentColor: string }> = {
@@ -26,7 +27,7 @@ const tabMeta: Record<AdminTab, { title: string; sub: string; faIcon: string; ac
 };
 
 export const AdminHeader: React.FC<AdminHeaderProps> = ({
-  activeTab, onMenuClick, pendingCount, flaggedCount, onRefresh, isRefreshing, adminUsername,
+  activeTab, onMenuClick, pendingCount, flaggedCount, onRefresh, isRefreshing, adminUsername, onBellClick,
 }) => {
   const meta = tabMeta[activeTab];
   const notifCount = pendingCount + flaggedCount;
@@ -70,7 +71,8 @@ export const AdminHeader: React.FC<AdminHeaderProps> = ({
         {/* Alerts Bell */}
         <div className="relative">
           <button
-            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white bg-[#131824] hover:bg-[#182030] transition-colors border border-slate-800"
+            onClick={onBellClick}
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-slate-400 hover:text-white bg-[#131824] hover:bg-[#182030] transition-colors border border-slate-800 cursor-pointer"
             title="Alert Notifications"
           >
             <i className="fa-regular fa-bell text-xs"></i>

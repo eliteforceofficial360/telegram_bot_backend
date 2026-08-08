@@ -2220,6 +2220,40 @@ function getDefaultEventMessage(evType, params = {}) {
       return sendJson(res, 200, { success: true, sent: ok });
     }
 
+    // ── POST /api/notify/admin ────────────────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/notify/admin') {
+      const { title, message, type, extraUrl } = data;
+      if (!message) {
+        return sendJson(res, 400, { success: false, error: 'message is required' });
+      }
+
+      const adminIdStr = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID || '6314449877';
+      const adminId = Number(adminIdStr);
+
+      const html = `🚨 <b>ADMIN ALERT: ${escapeHTML(title || 'System Notification')}</b>\n\n${escapeHTML(message)}\n\n<i>— Elite Force Telemetry</i>`;
+
+      let extra = {};
+      const appUrl = `${getEffectiveAppUrl()}/admin`;
+      extra = Markup.inlineKeyboard([[Markup.button.url('⚙️ Open Admin Console', extraUrl || appUrl)]]);
+
+      let sentToAdmin = false;
+      if (adminId && !isNaN(adminId)) {
+        sentToAdmin = await sendToUser(adminId, html, extra).catch(() => false);
+      }
+
+      try {
+        await db.collection('adminAlerts').add({
+          title: title || 'System Alert',
+          message,
+          type: type || 'SYSTEM',
+          timestamp: new Date().toISOString(),
+          read: false,
+        });
+      } catch {}
+
+      return sendJson(res, 200, { success: true, sentToAdmin, adminId });
+    }
+
     // ── POST /notify/announcement ────────────────────────────────────────────
     if (req.method === 'POST' && url === '/notify/announcement') {
       const { message, telegramIds, imageUrl, btnText, btnUrl } = data;

@@ -164,3 +164,21 @@ export const sendEventNotification = (
     { telegramId, eventType, params, imageUrl, buttonText, buttonTab, buttonUrl },
     secret
   );
+
+/**
+ * Send real-time Web & Bot notification to Admin ID.
+ */
+export const notifyAdmin = (
+  botApiUrl: string,
+  title: string,
+  message: string,
+  type = 'ALERT',
+  secret?: string,
+  extraUrl?: string
+): Promise<NotifyResult> =>
+  postToApi(
+    botApiUrl,
+    '/api/notify/admin',
+    { title, message, type, extraUrl },
+    secret
+  );
