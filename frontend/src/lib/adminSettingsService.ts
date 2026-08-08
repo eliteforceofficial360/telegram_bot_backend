@@ -161,6 +161,8 @@ export interface AdminSettings {
   devAppTelegram?: string;
   devAppPortfolioUrl?: string;
   devAppVerifiedBadge?: string;
+  devAppContactUrl?: string;
+  devAppButtonText?: string;
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -264,6 +266,8 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   devAppTelegram: '@EliteForceDev',
   devAppPortfolioUrl: 'https://t.me/EliteForceDev',
   devAppVerifiedBadge: '⚡ OFFICIAL MINI APP CREATOR',
+  devAppContactUrl: 'https://t.me/EliteForceDev',
+  devAppButtonText: '💬 Contact Developer (@EliteForceDev)',
 };
 
 const SETTINGS_DOC = 'adminSettings/config';

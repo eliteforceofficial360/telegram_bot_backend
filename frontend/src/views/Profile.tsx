@@ -102,6 +102,28 @@ export const Profile = ({
     }
   };
 
+  const handleOpenDeveloperLink = (targetUrl?: string) => {
+    let finalUrl = (targetUrl || adminSettings?.devAppContactUrl || adminSettings?.devAppPortfolioUrl || '').trim();
+    if (!finalUrl && adminSettings?.devAppTelegram) {
+      const handle = adminSettings.devAppTelegram.replace('@', '').trim();
+      finalUrl = `https://t.me/${handle}`;
+    }
+    if (!finalUrl) finalUrl = 'https://t.me/EliteForceDev';
+
+    const tg = (window as any).Telegram?.WebApp;
+    if (finalUrl.includes('t.me/')) {
+      if (tg?.openTelegramLink) {
+        tg.openTelegramLink(finalUrl);
+        return;
+      }
+    }
+    if (tg?.openLink) {
+      tg.openLink(finalUrl);
+      return;
+    }
+    window.open(finalUrl, '_blank', 'noopener,noreferrer');
+  };
+
   useEffect(() => {
     const unsub = subscribeToReferralTiers(setLiveTiers);
     return unsub;
@@ -424,18 +446,16 @@ export const Profile = ({
             {adminSettings?.devAppBio || 'Creator & Lead Systems Developer of the Elite Force Telegram Mini App & Web3 Ecosystem.'}
           </p>
 
-          {adminSettings?.devAppTelegram && (
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <a
-                href={`https://t.me/${adminSettings.devAppTelegram.replace('@', '')}`}
-                target="_blank"
-                rel="noreferrer"
-                className="h-8 px-3.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-[10px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <MessageSquare size={12} /> Contact Developer ({adminSettings.devAppTelegram})
-              </a>
-            </div>
-          )}
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => handleOpenDeveloperLink(adminSettings?.devAppContactUrl)}
+              className="h-9 px-4 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-500/50 text-cyan-300 text-[11px] font-extrabold flex items-center gap-2 transition-all cursor-pointer shadow-[0_0_15px_rgba(0,229,255,0.2)] hover:scale-105 active:scale-95"
+            >
+              <MessageSquare size={13} />
+              <span>{adminSettings?.devAppButtonText || `Contact Developer (${adminSettings?.devAppTelegram || '@EliteForceDev'})`}</span>
+            </button>
+          </div>
         </motion.div>
       )}
 

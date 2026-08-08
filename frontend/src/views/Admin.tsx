@@ -5097,13 +5097,38 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       />
                     </div>
 
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Telegram Contact Handle</label>
+                        <input
+                          type="text"
+                          placeholder="@EliteForceDev"
+                          value={settings.devAppTelegram || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, devAppTelegram: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Button Label Text</label>
+                        <input
+                          type="text"
+                          placeholder="💬 Contact Developer (@EliteForceDev)"
+                          value={settings.devAppButtonText || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, devAppButtonText: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs text-slate-300 font-bold">Telegram Contact Handle</label>
+                      <label className="text-xs text-slate-300 font-bold">Target Redirect Link / Page URL (Opens when clicked)</label>
                       <input
                         type="text"
-                        placeholder="@EliteForceDev"
-                        value={settings.devAppTelegram || ''}
-                        onChange={e => setSettings(prev => ({ ...prev, devAppTelegram: e.target.value }))}
+                        placeholder="https://t.me/EliteForceDev"
+                        value={settings.devAppContactUrl || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, devAppContactUrl: e.target.value }))}
                         className={inputCls}
                         style={inputStyle}
                       />
