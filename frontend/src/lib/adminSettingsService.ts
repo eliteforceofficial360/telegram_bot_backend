@@ -305,6 +305,24 @@ export const subscribeToAdminSettings = (
     if (!finalSettings.miniAppUrl || !finalSettings.miniAppUrl.trim()) {
       finalSettings.miniAppUrl = 'https://elite-force-844d0.web.app';
     }
+    if (!finalSettings.devAppName || !finalSettings.devAppName.trim()) {
+      finalSettings.devAppName = DEFAULT_ADMIN_SETTINGS.devAppName;
+    }
+    if (!finalSettings.devAppRole || !finalSettings.devAppRole.trim()) {
+      finalSettings.devAppRole = DEFAULT_ADMIN_SETTINGS.devAppRole;
+    }
+    if (!finalSettings.devAppBio || !finalSettings.devAppBio.trim()) {
+      finalSettings.devAppBio = DEFAULT_ADMIN_SETTINGS.devAppBio;
+    }
+    if (!finalSettings.devAppVerifiedBadge || !finalSettings.devAppVerifiedBadge.trim()) {
+      finalSettings.devAppVerifiedBadge = DEFAULT_ADMIN_SETTINGS.devAppVerifiedBadge;
+    }
+    if (!finalSettings.devAppContactUrl || !finalSettings.devAppContactUrl.trim()) {
+      finalSettings.devAppContactUrl = DEFAULT_ADMIN_SETTINGS.devAppContactUrl;
+    }
+    if (!finalSettings.devAppButtonText || !finalSettings.devAppButtonText.trim()) {
+      finalSettings.devAppButtonText = DEFAULT_ADMIN_SETTINGS.devAppButtonText;
+    }
 
     callback(finalSettings);
   };
