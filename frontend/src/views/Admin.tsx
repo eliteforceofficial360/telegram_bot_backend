@@ -37,7 +37,7 @@ import { syncAndClaimAllReferralRewards } from '../lib/referralService';
 import {
   sendWithdrawNotification,
   sendDepositNotification,
-  sendMessageToUser,
+  sendEventNotification,
 } from '../lib/notificationService';
 import { requestWebPushPermission, VAPID_PUBLIC_KEY } from '../lib/webPushService';
 import { uploadFile } from '../lib/uploadService';
@@ -4380,20 +4380,27 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                   }
                                   setSendingTestEvent(true);
                                   try {
-                                    const rawTemplate = evConfig.template || getDefaultEventTemplate(selectedEventType);
-                                    const finalMsg = rawTemplate.replace(/{name}/g, 'Test Agent').replace(/{username}/g, 'test_agent');
-                                    const btnText = evConfig.buttonText || 'Open Elite Force';
-                                    const btnTab = evConfig.buttonTab || 'home';
-                                    const btnUrl = `${settings.miniAppUrl || 'https://elite-force-844d0.web.app'}?startapp=${btnTab}`;
-
-                                    const res = await sendMessageToUser(
+                                    const res = await sendEventNotification(
                                       settings.botApiUrl,
                                       uId,
-                                      finalMsg,
+                                      selectedEventType,
+                                      {
+                                        name: 'Test Agent',
+                                        username: 'test_agent',
+                                        taskTitle: 'Sample Task',
+                                        reward: '500',
+                                        amount: '500 EFC',
+                                        amountUsdt: '5.00',
+                                        day: '1',
+                                        rank: 'VIP Agent',
+                                        platform: 'X / Twitter',
+                                        reason: 'Verification Check',
+                                        code: 'WELCOME500',
+                                      },
                                       settings.apiSecret,
                                       undefined,
-                                      btnText,
-                                      btnUrl
+                                      evConfig.buttonText || 'Open Elite Force',
+                                      evConfig.buttonTab || 'home'
                                     );
 
                                     if (res.ok) {

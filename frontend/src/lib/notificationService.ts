@@ -143,3 +143,24 @@ export const sendReferralNotification = (
   secret?: string
 ): Promise<NotifyResult> =>
   postToApi(botApiUrl, '/notify/referral', { referrerId, refereeName, refereeUsername }, secret);
+
+/**
+ * Send an automated event notification for any of the 25 platform events.
+ */
+export const sendEventNotification = (
+  botApiUrl: string,
+  telegramId: number,
+  eventType: string,
+  params?: Record<string, any>,
+  secret?: string,
+  imageUrl?: string,
+  buttonText?: string,
+  buttonTab?: string,
+  buttonUrl?: string
+): Promise<NotifyResult> =>
+  postToApi(
+    botApiUrl,
+    '/api/notify/event',
+    { telegramId, eventType, params, imageUrl, buttonText, buttonTab, buttonUrl },
+    secret
+  );

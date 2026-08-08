@@ -1953,6 +1953,64 @@ const server = http.createServer(async (req, res) => {
       }
     }
 
+function getDefaultEventMessage(evType, params = {}) {
+  const p = params || {};
+  switch (evType) {
+    case 'SOCIAL_CONNECTED':
+      return `<b>✅ Social Account Connected!</b>\n\nYour <b>${p.platform || 'Social'}</b> profile has been linked and verified successfully.`;
+    case 'SOCIAL_DISCONNECTED':
+      return `<b>⚠️ Social Account Disconnected</b>\n\nYour <b>${p.platform || 'Social'}</b> connection was unlinked.`;
+    case 'TASK_COMPLETED':
+      return `<b>🎉 Task Completed!</b>\n\nYou earned <b>+${p.reward || '250'} EFC</b> for completing <i>${p.taskTitle || 'the task'}</i>.`;
+    case 'TASK_REJECTED':
+      return `<b>❌ Task Proof Rejected</b>\n\nYour proof for <i>${p.taskTitle || 'the task'}</i> was declined.\nReason: ${p.reason || 'Verification check'}.`;
+    case 'CAMPAIGN_COMPLETED':
+      return `<b>🏆 Campaign Completed!</b>\n\nYour P2P campaign <b>"${p.campaignTitle || 'Campaign'}"</b> has reached its target submission quota!`;
+    case 'MINING_COMPLETED':
+      return `<b>⛏ Mining Session Complete!</b>\n\nYour 24-hour mining session has ended. Tap below to claim <b>+${p.amount || '500'} EFC</b>!`;
+    case 'DAILY_REWARD':
+      return `<b>🎁 Daily Check-in Reward Claimed!</b>\n\nYou received Day ${p.day || '1'} bonus: <b>+${p.amount || '100'} EFC</b>.`;
+    case 'REFERRAL_BONUS':
+      return `<b>👥 Referral Bonus Earned!</b>\n\nUser <b>${p.refUsername || 'A friend'}</b> joined using your link. You earned <b>+${p.reward || '250'} EFC</b>!`;
+    case 'WITHDRAW_APPROVED':
+      return `<b>💸 Payout Approved!</b>\n\nYour withdrawal request for <b>${p.amount || 'USDT'}</b> has been approved and sent to your wallet!`;
+    case 'WITHDRAW_REJECTED':
+      return `<b>🚫 Payout Request Declined</b>\n\nYour withdrawal for <b>${p.amount || 'USDT'}</b> was declined.\nReason: ${p.reason || 'Verification check'}.`;
+    case 'DEPOSIT_SUBMITTED':
+      return `<b>📥 Deposit Hash Submitted</b>\n\nYour deposit of <b>$${p.amountUsdt || '0'} USDT</b> (TxHash: <code>${p.shortHash || 'N/A'}</code>) is under verification.`;
+    case 'DEPOSIT_APPROVED':
+      return `<b>✅ Deposit Approved!</b>\n\nYour deposit of <b>$${p.amountUsdt || '0'} USDT</b> has been verified and added to your balance!`;
+    case 'DEPOSIT_REJECTED':
+      return `<b>❌ Deposit Declined</b>\n\nYour deposit request was declined.\nReason: ${p.reason || 'Invalid TxHash'}.`;
+    case 'MARKET_TASK_CREATED':
+      return `<b>📌 New Market Task Created</b>\n\nYour campaign <b>"${p.taskTitle || 'Market Task'}"</b> is now live on P2P Task Market!`;
+    case 'MARKET_TASK_LIVE':
+      return `<b>🚀 Market Task Approved & Live!</b>\n\nWorkers can now submit proof of work for your task.`;
+    case 'WORKER_APPROVED':
+      return `<b>✅ Task Proof Approved!</b>\n\nYour submission for <b>"${p.taskTitle || 'Task'}"</b> was approved! Reward credited: <b>+${p.reward || '100'} EFC</b>.`;
+    case 'WORKER_REJECTED':
+      return `<b>❌ Task Proof Declined</b>\n\nYour submission for <b>"${p.taskTitle || 'Task'}"</b> was declined by the campaign creator.`;
+    case 'LEVEL_UP':
+      return `<b>⚡ Level Up! Agent Rank Promoted!</b>\n\nCongratulations! You have reached <b>${p.rank || 'VIP Agent'}</b> rank!`;
+    case 'STREAK_BONUS':
+      return `<b>🔥 Streak Bonus Unlocked!</b>\n\nYou maintained a 7-day daily claim streak and earned <b>+${p.reward || '1,000'} EFC</b>!`;
+    case 'SPIN_WIN':
+      return `<b>🎡 Lucky Spin Reward!</b>\n\nYou won <b>+${p.reward || '250'} EFC</b> on the Lucky Wheel!`;
+    case 'PROMO_CODE_REDEEMED':
+      return `<b>🎟 Promo Code Redeemed!</b>\n\nYou redeemed code <b>"${p.code || 'SPECIAL'}"</b> and received <b>+${p.reward || '500'} EFC</b>!`;
+    case 'PASS_PURCHASED':
+      return `<b>👑 VIP Pass Activated!</b>\n\nYou are now a VIP Agent with 2x mining speed & priority payouts!`;
+    case 'KYC_VERIFIED':
+      return `<b>🛡 Identity Verified!</b>\n\nYour identity/KYC document verification is approved!`;
+    case 'SECURITY_ALERT':
+      return `<b>🔒 Security Alert</b>\n\nA new device or browser session was registered for your account.`;
+    case 'ADMIN_BROADCAST':
+      return `<b>📢 Admin Announcement</b>\n\n${p.message || 'Special announcement for all agents.'}`;
+    default:
+      return `<b>⚡ Event Notification: ${evType}</b>\n\nNotification message for user.`;
+  }
+}
+
     // ── Everything below requires Authorization: Bearer <API_SECRET> ────────
     const auth = req.headers['authorization'] || '';
     const providedToken = auth.startsWith('Bearer ') ? auth.slice(7) : '';
@@ -2093,6 +2151,73 @@ const server = http.createServer(async (req, res) => {
         console.error(`[API] /api/notify error for ${telegramId}:`, err.message);
         return sendJson(res, 500, { success: false, error: err.message });
       }
+    }
+
+    // ── POST /api/notify/event ────────────────────────────────────────────────
+    if (req.method === 'POST' && url === '/api/notify/event') {
+      const { telegramId, eventType, params, imageUrl, buttonText, buttonTab, buttonUrl } = data;
+      if (!isValidTelegramId(telegramId) || !eventType) {
+        return sendJson(res, 400, { success: false, error: 'valid telegramId and eventType required' });
+      }
+
+      const numId = Number(telegramId);
+      
+      let template = '';
+      let btnLabel = buttonText || 'Open Elite Force';
+      let targetTab = buttonTab || 'home';
+
+      try {
+        const settingsSnap = await db.collection('adminSettings').doc('global').get();
+        if (settingsSnap.exists) {
+          const settingsData = settingsSnap.data();
+          const evConf = settingsData.notificationSettings?.events?.[eventType];
+          if (evConf) {
+            if (evConf.enabled === false) {
+              console.log(`[EventNotify] Event ${eventType} disabled in admin settings. Skipping for ${numId}.`);
+              return sendJson(res, 200, { success: true, skipped: true, reason: 'Event disabled in admin settings' });
+            }
+            if (evConf.template) template = evConf.template;
+            if (evConf.buttonText) btnLabel = evConf.buttonText;
+            if (evConf.buttonTab) targetTab = evConf.buttonTab;
+          }
+        }
+      } catch (err) {
+        console.warn(`[EventNotify] Error fetching template for ${eventType}:`, err.message);
+      }
+
+      if (!template) {
+        template = getDefaultEventMessage(eventType, params);
+      } else if (params) {
+        Object.keys(params).forEach(key => {
+          template = template.replace(new RegExp(`{${key}}`, 'g'), params[key]);
+        });
+      }
+
+      let extra = {};
+      if (btnLabel) {
+        if (targetTab === 'url' && buttonUrl) {
+          extra = Markup.inlineKeyboard([[Markup.button.url(btnLabel, buttonUrl)]]);
+        } else {
+          const appUrl = `${getEffectiveAppUrl()}?startapp=${targetTab}`;
+          extra = Markup.inlineKeyboard([[Markup.button.webApp(btnLabel, appUrl)]]);
+        }
+      }
+
+      const ok = await sendToUser(numId, template, extra, imageUrl).catch(() => false);
+      
+      try {
+        await db.collection('notificationHistory').add({
+          userId: numId,
+          eventType,
+          eventId: `event_${eventType}_${numId}_${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          deliveryStatus: ok ? 'sent' : 'failed',
+          content: template,
+          params: params || {},
+        });
+      } catch {}
+
+      return sendJson(res, 200, { success: true, sent: ok });
     }
 
     // ── POST /notify/announcement ────────────────────────────────────────────
