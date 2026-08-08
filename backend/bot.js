@@ -2254,6 +2254,38 @@ function getDefaultEventMessage(evType, params = {}) {
       return sendJson(res, 200, { success: true, sentToAdmin, adminId });
     }
 
+    // ── POST /notify/admin/support ───────────────────────────────────────────
+    if (req.method === 'POST' && url === '/notify/admin/support') {
+      const { userTelegramId, userName, text, imageUrl } = data;
+      const adminIdStr = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID || '6314449877';
+      const adminId = Number(adminIdStr);
+
+      const html = `💬 <b>NEW LIVE SUPPORT MESSAGE</b>\n\n` +
+        `👤 <b>User:</b> ${escapeHTML(userName || 'User')} (ID: <code>${userTelegramId}</code>)\n` +
+        `✉️ <b>Message:</b> <i>"${escapeHTML(text || 'Attachment')}"</i>\n\n` +
+        `<i>Tap button below to open Admin Support Console & reply live.</i>`;
+
+      const appUrl = `${getEffectiveAppUrl()}/admin`;
+      const extra = Markup.inlineKeyboard([[Markup.button.url('💬 Reply in Admin Support Console', appUrl)]]);
+
+      let ok = false;
+      if (adminId && !isNaN(adminId)) {
+        ok = await sendToUser(adminId, html, extra, imageUrl).catch(() => false);
+      }
+
+      try {
+        await db.collection('adminAlerts').add({
+          title: `Support Message from ${userName || userTelegramId}`,
+          message: text || 'Sent image attachment',
+          type: 'SUPPORT',
+          timestamp: new Date().toISOString(),
+          read: false,
+        });
+      } catch {}
+
+      return sendJson(res, 200, { success: true, sentToAdmin: ok });
+    }
+
     // ── POST /notify/announcement ────────────────────────────────────────────
     if (req.method === 'POST' && url === '/notify/announcement') {
       const { message, telegramIds, imageUrl, btnText, btnUrl } = data;
@@ -2271,12 +2303,35 @@ function getDefaultEventMessage(evType, params = {}) {
 
     // ── POST /notify/withdraw ────────────────────────────────────────────────
     if (req.method === 'POST' && url === '/notify/withdraw') {
-      const { telegramId, status, amount, asset, adminNote, reason } = data;
+      const { telegramId, status, amount, asset, adminNote, reason, walletAddress } = data;
       if (!isValidTelegramId(telegramId) || !status) {
         return sendJson(res, 400, { error: 'valid telegramId and status required' });
       }
       const assetLabel = asset === 'token' ? 'EForce Token' : 'USDT';
       const numId = Number(telegramId);
+
+      if (status === 'Submitted' || status === 'Pending') {
+        const adminIdStr = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID || '6314449877';
+        const adminId = Number(adminIdStr);
+        const adminMsg = `💸 <b>NEW PAYOUT REQUEST SUBMITTED!</b>\n\n` +
+          `👤 <b>User ID:</b> <code>${numId}</code>\n` +
+          `💰 <b>Amount:</b> ${amount} ${assetLabel}\n` +
+          (walletAddress ? `💳 <b>Wallet:</b> <code>${walletAddress}</code>\n` : '') +
+          `⏳ <b>Status:</b> Pending Admin Approval\n\n` +
+          `<i>Open Admin Console to approve or decline payout.</i>`;
+        const appUrl = `${getEffectiveAppUrl()}/admin`;
+        const extra = Markup.inlineKeyboard([[Markup.button.url('💸 Review Payout in Admin', appUrl)]]);
+        if (adminId) sendToUser(adminId, adminMsg, extra).catch(() => {});
+        try {
+          db.collection('adminAlerts').add({
+            title: 'New Withdrawal Requested',
+            message: `User ${numId} requested withdrawal of ${amount} ${assetLabel}`,
+            type: 'WITHDRAWAL',
+            timestamp: new Date().toISOString(),
+            read: false,
+          });
+        } catch {}
+      }
 
       if (status === 'Approved') {
         sendEventNotification({
@@ -2310,6 +2365,29 @@ function getDefaultEventMessage(evType, params = {}) {
       }
       const numId = Number(telegramId);
       const shortHash = txHash ? (txHash.length > 20 ? `${txHash.slice(0, 10)}...${txHash.slice(-8)}` : txHash) : 'N/A';
+
+      if (status === 'Submitted' || status === 'Pending') {
+        const adminIdStr = dynamicSettings.adminTelegramId || process.env.ADMIN_TELEGRAM_ID || '6314449877';
+        const adminId = Number(adminIdStr);
+        const adminMsg = `📥 <b>BEP-20 DEPOSIT HASH SUBMITTED!</b>\n\n` +
+          `👤 <b>User ID:</b> <code>${numId}</code>\n` +
+          `💰 <b>Amount:</b> $${amountUsdt} USDT\n` +
+          `🎁 <b>EFC Bonus:</b> +${efcGranted || Math.round(amountUsdt * 100)} EFC\n` +
+          `🔑 <b>TxHash:</b> <code>${shortHash}</code>\n\n` +
+          `<i>Open Admin Console to verify transaction.</i>`;
+        const appUrl = `${getEffectiveAppUrl()}/admin`;
+        const extra = Markup.inlineKeyboard([[Markup.button.url('📥 Verify Deposit in Admin', appUrl)]]);
+        if (adminId) sendToUser(adminId, adminMsg, extra).catch(() => {});
+        try {
+          db.collection('adminAlerts').add({
+            title: 'New USDT Deposit Submitted',
+            message: `User ${numId} submitted deposit of $${amountUsdt} USDT. TxHash: ${shortHash}`,
+            type: 'DEPOSIT',
+            timestamp: new Date().toISOString(),
+            read: false,
+          });
+        } catch {}
+      }
 
       let msg = '';
       if (status === 'Submitted' || status === 'Pending') {
