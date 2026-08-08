@@ -40,7 +40,7 @@ import {
 } from '../lib/notificationService';
 import { uploadFile } from '../lib/uploadService';
 import {
-  fetchPendingMarketTasks, approveMarketTask, rejectMarketTask, type MarketTask,
+  fetchPendingMarketTasks, approveMarketTask, rejectMarketTask, fetchCreatedTasks, fetchMyTasks, type MarketTask, type TaskSubmission,
 } from '../lib/marketService';
 import {
   sendAdminSupportMessage,
@@ -174,6 +174,107 @@ const SectionCard = ({ children, accentColor = 'rgba(255,138,0,0.5)' }: { childr
     {children}
   </div>
 );
+
+// ── User Campaign & Task Market Activity Section ────────────────────────────────
+const UserCampaignSection: React.FC<{ telegramId: number }> = ({ telegramId }) => {
+  const [createdCampaigns, setCreatedCampaigns] = useState<MarketTask[]>([]);
+  const [submissions, setSubmissions] = useState<TaskSubmission[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+    Promise.all([
+      fetchCreatedTasks(telegramId),
+      fetchMyTasks(telegramId),
+    ]).then(([tasks, subs]) => {
+      if (isMounted) {
+        setCreatedCampaigns(tasks || []);
+        setSubmissions(subs || []);
+        setLoading(false);
+      }
+    }).catch(() => {
+      if (isMounted) setLoading(false);
+    });
+    return () => { isMounted = false; };
+  }, [telegramId]);
+
+  const totalSpentEscrow = createdCampaigns.reduce((acc, t) => acc + (t.totalEscrow || t.budget || 0), 0);
+
+  return (
+    <div className="flex flex-col gap-3 p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 my-1">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm">🎯</span>
+          <div>
+            <span className="text-xs font-black text-white block">P2P Campaign & Task Market Activity</span>
+            <span className="text-[9px] text-slate-400 block">
+              {createdCampaigns.length} Created Campaigns · {submissions.length} Task Submissions
+            </span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-amber-400/10 text-amber-400 border border-amber-400/20">
+            {totalSpentEscrow.toLocaleString()} EFC Escrow Spent
+          </span>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-[10px] text-slate-500 py-3 text-center">Loading campaign activity...</div>
+      ) : createdCampaigns.length === 0 && submissions.length === 0 ? (
+        <div className="text-[10px] text-slate-500 py-3 text-center bg-black/20 rounded-xl border border-white/5">
+          No P2P campaigns created or completed tasks by this user yet.
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {/* User's Created Campaigns List */}
+          {createdCampaigns.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Created Campaigns ({createdCampaigns.length})</span>
+              <div className="divide-y divide-white/5 rounded-xl border border-white/5 bg-black/30 overflow-hidden">
+                {createdCampaigns.map(t => (
+                  <div key={t.id} className="p-2.5 flex items-center justify-between gap-3 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-white truncate">{t.title}</span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-white/5 text-slate-300 font-mono">{t.platform}</span>
+                      </div>
+                      <div className="text-[9px] text-slate-400 mt-0.5">
+                        Reward: <span className="text-[#FF8A00] font-bold">{t.reward} EFC</span> · Workers: {t.completedCount}/{t.workerLimit} · Escrow: <span className="text-amber-400 font-mono">{t.totalEscrow || t.budget} EFC</span>
+                      </div>
+                    </div>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${t.status === 'active' ? 'bg-green-400/10 text-green-400 border border-green-400/20' : t.status === 'pending_review' ? 'bg-amber-400/10 text-amber-400 border border-amber-400/20' : 'bg-slate-500/10 text-slate-400'}`}>
+                      {t.status.toUpperCase()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* User's Task Submissions Summary */}
+          {submissions.length > 0 && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Mission Submissions ({submissions.length})</span>
+              <div className="flex items-center gap-2 text-[10px] flex-wrap">
+                <span className="px-2.5 py-1 rounded-lg bg-green-500/10 text-green-400 border border-green-500/20 font-bold">
+                  ✓ {submissions.filter(s => s.status === 'approved').length} Approved
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">
+                  ⏳ {submissions.filter(s => s.status === 'pending_review' || s.status === 'submitted').length} Pending
+                </span>
+                <span className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20 font-bold">
+                  ❌ {submissions.filter(s => s.status === 'rejected').length} Rejected
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
@@ -1740,6 +1841,29 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                         <option value="safe">Safe</option><option value="medium">Medium</option><option value="high">High</option>
                                       </select>
                                     </div>
+
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Verified Badge</label>
+                                      <select value={editIsVerified ? 'true' : 'false'} onChange={e => setEditIsVerified(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
+                                        <option value="false">Unverified</option><option value="true">Verified</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">LB Pin</label>
+                                      <select value={editLeaderboardPinned ? 'true' : 'false'} onChange={e => setEditLeaderboardPinned(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
+                                        <option value="false">Unpinned</option><option value="true">Pinned</option>
+                                      </select>
+                                    </div>
+                                    <div>
+                                      <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">LB Visibility</label>
+                                      <select value={editLeaderboardHidden ? 'true' : 'false'} onChange={e => setEditLeaderboardHidden(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
+                                        <option value="false">Visible</option><option value="true">Hidden</option>
+                                      </select>
+                                    </div>
+
+                                    {/* P2P Campaign & Task Market Activity Section */}
+                                    <UserCampaignSection telegramId={u.telegramId} />
+
                                     <div>
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Ban Status</label>
                                       <select value={editBanStatus} onChange={e => setEditBanStatus(e.target.value as any)} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
@@ -1755,6 +1879,13 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                       </div>
                                     )}
                                     <div>
+                                     <div>
+                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Verified Badge</label>
+                                       <select value={editIsVerified ? 'true' : 'false'} onChange={e => setEditIsVerified(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
+                                         <option value="false">Unverified</option><option value="true">Verified</option>
+                                       </select>
+                                    </div>
+                                    <div>
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">LB Pin</label>
                                       <select value={editLeaderboardPinned ? 'true' : 'false'} onChange={e => setEditLeaderboardPinned(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
                                         <option value="false">Unpinned</option><option value="true">Pinned</option>
@@ -1766,7 +1897,6 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                         <option value="false">Visible</option><option value="true">Hidden</option>
                                       </select>
                                     </div>
-                                    <div>
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Verified Badge</label>
                                       <select value={editIsVerified ? 'true' : 'false'} onChange={e => setEditIsVerified(e.target.value === 'true')} className={inputCls + ' cursor-pointer'} style={{ ...inputStyle, background: '#0A0D1A' }}>
                                         <option value="false">Unverified</option><option value="true">Verified</option>
