@@ -319,6 +319,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [editLeaderboardHidden, setEditLeaderboardHidden] = useState(false);
   const [editIsVerified, setEditIsVerified] = useState(false);
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [editIsDeveloper, setEditIsDeveloper] = useState(false);
+  const [editDevRole, setEditDevRole] = useState('');
+  const [editDevBio, setEditDevBio] = useState('');
+  const [editDevLocked, setEditDevLocked] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
 
@@ -689,6 +693,10 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
     setEditLeaderboardHidden(u.leaderboardHidden ?? false);
     setEditIsVerified(u.isVerified ?? false);
     setEditPhotoUrl(u.photoUrl ?? '');
+    setEditIsDeveloper(u.isDeveloper ?? false);
+    setEditDevRole(u.devRole ?? '');
+    setEditDevBio(u.devBio ?? '');
+    setEditDevLocked(u.devLocked ?? false);
     if (u.banStatus === 'temp' && u.banUntil) {
       const until = u.banUntil instanceof Timestamp ? u.banUntil.toDate() : new Date(u.banUntil as string);
       const diffHrs = Math.max(1, Math.round((until.getTime() - Date.now()) / 3600000));
@@ -788,6 +796,11 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       leaderboardHidden: editLeaderboardHidden,
       isVerified: editIsVerified,
       photoUrl: editPhotoUrl,
+      isDeveloper: editIsDeveloper,
+      devRole: editDevRole.trim(),
+      devBio: editDevBio.trim(),
+      devLocked: editDevLocked,
+      devAddedAt: editIsDeveloper && !editingUser.devAddedAt ? new Date().toISOString() : (editingUser.devAddedAt || ''),
     });
     if (ok) {
       // Trigger referral reward & tier sync for the user
@@ -1863,6 +1876,120 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
 
                                     {/* P2P Campaign & Task Market Activity Section */}
                                     <UserCampaignSection telegramId={u.telegramId} />
+
+                                    {/* Developer Information Sector (Admin Management & Lock System) */}
+                                    <div className="p-3.5 rounded-2xl bg-cyan-500/[0.03] border border-cyan-500/20 flex flex-col gap-3 my-1">
+                                      <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-sm">💻</span>
+                                          <div>
+                                            <span className="text-xs font-black text-cyan-300 block">Developer Information Sector</span>
+                                            <span className="text-[9px] text-slate-400 block">Manage user's developer privileges, title, bio, & lock state</span>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          {editIsDeveloper ? (
+                                            <span className="text-[9px] font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 flex items-center gap-1">
+                                              {editDevLocked ? '🔒 Dev Locked' : '🔓 Active Developer'}
+                                            </span>
+                                          ) : (
+                                            <span className="text-[9px] font-bold px-2.5 py-0.5 rounded-full bg-slate-500/10 text-slate-400 border border-slate-500/20">
+                                              Not Developer
+                                            </span>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                        <div>
+                                          <label className="text-[8px] text-slate-400 font-black uppercase tracking-wider block mb-1">Developer Status</label>
+                                          <select
+                                            value={editIsDeveloper ? 'true' : 'false'}
+                                            onChange={e => {
+                                              const val = e.target.value === 'true';
+                                              setEditIsDeveloper(val);
+                                              if (!val) {
+                                                setEditDevRole('');
+                                                setEditDevBio('');
+                                                setEditDevLocked(false);
+                                              }
+                                            }}
+                                            className={inputCls + ' cursor-pointer'}
+                                            style={{ ...inputStyle, background: '#0A0D1A' }}
+                                          >
+                                            <option value="false">Standard User</option>
+                                            <option value="true">💻 Developer Access</option>
+                                          </select>
+                                        </div>
+
+                                        <div>
+                                          <label className="text-[8px] text-slate-400 font-black uppercase tracking-wider block mb-1">Developer Lock State</label>
+                                          <select
+                                            value={editDevLocked ? 'true' : 'false'}
+                                            onChange={e => setEditDevLocked(e.target.value === 'true')}
+                                            className={inputCls + ' cursor-pointer'}
+                                            style={{ ...inputStyle, background: '#0A0D1A' }}
+                                            disabled={!editIsDeveloper}
+                                          >
+                                            <option value="false">🔓 Unlocked (User Can Edit Bio)</option>
+                                            <option value="true">🔒 Locked (Admin Verified)</option>
+                                          </select>
+                                        </div>
+
+                                        <div>
+                                          <label className="text-[8px] text-slate-400 font-black uppercase tracking-wider block mb-1">Developer Role / Title</label>
+                                          <input
+                                            type="text"
+                                            value={editDevRole}
+                                            onChange={e => setEditDevRole(e.target.value)}
+                                            placeholder="e.g. Bot Developer, Smart Contract Eng"
+                                            className={inputCls}
+                                            style={inputStyle}
+                                            disabled={!editIsDeveloper}
+                                          />
+                                        </div>
+                                      </div>
+
+                                      {editIsDeveloper && (
+                                        <div className="flex flex-col gap-2">
+                                          <div>
+                                            <label className="text-[8px] text-slate-400 font-black uppercase tracking-wider block mb-1">Developer Bio & Skills</label>
+                                            <textarea
+                                              rows={2}
+                                              value={editDevBio}
+                                              onChange={e => setEditDevBio(e.target.value)}
+                                              placeholder="e.g. Expert in React, Node.js, Telegram Mini Apps, Python"
+                                              className={inputCls + ' resize-none py-1.5'}
+                                              style={inputStyle}
+                                            />
+                                          </div>
+
+                                          <div className="flex items-center justify-between gap-2 pt-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setEditIsDeveloper(false);
+                                                setEditDevRole('');
+                                                setEditDevBio('');
+                                                setEditDevLocked(false);
+                                              }}
+                                              className="text-[10px] text-red-400 hover:text-red-300 font-extrabold flex items-center gap-1 cursor-pointer"
+                                            >
+                                              🗑️ Remove Developer Info
+                                            </button>
+                                            <div className="flex items-center gap-2">
+                                              <button
+                                                type="button"
+                                                onClick={() => setEditDevLocked(!editDevLocked)}
+                                                className="text-[10px] font-extrabold px-3 py-1 rounded-lg bg-white/5 border border-white/10 text-cyan-300 hover:bg-white/10 transition-all cursor-pointer flex items-center gap-1"
+                                              >
+                                                {editDevLocked ? '🔓 Unlock Profile' : '🔒 Lock Profile'}
+                                              </button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
 
                                     <div>
                                       <label className="text-[8px] text-slate-500 font-black uppercase tracking-wider block mb-1">Ban Status</label>

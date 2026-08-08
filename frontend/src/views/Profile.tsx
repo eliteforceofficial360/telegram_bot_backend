@@ -64,6 +64,44 @@ export const Profile = ({
   const [editUsername, setEditUsername] = useState('');
   const [_savingName, setSavingName] = useState(false);
 
+  const [isEditingDev, setIsEditingDev] = useState(false);
+  const [userDevRole, setUserDevRole] = useState(dbUser?.devRole || '');
+  const [userDevBio, setUserDevBio] = useState(dbUser?.devBio || '');
+  const [savingDev, setSavingDev] = useState(false);
+
+  useEffect(() => {
+    if (dbUser) {
+      setUserDevRole(dbUser.devRole || '');
+      setUserDevBio(dbUser.devBio || '');
+    }
+  }, [dbUser?.devRole, dbUser?.devBio]);
+
+  const handleSaveDevInfo = async () => {
+    const userId = telegramUser?.id || dbUser?.telegramId;
+    if (!userId) return;
+    if (dbUser?.devLocked) {
+      showToast('🔒 Developer information is locked by Admin.', 'warning');
+      return;
+    }
+    setSavingDev(true);
+    try {
+      const ok = await updateUserDatabaseValues(userId, {
+        devRole: userDevRole.trim(),
+        devBio: userDevBio.trim(),
+      });
+      if (ok) {
+        showToast('✅ Developer information updated successfully!', 'success');
+        setIsEditingDev(false);
+      } else {
+        showToast('Failed to update developer profile.', 'error');
+      }
+    } catch {
+      showToast('Error updating developer profile.', 'error');
+    } finally {
+      setSavingDev(false);
+    }
+  };
+
   useEffect(() => {
     const unsub = subscribeToReferralTiers(setLiveTiers);
     return unsub;
@@ -334,6 +372,107 @@ export const Profile = ({
           </div>
         </div>
       </motion.div>
+
+      {/* Developer Information Sector (User App Display & Self Edit) */}
+      {dbUser?.isDeveloper && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative p-4 rounded-[24px] overflow-hidden flex flex-col gap-3"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.08) 0%, rgba(13, 18, 36, 0.95) 50%, rgba(139, 92, 246, 0.08) 100%)',
+            border: '1px solid rgba(0, 229, 255, 0.25)',
+            boxShadow: '0 8px 30px rgba(0, 229, 255, 0.1)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-[#00E5FF]/10 border border-[#00E5FF]/30 flex items-center justify-center text-[#00E5FF]">
+                <Laptop size={18} />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs font-black text-white tracking-wider uppercase">Developer Profile Sector</h3>
+                  <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#00E5FF]/15 text-[#00E5FF] border border-[#00E5FF]/30">
+                    VERIFIED DEV
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-cyan-300 block mt-0.5">
+                  {dbUser.devRole || 'EForce Core Developer'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1.5">
+              {dbUser.devLocked ? (
+                <span className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+                  <Lock size={10} /> Locked by Admin
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDev(!isEditingDev)}
+                  className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/25 transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <Unlock size={10} /> {isEditingDev ? 'Close Edit' : 'Edit Info'}
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Dev Bio & Skills */}
+          {dbUser.devBio && !isEditingDev && (
+            <p className="text-[11px] text-slate-300 bg-white/[0.03] p-2.5 rounded-xl border border-white/5 font-medium leading-relaxed">
+              {dbUser.devBio}
+            </p>
+          )}
+
+          {/* User Self-Edit Developer Info Form (Only if unlocked) */}
+          {isEditingDev && !dbUser.devLocked && (
+            <div className="flex flex-col gap-2.5 pt-2 border-t border-white/10">
+              <div>
+                <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Developer Role / Title</label>
+                <input
+                  type="text"
+                  value={userDevRole}
+                  onChange={e => setUserDevRole(e.target.value)}
+                  placeholder="e.g. Bot Developer, Smart Contract Eng"
+                  className="w-full h-9 px-3 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-xs text-white outline-none focus:border-cyan-400"
+                />
+              </div>
+
+              <div>
+                <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-1">Developer Bio & Skills</label>
+                <textarea
+                  rows={2}
+                  value={userDevBio}
+                  onChange={e => setUserDevBio(e.target.value)}
+                  placeholder="Describe your tech stack, skills, or portfolio links..."
+                  className="w-full p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-xs text-white outline-none focus:border-cyan-400 resize-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingDev(false)}
+                  className="h-8 px-3.5 rounded-lg text-xs font-bold text-slate-400 hover:text-white cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveDevInfo}
+                  disabled={savingDev}
+                  className="h-8 px-4 rounded-lg bg-cyan-500 text-black text-xs font-extrabold flex items-center gap-1 cursor-pointer shadow-md hover:bg-cyan-400 transition-all"
+                >
+                  {savingDev ? 'Saving...' : 'Save Developer Profile'}
+                </button>
+              </div>
+            </div>
+          )}
+        </motion.div>
+      )}
 
 
 

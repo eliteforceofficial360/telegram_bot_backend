@@ -118,6 +118,13 @@ export interface FirestoreUser {
   verifiedAt?: string;
   socialConnections?: SocialConnections;
   unbannedByAdmin?: boolean;
+
+  // Developer Information Sector
+  isDeveloper?: boolean;
+  devRole?: string;
+  devBio?: string;
+  devLocked?: boolean;
+  devAddedAt?: string;
 }
 
 const USERS_COLLECTION = 'users';
@@ -857,6 +864,11 @@ export const updateUserDatabaseValues = async (
     isVerified?: boolean;
     verifiedAt?: string;
     photoUrl?: string;
+    isDeveloper?: boolean;
+    devRole?: string;
+    devBio?: string;
+    devLocked?: boolean;
+    devAddedAt?: string;
   }
 ): Promise<boolean> => {
   if (!isFirebaseConfigured()) return false;
