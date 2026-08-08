@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Trophy, 
   Calendar, 
@@ -58,6 +58,7 @@ export const Profile = ({
   const [copiedId, setCopiedId] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [liveTiers, setLiveTiers] = useState<ReferralClaimTier[]>([]);
+  const [showDevModal, setShowDevModal] = useState(false);
   const [_isEditingName, setIsEditingName] = useState(false);
   const [editFirstName, setEditFirstName] = useState('');
   const [editLastName, setEditLastName] = useState('');
@@ -425,11 +426,16 @@ export const Profile = ({
                 <Laptop size={20} />
               </div>
               <div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <h3 className="text-xs font-black text-white tracking-wider uppercase">DEVELOPER PROFILE SECTOR</h3>
-                  <span className="text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                  <button
+                    type="button"
+                    onClick={() => setShowDevModal(true)}
+                    className="text-[8.5px] font-extrabold px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/35 hover:scale-105 active:scale-95 transition-all cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.25)] flex items-center gap-1 shrink-0"
+                    title="Click to view full developer details"
+                  >
                     {adminSettings?.devAppVerifiedBadge || '⚡ OFFICIAL CREATOR'}
-                  </span>
+                  </button>
                 </div>
                 <span className="text-[11px] font-extrabold text-cyan-400 block mt-0.5">
                   {adminSettings?.devAppName || 'Elite Force Dev Team'}
@@ -446,7 +452,14 @@ export const Profile = ({
             {adminSettings?.devAppBio || 'Creator & Lead Systems Developer of the Elite Force Telegram Mini App & Web3 Ecosystem.'}
           </p>
 
-          <div className="flex items-center justify-end gap-2 pt-1">
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setShowDevModal(true)}
+              className="text-[10px] font-extrabold text-cyan-400 hover:text-white underline transition-all cursor-pointer flex items-center gap-1"
+            >
+              <span>🔍 View Full Details</span>
+            </button>
             <button
               type="button"
               onClick={() => handleOpenDeveloperLink(adminSettings?.devAppContactUrl)}
@@ -458,6 +471,115 @@ export const Profile = ({
           </div>
         </motion.div>
       )}
+
+      {/* Developer Full Details Modal Page */}
+      <AnimatePresence>
+        {showDevModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="w-full max-w-md bg-[#0C1120] border border-cyan-500/40 rounded-[28px] p-5 flex flex-col gap-4 relative overflow-hidden shadow-[0_0_50px_rgba(0,229,255,0.25)] max-h-[90vh] overflow-y-auto"
+            >
+              {/* Background Glow */}
+              <div className="absolute -top-12 -right-12 w-40 h-40 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl pointer-events-none" />
+
+              {/* Header */}
+              <div className="flex items-center justify-between relative z-10 border-b border-white/10 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-500/50 flex items-center justify-center text-cyan-300 shadow-[0_0_18px_rgba(0,229,255,0.35)]">
+                    <Laptop size={22} />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-black text-white tracking-wide uppercase">DEVELOPER PROFILE SECTOR</h2>
+                    <span className="text-[11px] font-extrabold text-cyan-400 block mt-0.5">
+                      {adminSettings?.devAppName || 'Elite Force Dev Team'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDevModal(false)}
+                  className="w-8 h-8 rounded-full bg-white/5 border border-white/10 text-slate-400 hover:text-white flex items-center justify-center cursor-pointer transition-all font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Verified System Pill */}
+              <div className="flex items-center justify-between bg-cyan-500/10 border border-cyan-500/30 p-2.5 rounded-xl">
+                <span className="text-xs font-black text-cyan-300 flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-cyan-400" />
+                  {adminSettings?.devAppVerifiedBadge || '⚡ OFFICIAL CREATOR'}
+                </span>
+                <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                  VERIFIED SYSTEM
+                </span>
+              </div>
+
+              {/* Role */}
+              <div className="bg-purple-500/10 border border-purple-500/25 p-3 rounded-2xl flex flex-col gap-1">
+                <span className="text-[9px] font-extrabold uppercase text-purple-400 tracking-wider">Specialty & Title</span>
+                <span className="text-xs font-extrabold text-purple-200">
+                  📌 {adminSettings?.devAppRole || 'Full-Stack Telegram Mini App & Systems Developer'}
+                </span>
+              </div>
+
+              {/* Bio & Details */}
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider">Full System Bio & Credentials</span>
+                <p className="text-xs text-slate-300 bg-white/[0.03] p-3.5 rounded-2xl border border-white/5 font-medium leading-relaxed">
+                  {adminSettings?.devAppBio || 'Creator & Lead Systems Developer of the Elite Force Telegram Mini App & Web3 Ecosystem.'}
+                </p>
+              </div>
+
+              {/* Tech Stack */}
+              <div className="flex flex-col gap-2 pt-1">
+                <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider">Core Engineering Stack</span>
+                <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
+                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-cyan-300 flex items-center gap-2">
+                    <span>🚀</span> Mini App Specialist
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-purple-300 flex items-center gap-2">
+                    <span>⚡</span> Node.js & Telegram Bot API
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-emerald-300 flex items-center gap-2">
+                    <span>🔐</span> Web3 & Smart Contracts
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-amber-300 flex items-center gap-2">
+                    <span>📊</span> Realtime Firebase Architecture
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-2 pt-2 border-t border-white/10">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDevModal(false);
+                    handleOpenDeveloperLink(adminSettings?.devAppContactUrl);
+                  }}
+                  className="w-full h-10 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-black flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+                >
+                  <MessageSquare size={14} />
+                  <span>{adminSettings?.devAppButtonText || `Contact Developer (${adminSettings?.devAppTelegram || '@EliteForceDev'})`}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDevModal(false)}
+                  className="w-full h-9 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 text-xs font-bold transition-all cursor-pointer"
+                >
+                  Close Window
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* User Self-Editable Developer Profile Sector (if marked as dev) */}
       {dbUser?.isDeveloper && (
