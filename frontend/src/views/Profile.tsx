@@ -414,22 +414,22 @@ export const Profile = ({
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           onClick={() => setShowDevModal(true)}
-          className="relative p-4 rounded-[22px] bg-[#0C1222] border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer flex items-center justify-between gap-3 shadow-lg group"
+          className="relative p-3.5 rounded-[22px] bg-[#0C1222] border border-white/10 hover:border-cyan-500/50 transition-all cursor-pointer flex items-center justify-between gap-2.5 shadow-lg group overflow-hidden"
         >
           {/* Subtle Glow Header Line */}
           <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent opacity-60 group-hover:opacity-100 transition-all" />
 
           {/* Left Side: Icon & Title/Role */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="w-9 h-9 rounded-xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 group-hover:scale-105 transition-all">
               <Laptop size={18} />
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[9.5px] font-extrabold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider whitespace-nowrap">
                 DEVELOPER PROFILE SECTOR
               </span>
-              <div className="text-xs md:text-sm font-black text-white truncate group-hover:text-cyan-300 transition-all mt-0.5">
-                {adminSettings?.devAppName || 'Elite Force Dev Team'} <span className="text-slate-500 font-medium">• {adminSettings?.devAppRole || 'Full-Stack Developer'}</span>
+              <div className="text-xs font-black text-white truncate group-hover:text-cyan-300 transition-all mt-0.5">
+                {adminSettings?.devAppName || 'Elite Force Dev Team'}
               </div>
             </div>
           </div>
@@ -441,10 +441,14 @@ export const Profile = ({
               e.stopPropagation();
               setShowDevModal(true);
             }}
-            className="h-8 px-3 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 hover:bg-emerald-500/25 hover:scale-105 active:scale-95 text-[10px] font-extrabold flex items-center gap-1.5 shrink-0 transition-all cursor-pointer shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+            className="h-7 px-2.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 hover:bg-emerald-500/25 hover:scale-105 active:scale-95 text-[9px] font-extrabold flex items-center gap-1 shrink-0 transition-all cursor-pointer shadow-[0_0_10px_rgba(16,185,129,0.2)] whitespace-nowrap"
           >
-            <Zap size={11} className="text-emerald-400" />
-            <span>{adminSettings?.devAppVerifiedBadge || 'Active Node'}</span>
+            <Zap size={11} className="text-emerald-400 shrink-0" />
+            <span>
+              {adminSettings?.devAppVerifiedBadge
+                ? adminSettings.devAppVerifiedBadge.replace(/^⚡\s*/, '')
+                : 'OFFICIAL CREATOR'}
+            </span>
           </button>
         </motion.div>
       )}
