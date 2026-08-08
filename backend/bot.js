@@ -14,6 +14,7 @@ import {
   runXPeriodicMonitoring,
 } from './xVerificationEngine.js';
 import { sendMarketNotification } from './marketNotifications.js';
+import { connectMongoDB, logToMongoDB } from './mongoClient.js';
 
 dotenv.config();
 
@@ -2617,6 +2618,7 @@ async function startBotWithRetry(maxRetries = 5, delayMs = 5000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Starting Elite Force bot (attempt ${attempt}/${maxRetries})...`);
+      await connectMongoDB();
       await bot.launch({ dropPendingUpdates: true });
       console.log('✅ Bot running! Send /start in Telegram to test.');
 
