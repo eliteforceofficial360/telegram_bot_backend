@@ -318,6 +318,11 @@ export const Profile = ({
                   👑 Premium
                 </span>
               )}
+              {dbUser?.isDeveloper && (
+                <span className="text-[8.5px] font-black uppercase text-cyan-300 bg-cyan-500/15 border border-cyan-500/35 px-2 py-0.5 rounded-full flex items-center gap-1 shadow-[0_0_10px_rgba(0,229,255,0.2)]">
+                  💻 VERIFIED DEV
+                </span>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
@@ -332,6 +337,13 @@ export const Profile = ({
                 {copiedId ? <Check size={11} className="text-accent-success" /> : <Copy size={11} />}
               </button>
             </div>
+
+            {dbUser?.isDeveloper && (
+              <div className="text-[10px] font-bold text-cyan-400 mt-1 flex items-center gap-1.5 truncate">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+                <span className="truncate">{dbUser.devRole || 'EForce Core Developer & Specialist'}</span>
+              </div>
+            )}
           </div>
         </div>
 
