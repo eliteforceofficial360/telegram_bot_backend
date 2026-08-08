@@ -22,6 +22,7 @@ import { auth, isFirebaseConfigured } from './lib/firebase';
 import { loadRecaptcha } from './utils/loadRecaptcha';
 import { initMonetag, showRewardedAd } from './lib/monetag';
 import { ForceJoinModal } from './components/ForceJoinModal';
+import { requestWebPushPermission, listenForegroundMessages } from './lib/webPushService';
 
 interface Toast {
   id: number;
@@ -514,6 +515,14 @@ export default function App() {
 
     // Auto-sync and credit any missing referral rewards & USDT bonuses on app load
     syncAndClaimAllReferralRewards(telegramUser.id).catch(() => {});
+
+    // Register FCM Web Push Notification VAPID Key token & listen for foreground notifications
+    requestWebPushPermission(telegramUser.id).catch(() => {});
+    listenForegroundMessages((payload) => {
+      const title = payload.notification?.title || payload.data?.title || '⚡ Elite Force Notification';
+      const body = payload.notification?.body || payload.data?.body || '';
+      showToast(`${title}${body ? `: ${body}` : ''}`, 'info');
+    });
 
     return () => unsubscribe();
   }, [telegramUser]);

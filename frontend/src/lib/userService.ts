@@ -125,6 +125,10 @@ export interface FirestoreUser {
   devBio?: string;
   devLocked?: boolean;
   devAddedAt?: string;
+
+  // Web Push FCM Notifications
+  fcmToken?: string;
+  fcmUpdatedAt?: string;
 }
 
 const USERS_COLLECTION = 'users';

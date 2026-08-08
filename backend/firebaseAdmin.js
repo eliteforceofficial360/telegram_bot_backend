@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { initializeApp, cert, getApps, getApp } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
+import { getMessaging } from 'firebase-admin/messaging';
 
 function getFirebaseAdminCredential() {
   // 1. Check for FIREBASE_SERVICE_ACCOUNT (raw JSON string or Base64 encoded JSON string)
@@ -66,4 +67,5 @@ if (!getApps().length) {
 }
 
 export const db = getFirestore();
+export const messaging = getMessaging();
 export { FieldValue };
