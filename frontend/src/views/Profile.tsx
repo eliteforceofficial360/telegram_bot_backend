@@ -495,8 +495,8 @@ export const Profile = ({
                   <Sparkles size={14} className="text-cyan-400" />
                   {adminSettings?.devAppVerifiedBadge || '⚡ OFFICIAL CREATOR'}
                 </span>
-                <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                  VERIFIED SYSTEM
+                <span className="text-[9px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase">
+                  {adminSettings?.devAppVerifiedTag || 'VERIFIED SYSTEM'}
                 </span>
               </div>
 
@@ -520,18 +520,19 @@ export const Profile = ({
               <div className="flex flex-col gap-2 pt-1">
                 <span className="text-[9px] font-extrabold uppercase text-slate-400 tracking-wider">Core Engineering Stack</span>
                 <div className="grid grid-cols-2 gap-2 text-[10px] font-bold">
-                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-cyan-300 flex items-center gap-2">
-                    <span>🚀</span> Mini App Specialist
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-purple-300 flex items-center gap-2">
-                    <span>⚡</span> Node.js & Telegram Bot API
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-emerald-300 flex items-center gap-2">
-                    <span>🔐</span> Web3 & Smart Contracts
-                  </div>
-                  <div className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-amber-300 flex items-center gap-2">
-                    <span>📊</span> Realtime Firebase Architecture
-                  </div>
+                  {(adminSettings?.devAppTechStack && adminSettings.devAppTechStack.length > 0
+                    ? adminSettings.devAppTechStack
+                    : [
+                        '🚀 Mini App Specialist',
+                        '⚡ Node.js & Bot Engines',
+                        '🔐 Web3 & Smart Contracts',
+                        '📊 Realtime Firebase Architecture',
+                      ]
+                  ).map((techItem, idx) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-white/[0.03] border border-white/5 text-cyan-300 flex items-center gap-1.5 font-bold truncate">
+                      {techItem}
+                    </div>
+                  ))}
                 </div>
               </div>
 

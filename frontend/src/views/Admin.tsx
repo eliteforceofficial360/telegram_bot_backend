@@ -5047,7 +5047,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
 
                   <div className="p-4 flex flex-col gap-3">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-slate-300 font-bold">Verified Badge Text</label>
                         <input
@@ -5055,6 +5055,18 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                           placeholder="⚡ OFFICIAL MINI APP CREATOR"
                           value={settings.devAppVerifiedBadge || ''}
                           onChange={e => setSettings(prev => ({ ...prev, devAppVerifiedBadge: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Verified System Tag (Modal)</label>
+                        <input
+                          type="text"
+                          placeholder="VERIFIED SYSTEM"
+                          value={settings.devAppVerifiedTag || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, devAppVerifiedTag: e.target.value }))}
                           className={inputCls}
                           style={inputStyle}
                         />
@@ -5093,6 +5105,21 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         value={settings.devAppBio || ''}
                         onChange={e => setSettings(prev => ({ ...prev, devAppBio: e.target.value }))}
                         className="w-full rounded-xl p-3 text-xs text-white outline-none resize-none font-sans"
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-300 font-bold">Core Engineering Stack (Comma-separated items for Modal)</label>
+                      <input
+                        type="text"
+                        placeholder="🚀 Mini App Specialist, ⚡ Node.js & Bot Engines, 🔐 Web3 & Smart Contracts, 📊 Realtime Firebase Architecture"
+                        value={(settings.devAppTechStack || []).join(', ')}
+                        onChange={e => {
+                          const items = e.target.value.split(',').map(s => s.trim());
+                          setSettings(prev => ({ ...prev, devAppTechStack: items }));
+                        }}
+                        className={inputCls}
                         style={inputStyle}
                       />
                     </div>

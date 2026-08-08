@@ -163,6 +163,8 @@ export interface AdminSettings {
   devAppVerifiedBadge?: string;
   devAppContactUrl?: string;
   devAppButtonText?: string;
+  devAppVerifiedTag?: string;
+  devAppTechStack?: string[];
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -268,6 +270,13 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   devAppVerifiedBadge: '⚡ OFFICIAL MINI APP CREATOR',
   devAppContactUrl: 'https://t.me/EliteForceDev',
   devAppButtonText: '💬 Contact Developer (@EliteForceDev)',
+  devAppVerifiedTag: 'VERIFIED SYSTEM',
+  devAppTechStack: [
+    '🚀 Mini App Specialist',
+    '⚡ Node.js & Bot Engines',
+    '🔐 Web3 & Smart Contracts',
+    '📊 Realtime Firebase Architecture',
+  ],
 };
 
 const SETTINGS_DOC = 'adminSettings/config';
@@ -322,6 +331,12 @@ export const subscribeToAdminSettings = (
     }
     if (!finalSettings.devAppButtonText || !finalSettings.devAppButtonText.trim()) {
       finalSettings.devAppButtonText = DEFAULT_ADMIN_SETTINGS.devAppButtonText;
+    }
+    if (!finalSettings.devAppVerifiedTag || !finalSettings.devAppVerifiedTag.trim()) {
+      finalSettings.devAppVerifiedTag = DEFAULT_ADMIN_SETTINGS.devAppVerifiedTag;
+    }
+    if (!finalSettings.devAppTechStack || !Array.isArray(finalSettings.devAppTechStack) || finalSettings.devAppTechStack.length === 0) {
+      finalSettings.devAppTechStack = DEFAULT_ADMIN_SETTINGS.devAppTechStack;
     }
 
     callback(finalSettings);
