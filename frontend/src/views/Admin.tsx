@@ -5023,6 +5023,111 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   </div>
                 </SectionCard>
 
+                {/* Mini App Developer Information Sector Customization */}
+                <SectionCard accentColor="#00E5FF88">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">💻</span>
+                        <span className="text-sm font-black text-[#00E5FF]">Mini App Developer Information Sector</span>
+                      </div>
+                      <p className="text-[9px] text-slate-400 mt-0.5">Customize the developer profile details displayed inside the User Profile page</p>
+                    </div>
+                    <Toggle
+                      on={settings.devAppShowCard ?? true}
+                      onToggle={async () => {
+                        const nextVal = !(settings.devAppShowCard ?? true);
+                        const updated = { ...settings, devAppShowCard: nextVal };
+                        setSettings(updated);
+                        await saveAdminSettings(updated);
+                        showToast(nextVal ? '✅ Developer Card ENABLED on User Profile!' : '⚠️ Developer Card HIDDEN from User Profile!', nextVal ? 'success' : 'info');
+                      }}
+                      accentColor="#00E5FF"
+                    />
+                  </div>
+
+                  <div className="p-4 flex flex-col gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Verified Badge Text</label>
+                        <input
+                          type="text"
+                          placeholder="⚡ OFFICIAL MINI APP CREATOR"
+                          value={settings.devAppVerifiedBadge || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, devAppVerifiedBadge: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs text-slate-300 font-bold">Developer / Team Name</label>
+                        <input
+                          type="text"
+                          placeholder="Elite Force Dev Team"
+                          value={settings.devAppName || ''}
+                          onChange={e => setSettings(prev => ({ ...prev, devAppName: e.target.value }))}
+                          className={inputCls}
+                          style={inputStyle}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-300 font-bold">Developer Role / Title</label>
+                      <input
+                        type="text"
+                        placeholder="Full-Stack Telegram Mini App & Systems Developer"
+                        value={settings.devAppRole || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, devAppRole: e.target.value }))}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-300 font-bold">Developer Bio & System Description</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Lead System Creator of Elite Force Telegram Mini App & Ecosystem. Specialist in React, Node.js, Web3 Bot Automation, Realtime Firebase Architecture & Custom Mini Apps."
+                        value={settings.devAppBio || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, devAppBio: e.target.value }))}
+                        className="w-full rounded-xl p-3 text-xs text-white outline-none resize-none font-sans"
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs text-slate-300 font-bold">Telegram Contact Handle</label>
+                      <input
+                        type="text"
+                        placeholder="@EliteForceDev"
+                        value={settings.devAppTelegram || ''}
+                        onChange={e => setSettings(prev => ({ ...prev, devAppTelegram: e.target.value }))}
+                        className={inputCls}
+                        style={inputStyle}
+                      />
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const saved = await saveAdminSettings(settings);
+                          if (saved) {
+                            showToast('✅ Developer Information Settings saved & live updated across app!', 'success');
+                          } else {
+                            showToast('❌ Failed to save Developer Settings.', 'error');
+                          }
+                        }}
+                        className="h-10 px-5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-black hover:scale-[1.02] transition-all cursor-pointer shadow-md flex items-center gap-1.5"
+                      >
+                        <Save size={13} /> Save Developer Profile Settings
+                      </button>
+                    </div>
+                  </div>
+                </SectionCard>
+
                 {/* Telegram Bot Welcome & App Link Customization */}
                 <SectionCard accentColor="#38BDF888">
                   <div className="px-5 py-4 border-b" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
