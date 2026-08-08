@@ -38,6 +38,7 @@ import {
   sendWithdrawNotification,
   sendDepositNotification,
 } from '../lib/notificationService';
+import { requestWebPushPermission, VAPID_PUBLIC_KEY } from '../lib/webPushService';
 import { uploadFile } from '../lib/uploadService';
 import {
   fetchPendingMarketTasks, approveMarketTask, rejectMarketTask, fetchCreatedTasks, fetchMyTasks, type MarketTask, type TaskSubmission,
@@ -1136,7 +1137,42 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
   const [notifImageUrl, setNotifImageUrl] = useState('');
   const [uploadingNotificationImage, setUploadingNotificationImage] = useState(false);
   // ── Notification Center States ──────────────────────────────────────────
-  const [notifSubTab, setNotifSubTab] = useState<'broadcast' | 'templates' | 'history'>('broadcast');
+  const [notifSubTab, setNotifSubTab] = useState<'broadcast' | 'templates' | 'webpush' | 'history'>('broadcast');
+  const [webPushTitle, setWebPushTitle] = useState('⚡ Elite Force Announcement');
+  const [webPushBody, setWebPushBody] = useState('Your mining session is complete! Open the app to claim your EFC tokens.');
+  const [webPushTokenInput, setWebPushTokenInput] = useState('');
+  const [webPushPermissionStatus, setWebPushPermissionStatus] = useState<string>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'unsupported'
+  );
+
+  const handleTestLocalWebPush = () => {
+    if (!('Notification' in window)) {
+      showToast('❌ Browser Notifications not supported on this device/browser.', 'error');
+      return;
+    }
+
+    Notification.requestPermission().then((perm) => {
+      setWebPushPermissionStatus(perm);
+      if (perm === 'granted') {
+        try {
+          const notif = new Notification(webPushTitle || '⚡ Elite Force Notification', {
+            body: webPushBody || 'Web Push Notifications are working live on website!',
+            icon: settings.loadingLogoUrl || '/loading-logo.png',
+            badge: settings.loadingLogoUrl || '/loading-logo.png',
+          });
+          notif.onclick = () => {
+            window.focus();
+            notif.close();
+          };
+          showToast('✅ Web Push Notification popped up live in browser!', 'success');
+        } catch (err: any) {
+          showToast(`⚠️ Local push error: ${err.message}`, 'warning');
+        }
+      } else {
+        showToast(`⚠️ Browser Notification permission status is: ${perm}`, 'warning');
+      }
+    });
+  };
   const [bcastTargetType, setBcastTargetType] = useState<'everyone' | 'premium' | 'specific' | 'campaign' | 'country' | 'language'>('everyone');
   const [bcastTargetIds, setBcastTargetIds] = useState('');
   const [bcastCampaignId, setBcastCampaignId] = useState('');
@@ -3647,6 +3683,7 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 {[
                   { id: 'broadcast', label: '📢 Broadcast Manager' },
                   { id: 'templates', label: '⚙️ Event Templates & Toggles' },
+                  { id: 'webpush', label: '🔔 Web Push (FCM)' },
                   { id: 'history', label: '📜 Notification History' },
                 ].map((st) => (
                   <button
@@ -4279,7 +4316,111 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                 </SectionCard>
               )}
 
-              {/* ── SUB-TAB 3: NOTIFICATION HISTORY LOG ── */}
+              {/* ── SUB-TAB 3: WEB PUSH (FCM) NOTIFICATIONS ── */}
+              {notifSubTab === 'webpush' && (
+                <SectionCard accentColor="#00E5FF88">
+                  <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">🔔</div>
+                      <div>
+                        <div className="text-sm font-black text-white">Browser Web Push Notifications (FCM VAPID)</div>
+                        <div className="text-[9px] text-slate-400">Test live browser push notifications directly on website</div>
+                      </div>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black border ${
+                      webPushPermissionStatus === 'granted'
+                        ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400'
+                        : 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                    }`}>
+                      Browser Permission: {webPushPermissionStatus.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <div className="p-5 flex flex-col gap-5">
+                    {/* Live Test Card */}
+                    <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex flex-col gap-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">⚡</span>
+                          <span className="text-xs font-black text-cyan-300 uppercase">Live Website Push Notification Tester</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            requestWebPushPermission().then(token => {
+                              if (token) {
+                                setWebPushTokenInput(token);
+                                showToast('✅ FCM VAPID Token registered & generated!', 'success');
+                              } else {
+                                showToast('⚠️ Permission not granted or browser push restricted.', 'warning');
+                              }
+                            });
+                          }}
+                          className="text-[10px] font-bold text-cyan-300 underline hover:text-white cursor-pointer"
+                        >
+                          🔑 Register FCM VAPID Token
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        Click below to test sending a live Web Push Notification directly to your browser tray. Make sure notification permissions are allowed in your browser settings.
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Push Notification Title</label>
+                          <input
+                            type="text"
+                            placeholder="⚡ Elite Force Announcement"
+                            value={webPushTitle}
+                            onChange={e => setWebPushTitle(e.target.value)}
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Push Message Body</label>
+                          <input
+                            type="text"
+                            placeholder="Your mining session is complete! Open the app to claim your EFC tokens."
+                            value={webPushBody}
+                            onChange={e => setWebPushBody(e.target.value)}
+                            className={inputCls}
+                            style={inputStyle}
+                          />
+                        </div>
+                      </div>
+
+                      {webPushTokenInput && (
+                        <div className="p-2.5 rounded-xl bg-slate-900/90 border border-white/10 text-[10px] font-mono text-cyan-300 break-all">
+                          <strong>FCM Token:</strong> {webPushTokenInput}
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={handleTestLocalWebPush}
+                          className="flex-1 h-11 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-black flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shadow-lg"
+                        >
+                          <Send size={14} />
+                          <span>🔔 Trigger Live Browser Web Push Alert</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* FCM Config Details */}
+                    <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 flex flex-col gap-2">
+                      <span className="text-xs font-bold text-white">Configured VAPID Public Key</span>
+                      <code className="text-[10px] font-mono text-slate-400 bg-black/40 p-2.5 rounded-xl border border-white/5 break-all">
+                        {VAPID_PUBLIC_KEY}
+                      </code>
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* ── SUB-TAB 4: NOTIFICATION HISTORY LOG ── */}
               {notifSubTab === 'history' && (
                 <SectionCard accentColor="#38BDF888">
                   <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.06)' }}>
