@@ -37,6 +37,7 @@ import { syncAndClaimAllReferralRewards } from '../lib/referralService';
 import {
   sendWithdrawNotification,
   sendDepositNotification,
+  sendMessageToUser,
 } from '../lib/notificationService';
 import { requestWebPushPermission, VAPID_PUBLIC_KEY } from '../lib/webPushService';
 import { uploadFile } from '../lib/uploadService';
@@ -1173,6 +1174,41 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
       }
     });
   };
+
+  const [eventTestUserId, setEventTestUserId] = useState('');
+  const [sendingTestEvent, setSendingTestEvent] = useState(false);
+
+  const getDefaultEventTemplate = (evType: string) => {
+    switch (evType) {
+      case 'SOCIAL_CONNECTED': return '<b>✅ Social Account Connected!</b>\n\nYour social profile has been verified successfully.';
+      case 'SOCIAL_DISCONNECTED': return '<b>⚠️ Social Account Disconnected</b>\n\nYour social connection was removed.';
+      case 'TASK_COMPLETED': return '<b>🎉 Task Completed!</b>\n\nYou earned <b>+250 EFC</b> for completing the task.';
+      case 'TASK_REJECTED': return '<b>❌ Task Proof Rejected</b>\n\nYour proof submission was rejected by auditors.';
+      case 'CAMPAIGN_COMPLETED': return '<b>🏆 Campaign Completed!</b>\n\nYour campaign has finished processing all worker tasks.';
+      case 'MINING_COMPLETED': return '<b>⛏ Mining Session Complete!</b>\n\nYour auto miner has finished. Tap to claim <b>500 EFC</b>!';
+      case 'DAILY_REWARD': return '<b>🎁 Daily Reward Claimed!</b>\n\nYou received Day 1 check-in bonus.';
+      case 'REFERRAL_BONUS': return '<b>👥 Referral Bonus Earned!</b>\n\nA new user joined using your referral link.';
+      case 'WITHDRAW_APPROVED': return '<b>💸 Payout Approved!</b>\n\nYour USDT withdrawal has been approved and sent.';
+      case 'WITHDRAW_REJECTED': return '<b>🚫 Payout Request Declined</b>\n\nYour withdrawal request was rejected by admin.';
+      case 'DEPOSIT_SUBMITTED': return '<b>📥 USDT Deposit Hash Submitted</b>\n\nYour TxHash is under audit verification.';
+      case 'DEPOSIT_APPROVED': return '<b>✅ USDT Deposit Approved!</b>\n\nYour wallet balance has been credited.';
+      case 'DEPOSIT_REJECTED': return '<b>❌ USDT Deposit Rejected</b>\n\nYour deposit hash verification failed.';
+      case 'MARKET_TASK_CREATED': return '<b>📌 New Market Task Created</b>\n\nYour campaign task is now live on Task Market.';
+      case 'MARKET_TASK_LIVE': return '<b>🚀 Market Task Live!</b>\n\nWorkers can now submit proofs for your campaign.';
+      case 'WORKER_APPROVED': return '<b>✅ Proof Approved!</b>\n\nTask creator approved your submission and released reward.';
+      case 'WORKER_REJECTED': return '<b>❌ Proof Declined</b>\n\nTask creator declined your proof submission.';
+      case 'LEVEL_UP': return '<b>⚡ Level Up! Agent Rank Promoted!</b>\n\nCongratulations on reaching a new Agent Rank!';
+      case 'STREAK_BONUS': return '<b>🔥 Streak Bonus Unlocked!</b>\n\nYou maintained a 7-day daily claim streak.';
+      case 'SPIN_WIN': return '<b>🎡 Lucky Spin Reward!</b>\n\nYou won bonus EFC tokens on Lucky Wheel.';
+      case 'PROMO_CODE_REDEEMED': return '<b>🎟 Promo Code Redeemed!</b>\n\nBonus EFC points credited to your account.';
+      case 'PASS_PURCHASED': return '<b>👑 VIP Pass Activated!</b>\n\nYou are now a verified VIP agent with 2x mining rate.';
+      case 'KYC_VERIFIED': return '<b>🛡 Identity Verified!</b>\n\nYour identity verification is approved.';
+      case 'SECURITY_ALERT': return '<b>🔒 Security Alert</b>\n\nA new device or session was registered.';
+      case 'ADMIN_BROADCAST': return '<b>📢 Platform Announcement</b>\n\nNew updates are live on Elite Force.';
+      default: return `<b>⚡ Event Notification: ${evType}</b>\n\nSystem alert for user {name}.`;
+    }
+  };
+
   const [bcastTargetType, setBcastTargetType] = useState<'everyone' | 'premium' | 'specific' | 'campaign' | 'country' | 'language'>('everyone');
   const [bcastTargetIds, setBcastTargetIds] = useState('');
   const [bcastCampaignId, setBcastCampaignId] = useState('');
@@ -4307,6 +4343,103 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                                 <option value="wallet">Wallet & Withdraw</option>
                                 <option value="support">Support</option>
                               </select>
+                            </div>
+                          </div>
+
+                          {/* Test Event Notification Sender */}
+                          <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/30 flex flex-col gap-3 mt-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-black text-cyan-300 uppercase tracking-wider flex items-center gap-1.5">
+                                🧪 Test Event Notification Sender
+                              </span>
+                              <span className="text-[9px] font-extrabold text-cyan-400">
+                                Event: {selectedEventType}
+                              </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1">
+                              <label className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Target Telegram User ID for Test</label>
+                              <input
+                                type="text"
+                                placeholder="e.g. 123456789 or Telegram ID"
+                                value={eventTestUserId}
+                                onChange={(e) => setEventTestUserId(e.target.value)}
+                                className={inputCls}
+                                style={inputStyle}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const uId = Number(eventTestUserId.trim());
+                                  if (!uId) {
+                                    showToast('Please enter a valid target Telegram User ID to test.', 'warning');
+                                    return;
+                                  }
+                                  setSendingTestEvent(true);
+                                  try {
+                                    const rawTemplate = evConfig.template || getDefaultEventTemplate(selectedEventType);
+                                    const finalMsg = rawTemplate.replace(/{name}/g, 'Test Agent').replace(/{username}/g, 'test_agent');
+                                    const btnText = evConfig.buttonText || 'Open Elite Force';
+                                    const btnTab = evConfig.buttonTab || 'home';
+                                    const btnUrl = `${settings.miniAppUrl || 'https://elite-force-844d0.web.app'}?startapp=${btnTab}`;
+
+                                    const res = await sendMessageToUser(
+                                      settings.botApiUrl,
+                                      uId,
+                                      finalMsg,
+                                      settings.apiSecret,
+                                      undefined,
+                                      btnText,
+                                      btnUrl
+                                    );
+
+                                    if (res.ok) {
+                                      showToast(`✅ Test [${selectedEventType}] message sent to Telegram ID ${uId}!`, 'success');
+                                    } else {
+                                      showToast(`❌ Failed to send test notification: ${res.error || 'Check Bot API URL'}`, 'error');
+                                    }
+                                  } catch (err: any) {
+                                    showToast(`❌ Error: ${err.message}`, 'error');
+                                  } finally {
+                                    setSendingTestEvent(false);
+                                  }
+                                }}
+                                disabled={sendingTestEvent || !eventTestUserId.trim()}
+                                className="h-10 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-black text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.01] transition-all disabled:opacity-40"
+                              >
+                                {sendingTestEvent ? <RefreshCw size={14} className="animate-spin" /> : <Send size={14} />}
+                                <span>Send Test to Telegram User</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!('Notification' in window)) {
+                                    showToast('❌ Browser Notifications not supported on this device.', 'error');
+                                    return;
+                                  }
+                                  Notification.requestPermission().then((perm) => {
+                                    if (perm === 'granted') {
+                                      const rawTemplate = evConfig.template || getDefaultEventTemplate(selectedEventType);
+                                      const cleanMsg = rawTemplate.replace(/<[^>]*>/g, '').replace(/{name}/g, 'Test Agent');
+                                      new Notification(`⚡ Event Alert: ${selectedEventType}`, {
+                                        body: cleanMsg,
+                                        icon: settings.loadingLogoUrl || '/loading-logo.png',
+                                      });
+                                      showToast(`✅ Web Push Notification for [${selectedEventType}] popped up in browser!`, 'success');
+                                    } else {
+                                      showToast(`⚠️ Browser Notification permission is: ${perm}`, 'warning');
+                                    }
+                                  });
+                                }}
+                                className="h-10 px-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-black flex items-center justify-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.01] transition-all"
+                              >
+                                <Send size={14} />
+                                <span>Test Event as Web Push</span>
+                              </button>
                             </div>
                           </div>
                         </div>
