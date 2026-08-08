@@ -385,7 +385,61 @@ export const Profile = ({
         </div>
       </motion.div>
 
-      {/* Developer Information Sector (User App Display & Self Edit) */}
+      {/* Official Mini App Developer Profile Sector */}
+      {adminSettings?.devAppShowCard !== false && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="relative p-4 rounded-[24px] overflow-hidden flex flex-col gap-3"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0, 229, 255, 0.1) 0%, rgba(10, 15, 30, 0.95) 50%, rgba(139, 92, 246, 0.1) 100%)',
+            border: '1px solid rgba(0, 229, 255, 0.35)',
+            boxShadow: '0 8px 30px rgba(0, 229, 255, 0.15)',
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-[0_0_15px_rgba(0,229,255,0.3)] shrink-0">
+                <Laptop size={20} />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-xs font-black text-white tracking-wider uppercase">DEVELOPER PROFILE SECTOR</h3>
+                  <span className="text-[8.5px] font-extrabold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                    {adminSettings?.devAppVerifiedBadge || '⚡ OFFICIAL CREATOR'}
+                  </span>
+                </div>
+                <span className="text-[11px] font-extrabold text-cyan-400 block mt-0.5">
+                  {adminSettings?.devAppName || 'Elite Force Dev Team'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[10px] font-bold text-purple-300 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20 w-fit">
+            📌 {adminSettings?.devAppRole || 'Full-Stack Telegram Mini App & Systems Developer'}
+          </div>
+
+          <p className="text-[11px] text-slate-300 bg-white/[0.03] p-3 rounded-xl border border-white/5 font-medium leading-relaxed">
+            {adminSettings?.devAppBio || 'Creator & Lead Systems Developer of the Elite Force Telegram Mini App & Web3 Ecosystem.'}
+          </p>
+
+          {adminSettings?.devAppTelegram && (
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <a
+                href={`https://t.me/${adminSettings.devAppTelegram.replace('@', '')}`}
+                target="_blank"
+                rel="noreferrer"
+                className="h-8 px-3.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-[10px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <MessageSquare size={12} /> Contact Developer ({adminSettings.devAppTelegram})
+              </a>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* User Self-Editable Developer Profile Sector (if marked as dev) */}
       {dbUser?.isDeveloper && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -404,7 +458,7 @@ export const Profile = ({
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-black text-white tracking-wider uppercase">Developer Profile Sector</h3>
+                  <h3 className="text-xs font-black text-white tracking-wider uppercase">Personal Dev Badge</h3>
                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#00E5FF]/15 text-[#00E5FF] border border-[#00E5FF]/30">
                     VERIFIED DEV
                   </span>
@@ -432,14 +486,12 @@ export const Profile = ({
             </div>
           </div>
 
-          {/* Dev Bio & Skills */}
           {dbUser.devBio && !isEditingDev && (
             <p className="text-[11px] text-slate-300 bg-white/[0.03] p-2.5 rounded-xl border border-white/5 font-medium leading-relaxed">
               {dbUser.devBio}
             </p>
           )}
 
-          {/* User Self-Edit Developer Info Form (Only if unlocked) */}
           {isEditingDev && !dbUser.devLocked && (
             <div className="flex flex-col gap-2.5 pt-2 border-t border-white/10">
               <div>

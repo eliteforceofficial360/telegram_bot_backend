@@ -152,6 +152,15 @@ export interface AdminSettings {
   leaderboardBannerUrl?: string;
   usdtIconUrl?: string;
   eforceTokenIconUrl?: string;
+
+  // Official Mini App Developer Information Sector
+  devAppShowCard?: boolean;
+  devAppName?: string;
+  devAppRole?: string;
+  devAppBio?: string;
+  devAppTelegram?: string;
+  devAppPortfolioUrl?: string;
+  devAppVerifiedBadge?: string;
 }
 
 export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
@@ -248,6 +257,13 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   leaderboardBannerUrl: '/coin-logo.jpg',
   usdtIconUrl: 'https://assets.coingecko.com/coins/images/325/large/Tether.png',
   eforceTokenIconUrl: '/coin.png',
+  devAppShowCard: true,
+  devAppName: 'Elite Force Dev Team',
+  devAppRole: 'Full-Stack Telegram Mini App & Systems Developer',
+  devAppBio: 'Lead System Creator of Elite Force Telegram Mini App & Ecosystem. Specialist in React, Node.js, Web3 Bot Automation, Realtime Firebase Architecture & Custom Mini Apps.',
+  devAppTelegram: '@EliteForceDev',
+  devAppPortfolioUrl: 'https://t.me/EliteForceDev',
+  devAppVerifiedBadge: '⚡ OFFICIAL MINI APP CREATOR',
 };
 
 const SETTINGS_DOC = 'adminSettings/config';
