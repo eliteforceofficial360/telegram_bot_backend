@@ -65,8 +65,7 @@ export const Referral = ({
   useEffect(() => {
     if (!telegramUser) return;
     syncAndClaimAllReferralRewards(telegramUser.id).then((syncRes) => {
-      if (syncRes.totalUsdtAdded > 0 && setUsdtBalance) {
-        setUsdtBalance((prev: number) => prev + syncRes.totalUsdtAdded);
+      if (syncRes.totalUsdtAdded > 0) {
         showToast(`🎉 +$${syncRes.totalUsdtAdded.toFixed(2)} USDT Referral Reward Credited!`, 'success');
       }
     }).catch(() => {});

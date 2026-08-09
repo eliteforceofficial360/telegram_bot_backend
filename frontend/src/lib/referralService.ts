@@ -47,23 +47,43 @@ export const parseReferralFromStartParam = (): number | null => {
   try {
     const tg = (window as any).Telegram?.WebApp;
     const searchParams = new URLSearchParams(window.location.search);
-    const startParam = (
+
+    let hashParams: URLSearchParams | null = null;
+    try {
+      const hashStr = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+      if (hashStr) hashParams = new URLSearchParams(hashStr);
+    } catch { /* ignore */ }
+
+    const rawParam = (
       tg?.initDataUnsafe?.start_param ||
       searchParams.get('tgWebAppStartParam') ||
       searchParams.get('start_param') ||
+      searchParams.get('startapp') ||
+      searchParams.get('start_app') ||
       searchParams.get('ref') ||
+      searchParams.get('start') ||
+      (hashParams ? (
+        hashParams.get('tgWebAppStartParam') ||
+        hashParams.get('start_param') ||
+        hashParams.get('startapp') ||
+        hashParams.get('start_app') ||
+        hashParams.get('ref') ||
+        hashParams.get('start')
+      ) : '') ||
       ''
     ).trim();
 
-    if (startParam) {
-      const cleanParam = startParam.replace(/^ref_/, '');
-      const id = parseInt(cleanParam, 10);
-      if (!isNaN(id) && id > 0) {
-        try {
-          sessionStorage.setItem('savedReferrerId', String(id));
-          localStorage.setItem('savedReferrerId', String(id));
-        } catch { /* noop */ }
-        return id;
+    if (rawParam) {
+      const digitsMatch = rawParam.match(/\d+/);
+      if (digitsMatch) {
+        const id = parseInt(digitsMatch[0], 10);
+        if (!isNaN(id) && id > 0) {
+          try {
+            sessionStorage.setItem('savedReferrerId', String(id));
+            localStorage.setItem('savedReferrerId', String(id));
+          } catch { /* noop */ }
+          return id;
+        }
       }
     }
 
@@ -183,7 +203,7 @@ export const recordReferral = async (
         'Content-Type': 'application/json',
         ...(notifySecret ? { 'Authorization': `Bearer ${notifySecret}` } : {}),
       },
-      body: JSON.stringify({ referrerId, refereeName: `User #${referredId}` })
+      body: JSON.stringify({ referrerId, refereeName: `User #${referredId}`, rewardAmount: rewardPoints })
     }).catch(() => {});
   } catch (err) {
     console.error("Error updating referrer rewards:", err);
@@ -329,11 +349,12 @@ export const syncAndClaimAllReferralRewards = async (
 export const getUserReferrals = async (telegramId: number): Promise<ReferralRecord[]> => {
   if (!isFirebaseConfigured()) return [];
   try {
-    const q = query(
-      collection(db, REFERRALS_COLLECTION),
-      where('referrerId', '==', telegramId)
-    );
-    const snap = await getDocs(q);
+    const q1 = query(collection(db, REFERRALS_COLLECTION), where('referrerId', '==', telegramId));
+    let snap = await getDocs(q1);
+    if (snap.empty) {
+      const q2 = query(collection(db, REFERRALS_COLLECTION), where('referrerId', '==', String(telegramId)));
+      snap = await getDocs(q2);
+    }
     const records: ReferralRecord[] = [];
     snap.forEach((d) => records.push({ id: d.id, ...d.data() } as ReferralRecord));
     return records;

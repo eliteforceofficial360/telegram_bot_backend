@@ -674,10 +674,18 @@ bot.start(async (ctx) => {
   ).catch((err) => console.error('Error replying start welcome:', err));
 
   // Handle referral notification if payload is a referral link
-  if (payload.startsWith('ref_')) {
-    const inviterId = parseInt(payload.replace('ref_', ''), 10);
+  const refMatch = payload.match(/^(?:ref_)?(\d+)$/);
+  if (refMatch) {
+    const inviterId = parseInt(refMatch[1], 10);
     if (!isNaN(inviterId) && inviterId !== ctx.from.id) {
       try {
+        const userRef = db.collection('users').doc(String(ctx.from.id));
+        userRef.get().then((uSnap) => {
+          if (uSnap.exists && !uSnap.data()?.referredBy) {
+            userRef.update({ referredBy: inviterId }).catch(() => {});
+          }
+        }).catch(() => {});
+
         const inviterChat = await ctx.telegram.getChat(inviterId).catch(() => null);
         const inviterName = inviterChat ? (inviterChat.first_name || inviterChat.username || 'your sponsor') : 'your sponsor';
         const inviterDisplay = inviterChat?.username ? `@${escapeHTML(inviterChat.username)}` : escapeHTML(inviterName);
@@ -2429,13 +2437,14 @@ function getDefaultEventMessage(evType, params = {}) {
         return sendJson(res, 400, { error: 'valid referrerId required' });
       }
       const display = refereeUsername ? `@${refereeUsername}` : (refereeName || 'A friend');
+      const ptsReward = Number(rewardAmount || dynamicSettings.referralRewardPoints || 250);
       sendEventNotification({
         telegramId: Number(referrerId),
         eventType: 'REFERRAL_BONUS',
         eventId: `ref_bonus_${referrerId}_${Date.now()}`,
         params: {
           refUsername: display,
-          reward: (rewardAmount || 200).toLocaleString(),
+          reward: ptsReward.toLocaleString(),
         },
       }).catch(() => { });
       return sendJson(res, 200, { ok: true });

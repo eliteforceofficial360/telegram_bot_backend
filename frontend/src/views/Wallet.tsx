@@ -346,7 +346,6 @@ export const Wallet: React.FC<WalletProps> = ({
         const affiliateCount = dbUser?.referralCount ?? dbUser?.referrals ?? 0;
         const ratePerAffiliate = adminSettings.referralRewardUsdt !== undefined ? adminSettings.referralRewardUsdt : 0.05;
         const earnedFromRefs = Number((affiliateCount * ratePerAffiliate).toFixed(2));
-        const displayEarned = Math.max(earnedFromRefs, usdtBalance);
 
         return (
           <div className="glass-panel p-4 rounded-[22px] border-white/6 flex flex-col gap-2"
@@ -359,19 +358,19 @@ export const Wallet: React.FC<WalletProps> = ({
                 </div>
                 <div>
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Referral Commission</span>
-                  <span className="text-[9px] text-slate-400">${ratePerAffiliate.toFixed(2)} per affiliate</span>
+                  <span className="text-[9px] text-slate-400">${ratePerAffiliate.toFixed(2)} USDT per affiliate</span>
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-lg font-black text-[#FF8A00]">
-                  ${displayEarned.toFixed(2)}
+                  ${earnedFromRefs.toFixed(2)}
                 </div>
                 <div className="text-[9px] text-slate-400">{affiliateCount} affiliate{affiliateCount !== 1 ? 's' : ''}</div>
               </div>
             </div>
             <div className="w-full h-px bg-white/5 my-0.5" />
             <div className="flex items-center justify-between text-[10px]">
-              <span className="text-slate-400">Total commission in USDT balance:</span>
+              <span className="text-slate-400">Total USDT Balance:</span>
               <span className="text-accent-success font-bold flex items-center gap-1.5"><UsdtIcon size={13} />${usdtBalance.toFixed(2)} USDT</span>
             </div>
           </div>
@@ -543,12 +542,18 @@ export const Wallet: React.FC<WalletProps> = ({
                     <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable USDT</span>
                   </div>
                   <span className="text-xs font-extrabold text-accent-success font-mono">${usdtBalance.toFixed(2)} USDT</span>
-                  <span className="text-[8px] text-slate-500 font-medium">Min: ${settings.withdrawMinAmount}</span>
+                  <div className="flex flex-col text-[8px] text-slate-500 font-medium leading-tight mt-0.5">
+                    <span>Min: ${settings.withdrawMinAmount}</span>
+                    <span>Daily Limit: ${settings.dailyWithdrawLimit.toFixed(2)}</span>
+                  </div>
                 </div>
                 <div className="bg-white/[0.02] border border-white/5 rounded-xl px-3 py-2 flex flex-col gap-0.5">
                   <span className="text-[8px] text-slate-500 uppercase font-semibold">Withdrawable EForce</span>
                   <span className="text-xs font-extrabold text-accent-purple font-mono">{eforceTokens.toFixed(3)} EForce</span>
-                  <span className="text-[8px] text-slate-500 font-medium">Min: {(settings.withdrawMinTokenAmount ?? (settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05))).toFixed(1)} EForce</span>
+                  <div className="flex flex-col text-[8px] text-slate-500 font-medium leading-tight mt-0.5">
+                    <span>Min: {(settings.withdrawMinTokenAmount ?? (settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05))).toFixed(1)} EForce</span>
+                    <span>Daily Limit: {(settings.dailyTokenWithdrawLimit ?? 1000).toLocaleString()} EForce</span>
+                  </div>
                 </div>
               </div>
 
@@ -744,6 +749,21 @@ export const Wallet: React.FC<WalletProps> = ({
                   <div className="flex flex-col text-[10px] text-slate-500 leading-none gap-1 pr-1">
                     <span>Max: {withdrawAsset === 'usdt' ? `$${usdtBalance.toFixed(2)}` : `${eforceTokens.toFixed(3)} EForce`}</span>
                     <span className="text-accent-cyan cursor-pointer font-bold" onClick={() => setWithdrawAmount(withdrawAsset === 'usdt' ? usdtBalance.toFixed(2) : eforceTokens.toFixed(3))}>Set Max</span>
+                  </div>
+                </div>
+                {/* Admin Limits Summary Box */}
+                <div className="mt-2.5 p-2.5 bg-white/[0.02] border border-white/6 rounded-xl flex justify-between items-center text-[10px]">
+                  <div className="flex flex-col gap-0.5 text-left">
+                    <span className="text-slate-400 font-semibold uppercase text-[8px] tracking-wider">Admin Withdraw Limits</span>
+                    <span className="text-slate-300">
+                      Min: <strong className="text-white">{withdrawAsset === 'usdt' ? `$${settings.withdrawMinAmount} USDT` : `${(settings.withdrawMinTokenAmount ?? (settings.withdrawMinAmount / (settings.eforceTokenValue || 0.05))).toFixed(1)} EForce`}</strong>
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-0.5 text-right">
+                    <span className="text-slate-400 font-semibold uppercase text-[8px] tracking-wider">Daily Max</span>
+                    <span className="text-slate-300">
+                      Limit: <strong className="text-white">{withdrawAsset === 'usdt' ? `$${settings.dailyWithdrawLimit.toFixed(2)} USDT` : `${(settings.dailyTokenWithdrawLimit ?? 1000).toLocaleString()} EForce`}</strong>
+                    </span>
                   </div>
                 </div>
               </div>
