@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldCheck, AlertTriangle, ExternalLink, Play, Lock, RefreshCw, Sparkles, Check, Send, Users } from 'lucide-react';
+import { ShieldCheck, AlertTriangle, ExternalLink, Play, Lock, RefreshCw, Sparkles, Check, Send, Users, X } from 'lucide-react';
 import { showRewardedAd } from '../lib/monetag';
 
 interface ForceJoinModalProps {
@@ -16,6 +16,7 @@ interface ForceJoinModalProps {
   showToast: (message: string, type: 'success' | 'error' | 'warning' | 'info') => void;
   onVerificationSuccess: () => void;
   isAccessRestricted?: boolean;
+  onClose?: () => void;
 }
 
 export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
@@ -31,6 +32,7 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
   showToast,
   onVerificationSuccess,
   isAccessRestricted = false,
+  onClose,
 }) => {
   const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
   const [isAdWatching, setIsAdWatching] = useState<boolean>(false);
@@ -227,6 +229,16 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
           className="absolute top-0 left-0 right-0 h-1.5"
           style={{ background: 'linear-gradient(90deg, #FF8A00, #4ADE80, #38BDF8, #A855F7)' }}
         />
+
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all cursor-pointer z-10"
+            title="Close Preview"
+          >
+            <X size={16} />
+          </button>
+        )}
 
         {/* Shield & Verification Header */}
         <div className="flex flex-col items-center text-center mt-2 mb-5">

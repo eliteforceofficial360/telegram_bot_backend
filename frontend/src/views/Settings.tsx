@@ -10,13 +10,14 @@ interface SettingsProps {
   adminSettings?: AdminSettings;
   telegramUser?: TelegramUser | null;
   dbUser?: FirestoreUser | null;
+  onTestAccessRestricted?: () => void;
 }
 
 const APP_VERSION = '2.0.0';
 const BOT_USERNAME = '@Elite_Force_Official_Mining_bot';
 const SUPPORT_LINK = 'https://t.me/Elite_Force_Official_Mining_bot';
 
-export const Settings = ({ showToast, adminSettings, telegramUser = null, dbUser = null }: SettingsProps) => {
+export const Settings = ({ showToast, adminSettings, telegramUser = null, dbUser = null, onTestAccessRestricted }: SettingsProps) => {
 
   const copyBotLink = () => {
     navigator.clipboard.writeText(BOT_USERNAME).catch(() => {});
@@ -168,6 +169,25 @@ export const Settings = ({ showToast, adminSettings, telegramUser = null, dbUser
           </div>
           <span className="text-[9px] font-bold text-[#FF8A00] bg-[#FF8A00]/10 px-2 py-0.5 rounded-full">Open</span>
         </a>
+
+        {/* Test Access Restricted Screen Button */}
+        {onTestAccessRestricted && (
+          <button
+            onClick={onTestAccessRestricted}
+            className="flex items-center justify-between p-3 rounded-[14px] bg-rose-500/10 border border-rose-500/25 hover:bg-rose-500/15 transition-all cursor-pointer text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-[10px] bg-rose-500/15 border border-rose-500/25 flex items-center justify-center">
+                <Shield size={12} className="text-rose-400" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">Test Access Restricted Screen 🚩</span>
+                <span className="text-[10px] text-slate-400">Preview community membership verification modal</span>
+              </div>
+            </div>
+            <span className="text-[9px] font-bold text-rose-300 bg-rose-500/20 border border-rose-500/30 px-2 py-0.5 rounded-full">Test Screen</span>
+          </button>
+        )}
       </motion.div>
 
       {/* Footer note */}

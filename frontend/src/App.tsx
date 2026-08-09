@@ -56,6 +56,10 @@ export default function App() {
   const [hasUnlockedWithdrawal, setHasUnlockedWithdrawal] = useState<boolean>(() => getPersisted('hasUnlockedWithdrawal', false));
   const [isForceJoinVerified, setIsForceJoinVerified] = useState<boolean>(() => getPersisted('isForceJoinVerified', false));
   const [isAccessRestricted, setIsAccessRestricted] = useState<boolean>(false);
+  const [isTestingAccessRestricted, setIsTestingAccessRestricted] = useState<boolean>(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('restricted') === 'true' || urlParams.get('testAccessRestricted') === 'true';
+  });
   const [energy, setEnergy] = useState<number>(() => getPersisted('energy', 1000));
   const [energyCooldownUntil, setEnergyCooldownUntil] = useState<number>(() => {
     return Number(localStorage.getItem('energyCooldownUntil') || '0');
@@ -755,6 +759,7 @@ export default function App() {
             adminSettings={adminSettings}
             telegramUser={telegramUser}
             dbUser={dbUser}
+            onTestAccessRestricted={() => setIsTestingAccessRestricted(true)}
           />
         );
       case 'leaderboard':
@@ -952,10 +957,10 @@ export default function App() {
     }
 
     // Force Join + CAPTCHA + Rewarded Ad Verification Gate
-    if ((adminSettings.forceJoinEnabled ?? true) && !isForceJoinVerified && telegramUser) {
+    if (isTestingAccessRestricted || ((adminSettings.forceJoinEnabled ?? true) && !isForceJoinVerified && telegramUser)) {
       return (
         <ForceJoinModal
-          telegramId={telegramUser.id}
+          telegramId={telegramUser?.id || 88888888}
           channelUrl={adminSettings.telegramChannelUrl || 'https://t.me/EliteForceChannel'}
           channelId={adminSettings.telegramChannelId || '@EliteForceChannel'}
           groupUrl={adminSettings.telegramGroupUrl || 'https://t.me/EliteForceGroup'}
@@ -965,12 +970,16 @@ export default function App() {
           monetagDirectLink={adminSettings.monetagDirectLink}
           cooldownSeconds={adminSettings.verificationCooldownSeconds || 30}
           showToast={showToast}
-          isAccessRestricted={isAccessRestricted}
+          isAccessRestricted={isTestingAccessRestricted || isAccessRestricted}
+          onClose={isTestingAccessRestricted ? () => setIsTestingAccessRestricted(false) : undefined}
           onVerificationSuccess={() => {
             setIsForceJoinVerified(true);
             setIsAccessRestricted(false);
+            setIsTestingAccessRestricted(false);
             localStorage.setItem('isForceJoinVerified', 'true');
-            updateUserDatabaseValues(telegramUser.id, { isVerified: true, verifiedAt: new Date().toISOString() }).catch(() => {});
+            if (telegramUser) {
+              updateUserDatabaseValues(telegramUser.id, { isVerified: true, verifiedAt: new Date().toISOString() }).catch(() => {});
+            }
           }}
         />
       );
