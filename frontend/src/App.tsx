@@ -31,18 +31,10 @@ interface Toast {
 }
 
 export default function App() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [marketInitialTab, setMarketInitialTab] = useState<string>('discover');
   const [marketAutoOpenCreate, setMarketAutoOpenCreate] = useState<boolean>(false);
-
-  // Auto-dismiss luxury preloader after 1 second
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
 
   
   // Persisted state loading helper
