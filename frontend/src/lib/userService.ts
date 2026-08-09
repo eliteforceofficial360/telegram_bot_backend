@@ -419,6 +419,21 @@ export const upsertUser = async (
       ...(deviceFingerprint ? { deviceFingerprint } : {}),
     };
 
+    if (!user.referredBy) {
+      const parsedRef = parseReferralFromStartParam();
+      if (parsedRef && parsedRef !== telegramUser.id) {
+        updateFields.referredBy = parsedRef;
+        let referrerFp = '';
+        try {
+          const referrerSnap = await getDoc(doc(db, USERS_COLLECTION, String(parsedRef)));
+          if (referrerSnap.exists()) {
+            referrerFp = referrerSnap.data().deviceFingerprint || '';
+          }
+        } catch { /* noop */ }
+        recordReferral(parsedRef, telegramUser.id, deviceFingerprint, referrerFp).catch(() => {});
+      }
+    }
+
     const needsCountryFix = !user.country || user.country === 'Unknown' || user.country === 'Other' || user.country.length <= 3 || user.country === 'Other / Unknown';
     if (needsCountryFix) {
       detectUserCountry(telegramUser.languageCode).then(c => {
