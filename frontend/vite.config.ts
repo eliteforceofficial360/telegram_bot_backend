@@ -27,10 +27,6 @@ export default defineConfig({
       },
     },
   },
-  // Configure esbuild transform options (drop console and debugger)
-  esbuild: {
-    drop: ['console', 'debugger'],
-  },
   build: {
     // Code splitting for better mobile performance
     rollupOptions: {
@@ -47,7 +43,7 @@ export default defineConfig({
     },
     // Enable fast, memory-safe esbuild minification
     minify: 'esbuild',
-    // Target modern browsers for smaller bundle
-    target: 'esnext',
+    // Target universal modern browser standards (iOS Safari, Brave, Chrome, Android WebViews)
+    target: ['es2020', 'chrome87', 'safari14', 'firefox78', 'edge88'],
   },
 });
