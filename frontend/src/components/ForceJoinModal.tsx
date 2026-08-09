@@ -151,8 +151,8 @@ export const ForceJoinModal: React.FC<ForceJoinModalProps> = ({
     setIsAdWatching(true);
 
     try {
-      // Step 1: Trigger Rewarded Ad (if monetag zone is set)
-      if (monetagZoneId && monetagZoneId.trim()) {
+      // Step 1: Trigger Rewarded Ad (if monetag zone or direct link is set)
+      if ((monetagZoneId && monetagZoneId.trim()) || (monetagDirectLink && monetagDirectLink.trim())) {
         const adSuccess = await showRewardedAd(monetagZoneId, monetagDirectLink);
 
         if (!adSuccess) {
