@@ -75,8 +75,23 @@
   </div>
 
   <script>
-    window.onerror = function(msg, url, line) {
-      console.warn('Startup JS Note:', msg, url, line);
+    // Suppress Chrome Extension injection errors from cluttering the console
+    window.addEventListener('unhandledrejection', function(event) {
+      const reasonStr = String(event.reason || '');
+      const stackStr = String(event.reason?.stack || '');
+      if (
+        reasonStr.includes('chrome-extension://') ||
+        stackStr.includes('chrome-extension://') ||
+        reasonStr.includes('ContentScript')
+      ) {
+        event.preventDefault();
+      }
+    });
+
+    window.onerror = function(msg, url) {
+      if (url && url.includes('chrome-extension://')) {
+        return true;
+      }
     };
   </script>
   <script type="module" src="/src/main.tsx"></script>
