@@ -36,6 +36,14 @@ export default function App() {
   const [marketInitialTab, setMarketInitialTab] = useState<string>('discover');
   const [marketAutoOpenCreate, setMarketAutoOpenCreate] = useState<boolean>(false);
 
+  // Auto-dismiss luxury preloader after 1 second
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
+
   
   // Persisted state loading helper
   const getPersisted = <T,>(key: string, defaultValue: T): T => {
