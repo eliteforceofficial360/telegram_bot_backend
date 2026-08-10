@@ -5596,9 +5596,9 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                         <span className="text-[9px] text-slate-400">Block users accessing from web.telegram.org or Telegram Desktop (PC)</span>
                       </div>
                       <Toggle
-                        on={settings.blockDesktopWeb ?? false}
+                        on={settings.blockDesktopWeb ?? true}
                         onToggle={async () => {
-                          const nextVal = !(settings.blockDesktopWeb ?? false);
+                          const nextVal = !(settings.blockDesktopWeb ?? true);
                           const updated = { ...settings, blockDesktopWeb: nextVal };
                           setSettings(updated);
                           await saveAdminSettings(updated);

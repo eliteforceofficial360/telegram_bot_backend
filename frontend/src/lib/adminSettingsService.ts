@@ -342,6 +342,9 @@ export const subscribeToAdminSettings = (
     if (!finalSettings.devAppTechStack || !Array.isArray(finalSettings.devAppTechStack) || finalSettings.devAppTechStack.length === 0) {
       finalSettings.devAppTechStack = DEFAULT_ADMIN_SETTINGS.devAppTechStack;
     }
+    if (finalSettings.blockDesktopWeb === undefined) {
+      finalSettings.blockDesktopWeb = true;
+    }
 
     callback(finalSettings);
   };
