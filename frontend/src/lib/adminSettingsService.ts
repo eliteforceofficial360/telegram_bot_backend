@@ -223,7 +223,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   dailyWithdrawLimit: 50.00,
   dailyTokenWithdrawLimit: 1000,
   humanVerificationOpen: false,
-  blockDesktopWeb: false,
+  blockDesktopWeb: true,
   rewardReversalEnabled: true,
   reversalIntervalHours: 12,
   gracePeriodHours: 24,
