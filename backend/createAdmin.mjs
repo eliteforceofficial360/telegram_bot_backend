@@ -49,7 +49,7 @@ try {
   console.log('\n🔑 Login Credentials:');
   console.log('   Email    :', ADMIN_EMAIL);
   console.log('   Password :', ADMIN_PASSWORD);
-  console.log('\n🌐 Admin Panel: https://telite-force-telegram-app.vercel.app/admin-login');
+  console.log('\n🌐 Admin Panel: https://telite-force-telegram-app.vercel.app/advance-admin-login');
 
 } catch (err) {
   console.error('❌ Error:', err.message);

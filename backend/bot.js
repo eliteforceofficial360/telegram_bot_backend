@@ -610,6 +610,23 @@ function sendJson(res, status, payload) {
 
 // ── Bot commands & Auto User Registration Middleware ─────────────────────────
 
+// Global Telegraf Error Handler
+bot.catch(async (err, ctx) => {
+  console.error(`[Telegraf Error] updateType=${ctx?.updateType}:`, err?.message || err);
+  if (ctx && typeof ctx.reply === 'function') {
+    try {
+      const currentAppUrl = getEffectiveAppUrl();
+      const btnText = dynamicSettings.botStartButtonText || '🔥  Launch Elite Force App  🔥';
+      await ctx.reply(
+        '⚡ Welcome to Elite Force! Tap the button below to launch your dashboard:',
+        Markup.inlineKeyboard([[Markup.button.webApp(btnText, currentAppUrl)]])
+      );
+    } catch {
+      /* ignore reply failure */
+    }
+  }
+});
+
 bot.use(async (ctx, next) => {
   if (ctx.from && ctx.from.id) {
     try {
@@ -671,7 +688,16 @@ bot.start(async (ctx) => {
     Markup.inlineKeyboard([
       [Markup.button.webApp(btnText, finalUrl)],
     ])
-  ).catch((err) => console.error('Error replying start welcome:', err));
+  ).catch(async (err) => {
+    console.error('Error replying start welcome HTML, falling back to plain text:', err.message);
+    const plainText = welcomeMsg.replace(/<[^>]*>/g, '');
+    await ctx.reply(
+      plainText,
+      Markup.inlineKeyboard([
+        [Markup.button.webApp(btnText, finalUrl)],
+      ])
+    ).catch((e2) => console.error('Fallback start reply failed:', e2.message));
+  });
 
   // Handle referral notification if payload is a referral link
   const refMatch = payload.match(/^(?:ref_)?(\d+)$/);
@@ -714,12 +740,59 @@ bot.command('app', (ctx) => {
   const btnText = dynamicSettings.botStartButtonText || '🚀 Open App';
   ctx.reply('Opening Elite Force...', Markup.inlineKeyboard([
     [Markup.button.webApp(btnText, currentAppUrl)],
-  ]));
+  ])).catch(() => {});
+});
+
+bot.command(['help', 'menu'], async (ctx) => {
+  await syncAdminSettingsFromRest().catch(() => {});
+  const username = ctx.from?.first_name || 'Force Agent';
+  const currentAppUrl = getEffectiveAppUrl();
+  const welcomeMsg = getWelcomeMessage(username);
+  const btnText = dynamicSettings.botStartButtonText || '🔥  Launch Elite Force App  🔥';
+
+  await ctx.replyWithHTML(
+    welcomeMsg,
+    Markup.inlineKeyboard([
+      [Markup.button.webApp(btnText, currentAppUrl)],
+    ])
+  ).catch(async () => {
+    const plainText = welcomeMsg.replace(/<[^>]*>/g, '');
+    await ctx.reply(plainText, Markup.inlineKeyboard([[Markup.button.webApp(btnText, currentAppUrl)]])).catch(() => {});
+  });
 });
 
 bot.command('status', async (ctx) => {
   const currentAppUrl = getEffectiveAppUrl();
-  await ctx.replyWithHTML(`⚡ <b>Elite Force Bot</b> is online!\n\n🌐 App: ${currentAppUrl}\n🤖 Bot: @${ctx.me}`);
+  const botInfo = ctx.me ? `@${ctx.me}` : 'Elite Force Bot';
+  await ctx.replyWithHTML(`⚡ <b>${botInfo}</b> is online and active!\n\n🌐 Mini App: ${currentAppUrl}`).catch(() => {});
+});
+
+bot.on('callback_query', async (ctx) => {
+  try {
+    await ctx.answerCbQuery().catch(() => {});
+  } catch {
+    /* ignore */
+  }
+});
+
+// Fallback message handler: Responds to any other text or message sent to the bot
+bot.on('message', async (ctx) => {
+  const username = ctx.from?.first_name || 'Force Agent';
+  const currentAppUrl = getEffectiveAppUrl();
+  const btnText = dynamicSettings.botStartButtonText || '🔥  Launch Elite Force App  🔥';
+  const safeName = escapeHTML(username);
+
+  await ctx.replyWithHTML(
+    `👋 Hello, <b>${safeName}</b>!\n\n🚀 Tap the button below to launch your <b>Elite Force</b> dashboard:`,
+    Markup.inlineKeyboard([
+      [Markup.button.webApp(btnText, currentAppUrl)],
+    ])
+  ).catch(async () => {
+    await ctx.reply(
+      `👋 Hello, ${username}!\n\n🚀 Tap the button below to launch your Elite Force dashboard:`,
+      Markup.inlineKeyboard([[Markup.button.webApp(btnText, currentAppUrl)]])
+    ).catch(() => {});
+  });
 });
 
 // ── HTTP Notification API ─────────────────────────────────────────────────────
@@ -2623,13 +2696,35 @@ function getDefaultEventMessage(evType, params = {}) {
 
 // ── Launch & Periodical Scheduler ─────────────────────────────────────────────
 
-async function startBotWithRetry(maxRetries = 5, delayMs = 5000) {
+async function startBotWithRetry(maxRetries = 10, delayMs = 5000) {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       console.log(`Starting Elite Force bot (attempt ${attempt}/${maxRetries})...`);
       await connectMongoDB();
-      await bot.launch({ dropPendingUpdates: true });
-      console.log('✅ Bot running! Send /start in Telegram to test.');
+
+      // Clean up any old Webhooks on Telegram to enable long polling
+      await bot.telegram.deleteWebhook({ drop_pending_updates: false }).catch((wErr) => {
+        console.warn('⚠️ Webhook cleanup warning:', wErr.message);
+      });
+
+      // Register menu commands in Telegram UI
+      await bot.telegram.setMyCommands([
+        { command: 'start', description: '🔥 Launch Elite Force App' },
+        { command: 'app', description: '🚀 Open Mini App' },
+        { command: 'help', description: '❓ Help & Information' },
+        { command: 'status', description: '⚡ Check Bot Status' },
+      ]).catch((cErr) => {
+        console.warn('⚠️ Failed to set bot commands menu:', cErr.message);
+      });
+
+      // Launch bot polling in background non-blocking
+      bot.launch({ dropPendingUpdates: true }).then(() => {
+        console.log('ℹ️ Bot polling stopped.');
+      }).catch((launchErr) => {
+        console.error('💥 Bot polling error:', launchErr.message);
+      });
+
+      console.log('✅ Bot running & polling Telegram! Send /start or any message in Telegram to test.');
 
       console.log('⏱️ Initializing X Task Anti-Fraud Scheduler (15 min interval)...');
       setInterval(() => {
@@ -2639,13 +2734,10 @@ async function startBotWithRetry(maxRetries = 5, delayMs = 5000) {
       }, 15 * 60 * 1000);
       return;
     } catch (err) {
-      const isConflict = err.message?.includes('409') || err.message?.includes('Conflict');
-      if (isConflict && attempt < maxRetries) {
-        console.warn(`⚠️ Bot launch 409 Conflict (previous bot instance still shutting down). Retrying in ${delayMs / 1000}s...`);
+      console.error(`⚠️ Bot launch attempt ${attempt} failed:`, err.message);
+      if (attempt < maxRetries) {
+        console.warn(`Retrying bot startup in ${delayMs / 1000}s...`);
         await new Promise((resolve) => setTimeout(resolve, delayMs));
-      } else {
-        console.error('⚠️ Bot launch warning:', err.message);
-        break;
       }
     }
   }

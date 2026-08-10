@@ -87,7 +87,7 @@ export default function App() {
 
   // Route and Auth parameters
   const [currentPath, setCurrentPath] = useState(() => window.location.pathname);
-  const isAdminPath = currentPath === '/admin' || currentPath === '/admin-login';
+  const isAdminPath = currentPath === '/advance-admin' || currentPath === '/advance-admin-login' || currentPath === '/admin' || currentPath === '/admin-login';
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(() => {
     try {
       const session = localStorage.getItem('admin_session');
@@ -617,8 +617,8 @@ export default function App() {
 
   const handleAdminLoginSuccess = () => {
     setIsAdminAuthenticated(true);
-    // Route transition to /admin
-    window.history.pushState({}, '', '/admin');
+    // Route transition to /advance-admin
+    window.history.pushState({}, '', '/advance-admin');
   };
 
   const handleAdminLogout = () => {
@@ -628,7 +628,7 @@ export default function App() {
     if (isFirebaseConfigured()) {
       auth.signOut().catch(() => {});
     }
-    window.history.pushState({}, '', '/admin-login');
+    window.history.pushState({}, '', '/advance-admin-login');
     showToast("Logged out of Admin console.", "info");
   };
 
@@ -780,7 +780,7 @@ export default function App() {
   // Determine routing view
   const renderRoutedPage = () => {
     // Block admin routes inside Telegram WebView
-    const isAdminPath = currentPath === '/admin-login' || currentPath === '/admin';
+    const isAdminPath = currentPath === '/advance-admin-login' || currentPath === '/advance-admin' || currentPath === '/admin-login' || currentPath === '/admin';
     if (isAdminPath && isTelegramWebview) {
       return (
         <div className="flex flex-col items-center justify-center p-8 text-center min-h-[60vh] select-none">
@@ -793,7 +793,7 @@ export default function App() {
       );
     }
 
-    if (currentPath === '/admin-login') {
+    if (currentPath === '/advance-admin-login' || currentPath === '/admin-login') {
       return (
         <div className="w-full max-w-md mx-auto flex items-center justify-center min-h-[80vh] px-4">
           <AdminLogin 
@@ -804,7 +804,7 @@ export default function App() {
       );
     }
 
-    if (currentPath === '/admin') {
+    if (currentPath === '/advance-admin' || currentPath === '/admin') {
       if (!isAdminAuthenticated) {
         // Protected redirect
         return (
@@ -815,7 +815,7 @@ export default function App() {
               You must authenticate with verified Admin credentials to open the console dashboard.
             </p>
             <button
-              onClick={() => window.history.pushState({}, '', '/admin-login')}
+              onClick={() => window.history.pushState({}, '', '/advance-admin-login')}
               className="h-10 px-6 rounded-xl bg-gradient-to-r from-accent-purple to-accent-blue text-white text-xs font-bold shadow hover:shadow-lg transition-all cursor-pointer"
             >
               Sign In Page
