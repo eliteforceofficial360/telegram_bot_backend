@@ -4951,12 +4951,13 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                   <div className="p-4 flex flex-col divide-y" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
                     {[
                       { label: 'Referral USDT Reward', key: 'referralRewardUsdt' },
-                      { label: 'Referral Points Reward', key: 'referralRewardPoints' },
+                      { label: 'Referral Points Reward (EFC)', key: 'referralRewardPoints' },
+                      { label: 'Referral EForce Token Reward', key: 'referralRewardToken' },
                       { label: 'Min Referrals to Withdraw', key: 'withdrawMinReferrals' },
                       { label: 'Min Withdraw Amount (USDT)', key: 'withdrawMinAmount' },
+                      { label: 'Max Withdraw Limit (USDT)', key: 'dailyWithdrawLimit' },
                       { label: 'Min Withdraw Token Amount (EForce)', key: 'withdrawMinTokenAmount' },
-                      { label: 'Daily Withdraw Limit (USDT)', key: 'dailyWithdrawLimit' },
-                      { label: 'Daily Token Limit (EForce)', key: 'dailyTokenWithdrawLimit' }
+                      { label: 'Max Withdraw Token Limit (EForce)', key: 'dailyTokenWithdrawLimit' }
                     ].map(f => (
                       <div key={f.key} className="flex items-center justify-between gap-4 py-3">
                         <label className="text-xs text-slate-400">{f.label}</label>

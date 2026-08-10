@@ -23,6 +23,7 @@ import { db, isFirebaseConfigured } from './firebase';
 import type { TelegramUser } from './telegramUser';
 
 import { recordReferral, parseReferralFromStartParam } from './referralService';
+import { getAdminSettings } from './adminSettingsService';
 
 const getBotApiUrl = () => {
   const stored = localStorage.getItem('adminSettings');
@@ -1164,6 +1165,28 @@ export const submitWithdrawRequest = async (
   if (!isFirebaseConfigured()) return { success: true };
   if (!amount || isNaN(amount) || amount <= 0) {
     return { success: false, reason: 'Invalid withdrawal amount.' };
+  }
+
+  // Fetch live Admin Settings to enforce strict Min/Max withdrawal limits on backend/service side
+  const settings = await getAdminSettings();
+  if (type === 'usdt') {
+    const minUsdt = settings.withdrawMinAmount ?? 0.20;
+    const maxUsdt = settings.dailyWithdrawLimit ?? 50.00;
+    if (amount < minUsdt) {
+      return { success: false, reason: `Minimum withdrawal is $${minUsdt} USDT.` };
+    }
+    if (amount > maxUsdt) {
+      return { success: false, reason: `Maximum withdrawal limit is $${maxUsdt} USDT.` };
+    }
+  } else {
+    const minToken = settings.withdrawMinTokenAmount ?? 5.0;
+    const maxToken = settings.dailyTokenWithdrawLimit ?? 1000;
+    if (amount < minToken) {
+      return { success: false, reason: `Minimum withdrawal is ${minToken} EForce Tokens.` };
+    }
+    if (amount > maxToken) {
+      return { success: false, reason: `Maximum withdrawal limit is ${maxToken} EForce Tokens.` };
+    }
   }
 
   const userRef = doc(db, USERS_COLLECTION, String(telegramId));

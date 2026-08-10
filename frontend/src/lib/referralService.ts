@@ -237,6 +237,7 @@ export const syncAndClaimAllReferralRewards = async (
     const settings = await getAdminSettings();
     const perRefUsdt = settings.referralRewardUsdt !== undefined ? settings.referralRewardUsdt : 0.05;
     const perRefPoints = settings.referralRewardPoints !== undefined ? settings.referralRewardPoints : 250;
+    const perRefTokens = settings.referralRewardToken ?? 0;
 
     // Fetch all referral records where referrerId == telegramId
     const q = query(
@@ -291,6 +292,7 @@ export const syncAndClaimAllReferralRewards = async (
       const data = userSnap.data();
       const currentWallet = Number(data.wallet || 0);
       const currentPoints = Number(data.points || 0);
+      const currentTokens = Number(data.tokens || 0);
       const userDocReferralCount = Number(data.referralCount ?? data.referrals ?? 0);
       const userDocRawReferrals = Number(data.referrals ?? data.referralCount ?? 0);
 
@@ -301,9 +303,10 @@ export const syncAndClaimAllReferralRewards = async (
         ? [...data.claimedReferralTiers]
         : [];
 
-      // Calculate total expected base referral USDT & EFC
+      // Calculate total expected base referral USDT, EFC points & EForce tokens
       usdtEarned = Number((effectiveValid * perRefUsdt).toFixed(4));
       pointsEarned = effectiveValid * perRefPoints;
+      const tokensEarned = effectiveValid * perRefTokens;
 
       // Check all unlocked tiers and calculate missing tier bonuses
       const newlyClaimedTiers: string[] = [...claimedTiers];
@@ -323,12 +326,14 @@ export const syncAndClaimAllReferralRewards = async (
       totalUsdtAdded = Number((minExpectedWallet - currentWallet).toFixed(4));
 
       const minExpectedPoints = Math.max(currentPoints, pointsEarned + tierPointsBonus);
+      const minExpectedTokens = Math.max(currentTokens, tokensEarned);
 
       transaction.update(userRef, {
         referrals: effectiveRaw,
         referralCount: effectiveValid,
         wallet: Number(minExpectedWallet.toFixed(4)),
         points: minExpectedPoints,
+        tokens: minExpectedTokens,
         claimedReferralTiers: newlyClaimedTiers,
         updatedAt: new Date().toISOString(),
       });

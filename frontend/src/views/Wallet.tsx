@@ -748,7 +748,20 @@ export const Wallet: React.FC<WalletProps> = ({
                   </div>
                   <div className="flex flex-col text-[10px] text-slate-500 leading-none gap-1 pr-1">
                     <span>Max: {withdrawAsset === 'usdt' ? `$${usdtBalance.toFixed(2)}` : `${eforceTokens.toFixed(3)} EForce`}</span>
-                    <span className="text-accent-cyan cursor-pointer font-bold" onClick={() => setWithdrawAmount(withdrawAsset === 'usdt' ? usdtBalance.toFixed(2) : eforceTokens.toFixed(3))}>Set Max</span>
+                    <span 
+                      className="text-accent-cyan cursor-pointer font-bold" 
+                      onClick={() => {
+                        if (withdrawAsset === 'usdt') {
+                          const maxUsdt = Math.min(usdtBalance, settings.dailyWithdrawLimit || 50);
+                          setWithdrawAmount(maxUsdt.toFixed(2));
+                        } else {
+                          const maxToken = Math.min(eforceTokens, settings.dailyTokenWithdrawLimit ?? 1000);
+                          setWithdrawAmount(maxToken.toFixed(3));
+                        }
+                      }}
+                    >
+                      Set Max
+                    </span>
                   </div>
                 </div>
                 {/* Admin Limits Summary Box */}
