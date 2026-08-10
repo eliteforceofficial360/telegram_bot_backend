@@ -862,14 +862,31 @@ export default function App() {
       );
     }
 
-    // 0. Block Desktop/Web Telegram users if admin enabled
+    // 0. Block Desktop/Web Telegram (web.telegram.org & PC Telegram Desktop) if admin enabled
     const tgPlatformLive = ((window as any).Telegram?.WebApp?.platform || '').toLowerCase();
     const uaLive = navigator.userAgent;
-    const isDesktopLive = isDesktopWebPlatform ||
-      ['tdesktop', 'web', 'weba', 'webk', 'desktop', 'macos'].includes(tgPlatformLive) ||
-      ((uaLive.includes('Windows') || uaLive.includes('Macintosh') || uaLive.includes('Linux') || uaLive.includes('X11')) && !/Android|iPhone|iPad|iPod/i.test(uaLive));
+    const refLive = document.referrer || '';
+    let isWebTelegramHost = false;
+    try {
+      if (refLive.includes('web.telegram.org') || refLive.includes('telegram.org')) {
+        isWebTelegramHost = true;
+      }
+      if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+        for (let i = 0; i < window.location.ancestorOrigins.length; i++) {
+          if (window.location.ancestorOrigins[i].includes('telegram.org')) {
+            isWebTelegramHost = true;
+          }
+        }
+      }
+    } catch { /* ignore */ }
 
-    if ((adminSettings.blockDesktopWeb ?? true) && isDesktopLive) {
+    const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(uaLive) || ['android', 'ios'].includes(tgPlatformLive);
+    const isDesktopLive = isDesktopWebPlatform ||
+      isWebTelegramHost ||
+      ['tdesktop', 'web', 'weba', 'webk', 'desktop', 'macos'].includes(tgPlatformLive) ||
+      ((uaLive.includes('Windows') || uaLive.includes('Macintosh') || uaLive.includes('Linux') || uaLive.includes('X11')) && !isMobileDevice);
+
+    if ((adminSettings.blockDesktopWeb !== false) && isDesktopLive && !isMobileDevice) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen w-full select-none" style={{
           background: 'linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 30%, #0d1b2a 60%, #0a0a1a 100%)',
