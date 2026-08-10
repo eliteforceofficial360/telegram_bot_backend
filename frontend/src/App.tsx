@@ -104,7 +104,6 @@ export default function App() {
   // Telegram environment parameters
   const [isTelegramWebview, setIsTelegramWebview] = useState(false);
   const [bypassTelegramCheck, setBypassTelegramCheck] = useState(() => getPersisted('bypassTelegramCheck', true));
-  const [isDesktopWebPlatform, setIsDesktopWebPlatform] = useState(false);
 
   // Telegram user data (real from SDK or mock in dev)
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
@@ -261,21 +260,6 @@ export default function App() {
     // Detect Telegram WebApp
     const isTg = !!(window as any).Telegram?.WebApp?.initData || navigator.userAgent.includes('Telegram');
     setIsTelegramWebview(isTg);
-    // Detect Desktop/Web Telegram platform (web.telegram.org or Telegram Desktop or PC)
-    const checkIsDesktop = () => {
-      const tgPlatform = ((window as any).Telegram?.WebApp?.platform || '').toLowerCase();
-      if (['tdesktop', 'web', 'weba', 'webk', 'desktop', 'macos'].includes(tgPlatform)) {
-        return true;
-      }
-      if (['android', 'ios'].includes(tgPlatform)) {
-        return false;
-      }
-      const ua = navigator.userAgent;
-      const isMobileOS = /Android|iPhone|iPad|iPod|Mobile/i.test(ua);
-      const isPCOS = ua.includes('Windows') || ua.includes('Macintosh') || ua.includes('Linux') || ua.includes('X11');
-      return isPCOS || (!isMobileOS && !('ontouchstart' in window) && navigator.maxTouchPoints === 0);
-    };
-    setIsDesktopWebPlatform(checkIsDesktop());
 
     // ── Read start_param from Telegram deep link ─────────────────────────────────────
     const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || '';
@@ -862,31 +846,54 @@ export default function App() {
       );
     }
 
-    // 0. Block Desktop/Web Telegram (web.telegram.org & PC Telegram Desktop) if admin enabled
-    const tgPlatformLive = ((window as any).Telegram?.WebApp?.platform || '').toLowerCase();
-    const uaLive = navigator.userAgent;
-    const refLive = document.referrer || '';
-    let isWebTelegramHost = false;
-    try {
-      if (refLive.includes('web.telegram.org') || refLive.includes('telegram.org')) {
-        isWebTelegramHost = true;
-      }
-      if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
-        for (let i = 0; i < window.location.ancestorOrigins.length; i++) {
-          if (window.location.ancestorOrigins[i].includes('telegram.org')) {
-            isWebTelegramHost = true;
+    // 0. Block Desktop/Web Telegram (web.telegram.org & PC Telegram Desktop)
+    const checkIsPCWebTelegram = () => {
+      const tgPlatform = ((window as any).Telegram?.WebApp?.platform || '').toLowerCase();
+      const ua = navigator.userAgent;
+      const ref = document.referrer || '';
+      let isAncestorTelegramWeb = false;
+      try {
+        if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+          for (let i = 0; i < window.location.ancestorOrigins.length; i++) {
+            if (window.location.ancestorOrigins[i].includes('telegram.org')) {
+              isAncestorTelegramWeb = true;
+            }
           }
         }
+      } catch { /* ignore */ }
+
+      // 1. Web Telegram (web.telegram.org / webz / webk / weba)
+      const isWebTg = ref.includes('web.telegram.org') || 
+        ref.includes('telegram.org') ||
+        isAncestorTelegramWeb ||
+        ['web', 'weba', 'webk'].includes(tgPlatform);
+
+      // 2. Telegram Desktop PC software
+      const isTgDesktop = ['tdesktop', 'desktop', 'macos'].includes(tgPlatform);
+
+      // 3. PC / Laptop Operating System (Windows, Mac, Linux)
+      const isPCOS = (ua.includes('Windows') || ua.includes('Macintosh') || ua.includes('Linux') || ua.includes('X11')) &&
+        !/Android/i.test(ua);
+
+      // 4. Desktop Screen Width
+      const isDesktopResolution = window.innerWidth > 768 && !/Android|iPhone|iPad|iPod/i.test(ua);
+
+      // Mobile check: Android or iOS Telegram App on phone
+      const isRealMobileDevice = (/Android/i.test(ua) && !ua.includes('Windows')) || 
+        /iPhone|iPod/i.test(ua) || 
+        ['android', 'ios'].includes(tgPlatform);
+
+      if (isRealMobileDevice && !isWebTg && !isTgDesktop && !isPCOS) {
+        return false; // Mobile Telegram App allowed!
       }
-    } catch { /* ignore */ }
 
-    const isMobileDevice = /Android|iPhone|iPad|iPod/i.test(uaLive) || ['android', 'ios'].includes(tgPlatformLive);
-    const isDesktopLive = isDesktopWebPlatform ||
-      isWebTelegramHost ||
-      ['tdesktop', 'web', 'weba', 'webk', 'desktop', 'macos'].includes(tgPlatformLive) ||
-      ((uaLive.includes('Windows') || uaLive.includes('Macintosh') || uaLive.includes('Linux') || uaLive.includes('X11')) && !isMobileDevice);
+      return isWebTg || isTgDesktop || isPCOS || isDesktopResolution;
+    };
 
-    if ((adminSettings.blockDesktopWeb !== false) && isDesktopLive && !isMobileDevice) {
+    const isPCBlocked = checkIsPCWebTelegram();
+    const isBlockEnabled = adminSettings.blockDesktopWeb ?? true;
+
+    if (isBlockEnabled && isPCBlocked) {
       return (
         <div className="flex flex-col items-center justify-center min-h-screen w-full select-none" style={{
           background: 'linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 30%, #0d1b2a 60%, #0a0a1a 100%)',
