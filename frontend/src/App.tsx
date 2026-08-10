@@ -104,6 +104,7 @@ export default function App() {
   // Telegram environment parameters
   const [isTelegramWebview, setIsTelegramWebview] = useState(false);
   const [bypassTelegramCheck, setBypassTelegramCheck] = useState(() => getPersisted('bypassTelegramCheck', true));
+  const [isDesktopWebPlatform, setIsDesktopWebPlatform] = useState(false);
 
   // Telegram user data (real from SDK or mock in dev)
   const [telegramUser, setTelegramUser] = useState<TelegramUser | null>(null);
@@ -261,6 +262,13 @@ export default function App() {
     const isTg = !!(window as any).Telegram?.WebApp?.initData || navigator.userAgent.includes('Telegram');
     setIsTelegramWebview(isTg);
 
+    // Detect Desktop/Web Telegram platform (web.telegram.org or Telegram Desktop)
+    const tgPlatform = (window as any).Telegram?.WebApp?.platform || '';
+    const ua = navigator.userAgent;
+    const isDesktopOrWeb = ['tdesktop', 'web', 'weba', 'webk'].includes(tgPlatform.toLowerCase()) ||
+      (ua.includes('Windows') || ua.includes('Macintosh') || ua.includes('Linux')) && !ua.includes('Android') && !ua.includes('iPhone') && !ua.includes('iPad') && isTg;
+    setIsDesktopWebPlatform(isDesktopOrWeb);
+
     // ── Read start_param from Telegram deep link ─────────────────────────────────────
     const startParam = (window as any).Telegram?.WebApp?.initDataUnsafe?.start_param || '';
     if (startParam?.startsWith('ref_')) {
@@ -269,7 +277,6 @@ export default function App() {
     }
 
     // Extract device metrics
-    const ua = navigator.userAgent;
     let detectedOS = 'Unknown OS';
     if (ua.includes('Windows')) detectedOS = 'Windows';
     else if (ua.includes('Macintosh')) detectedOS = 'macOS';
@@ -847,6 +854,81 @@ export default function App() {
     }
 
     // Default Main User Route "/"
+    // 0. Block Desktop/Web Telegram users if admin enabled
+    if ((adminSettings.blockDesktopWeb ?? false) && isDesktopWebPlatform) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-screen w-full select-none" style={{
+          background: 'linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 30%, #0d1b2a 60%, #0a0a1a 100%)',
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999
+        }}>
+          <div className="flex flex-col items-center justify-center p-6 text-center max-w-md mx-auto">
+            {/* Desktop Blocked Image */}
+            <div style={{
+              width: '280px', maxWidth: '90vw', marginBottom: '24px',
+              filter: 'drop-shadow(0 0 30px rgba(0, 229, 255, 0.15))',
+              animation: 'float 3s ease-in-out infinite'
+            }}>
+              <img
+                src="/desktop-blocked.svg"
+                alt="Desktop Access Blocked"
+                style={{ width: '100%', height: 'auto', borderRadius: '16px' }}
+              />
+            </div>
+
+            {/* Warning Icon */}
+            <div style={{
+              width: '56px', height: '56px', borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(255,59,48,0.2), rgba(255,149,0,0.2))',
+              border: '2px solid rgba(255,59,48,0.3)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: '16px', animation: 'pulse 2s ease-in-out infinite'
+            }}>
+              <ShieldAlert size={28} style={{ color: '#FF3B30' }} />
+            </div>
+
+            <h2 style={{
+              fontSize: '20px', fontWeight: 900, color: '#fff',
+              textTransform: 'uppercase', letterSpacing: '2px',
+              marginBottom: '8px',
+              textShadow: '0 0 20px rgba(255,59,48,0.3)'
+            }}>
+              🚫 Desktop Access Blocked
+            </h2>
+
+            <p style={{
+              fontSize: '13px', color: 'rgba(255,255,255,0.6)',
+              lineHeight: '1.6', maxWidth: '300px', marginBottom: '20px'
+            }}>
+              This app is only available on the <strong style={{ color: '#00E5FF' }}>Telegram Mobile App</strong>.
+              Please open this Mini App from your phone's Telegram app.
+            </p>
+
+            <div style={{
+              width: '100%', height: '1px',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+              marginBottom: '16px'
+            }} />
+
+            <div style={{
+              background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '12px', padding: '14px 18px', width: '100%', maxWidth: '320px'
+            }}>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', lineHeight: '1.5' }}>
+                📱 Open <strong style={{ color: '#00E5FF' }}>Telegram</strong> on your mobile device → Search for our bot → Tap <strong style={{ color: '#00E5FF' }}>"Launch App"</strong>
+              </p>
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes float {
+              0%, 100% { transform: translateY(0px); }
+              50% { transform: translateY(-10px); }
+            }
+          `}</style>
+        </div>
+      );
+    }
+
     // 1. Telegram webview checks (Disabled to allow website access)
     if (false) {
       return (

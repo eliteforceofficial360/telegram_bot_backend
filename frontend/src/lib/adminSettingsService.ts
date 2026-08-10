@@ -98,6 +98,9 @@ export interface AdminSettings {
   dailyTokenWithdrawLimit: number; // EForce token daily withdraw limit
   humanVerificationOpen: boolean;
 
+  // Desktop/Web Telegram Block
+  blockDesktopWeb: boolean; // Block users accessing from web.telegram.org or Telegram Desktop
+
   // Universal Reward Reversal System
   rewardReversalEnabled?: boolean;
   reversalIntervalHours?: number;
@@ -220,6 +223,7 @@ export const DEFAULT_ADMIN_SETTINGS: AdminSettings = {
   dailyWithdrawLimit: 50.00,
   dailyTokenWithdrawLimit: 1000,
   humanVerificationOpen: false,
+  blockDesktopWeb: false,
   rewardReversalEnabled: true,
   reversalIntervalHours: 12,
   gracePeriodHours: 24,

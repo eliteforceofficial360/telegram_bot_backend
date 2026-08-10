@@ -5589,6 +5589,25 @@ export const Admin: React.FC<AdminProps> = ({ showToast, liveUserCount }) => {
                       />
                     </div>
 
+                    {/* Block Desktop/Web Telegram Toggle */}
+                    <div className="flex items-center justify-between py-2 border-b border-white/5">
+                      <div>
+                        <label className="text-xs text-white font-bold block">🖥️ Block Desktop / Web Telegram</label>
+                        <span className="text-[9px] text-slate-400">Block users accessing from web.telegram.org or Telegram Desktop (PC)</span>
+                      </div>
+                      <Toggle
+                        on={settings.blockDesktopWeb ?? false}
+                        onToggle={async () => {
+                          const nextVal = !(settings.blockDesktopWeb ?? false);
+                          const updated = { ...settings, blockDesktopWeb: nextVal };
+                          setSettings(updated);
+                          await saveAdminSettings(updated);
+                          showToast(nextVal ? '🖥️ Desktop/Web Block ENABLED! Only mobile users can access.' : '✅ Desktop/Web Block DISABLED! All platforms allowed.', nextVal ? 'info' : 'success');
+                        }}
+                        accentColor="#FF6B35"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="flex flex-col gap-1">
                         <label className="text-xs text-slate-300 font-bold">Telegram Channel Link</label>
