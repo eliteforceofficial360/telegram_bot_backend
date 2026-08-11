@@ -346,6 +346,11 @@ export const subscribeToAdminSettings = (
       finalSettings.blockDesktopWeb = true;
     }
 
+    // Persist blockDesktopWeb to localStorage for index.html instant PC blocker
+    try {
+      localStorage.setItem('eforce_blockDesktopWeb', finalSettings.blockDesktopWeb ? 'true' : 'false');
+    } catch {}
+
     callback(finalSettings);
   };
 

@@ -64,6 +64,13 @@
       var isAdmin = window.location.pathname.indexOf('advance-admin') !== -1 || window.location.pathname.indexOf('/admin') !== -1;
       if (isAdmin) return; // Admin panel always accessible from PC
 
+      // Check admin toggle from localStorage (synced by React app)
+      try {
+        var stored = localStorage.getItem('eforce_blockDesktopWeb');
+        if (stored === 'false') return; // Admin turned OFF the block
+      } catch(e) {}
+      // If stored is 'true' or null (first visit), proceed with blocking
+
       function blockPC() {
         var overlay = document.getElementById('pc-block-overlay');
         if (overlay) overlay.style.display = 'flex';
