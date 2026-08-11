@@ -30,7 +30,8 @@
     referrerpolicy="no-referrer"
   />
 
-  <script src="https://telegram.org/js/telegram-web-app.js" defer></script>
+  <!-- Load Telegram SDK SYNCHRONOUSLY so platform detection works instantly -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="https://cdn.lordicon.com/lordicon.js" defer></script>
 </head>
 
@@ -57,18 +58,13 @@
   </div>
 
   <script>
-    // Instant PC detection — blocks before React even loads
+    // ===== INSTANT PC/DESKTOP BLOCK =====
+    // Runs AFTER Telegram SDK (loaded sync above) and BEFORE React
     (function() {
-      var ua = navigator.userAgent || '';
-      var isMobile = /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-      var isPCOS = /Windows NT|Macintosh|Mac OS X|Linux x86|X11/i.test(ua) && !isMobile;
-      var noTouch = !('ontouchstart' in window) && navigator.maxTouchPoints === 0;
-      var bigScreen = window.innerWidth > 800;
-      var isAdmin = window.location.pathname.includes('advance-admin') || window.location.pathname.includes('admin');
+      var isAdmin = window.location.pathname.indexOf('advance-admin') !== -1 || window.location.pathname.indexOf('/admin') !== -1;
+      if (isAdmin) return; // Admin panel always accessible from PC
 
-      if (isAdmin) return; // Don't block admin panel access
-
-      if (isPCOS || (bigScreen && noTouch && !isMobile)) {
+      function blockPC() {
         var overlay = document.getElementById('pc-block-overlay');
         if (overlay) overlay.style.display = 'flex';
         var root = document.getElementById('root');
@@ -76,20 +72,83 @@
         window.__PC_BLOCKED__ = true;
       }
 
-      // Secondary check after Telegram SDK loads
+      // --- Check 1: Telegram WebApp platform (SDK is loaded sync, available now) ---
+      try {
+        var tgPlatform = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.platform || '').toLowerCase();
+        if (['tdesktop','web','weba','webk','desktop','macos','unigram'].indexOf(tgPlatform) !== -1) {
+          blockPC();
+          return;
+        }
+        // If platform is android/ios, it's mobile — allow
+        if (tgPlatform === 'android' || tgPlatform === 'ios') {
+          return;
+        }
+      } catch(e) {}
+
+      // --- Check 2: User Agent OS detection ---
+      var ua = navigator.userAgent || '';
+      var isMobileUA = /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+
+      // PC operating systems
+      var isPCOS = /Windows NT|Macintosh|Mac OS X|CrOS|Linux x86_64|X11/i.test(ua) && !isMobileUA;
+      if (isPCOS) {
+        blockPC();
+        return;
+      }
+
+      // --- Check 3: navigator.platform (legacy but reliable) ---
+      var navPlatform = (navigator.platform || navigator.userAgentData?.platform || '').toLowerCase();
+      var isPCPlatform = /win32|win64|windows|macintel|macppc|mac68k|linux x86|linux i686|linux amd64/i.test(navPlatform);
+      if (isPCPlatform && !isMobileUA) {
+        blockPC();
+        return;
+      }
+
+      // --- Check 4: No touch + big screen = likely PC ---
+      var noTouch = !('ontouchstart' in window) && (navigator.maxTouchPoints || 0) === 0;
+      var bigScreen = window.innerWidth > 800 && window.innerHeight > 600;
+      if (noTouch && bigScreen && !isMobileUA) {
+        blockPC();
+        return;
+      }
+
+      // --- Check 5: Referrer / ancestor origins (web.telegram.org) ---
+      try {
+        var ref = document.referrer || '';
+        if (ref.indexOf('web.telegram.org') !== -1 || ref.indexOf('desktop.telegram.org') !== -1) {
+          blockPC();
+          return;
+        }
+        if (window.location.ancestorOrigins && window.location.ancestorOrigins.length > 0) {
+          for (var i = 0; i < window.location.ancestorOrigins.length; i++) {
+            if (window.location.ancestorOrigins[i].indexOf('telegram.org') !== -1) {
+              blockPC();
+              return;
+            }
+          }
+        }
+      } catch(e) {}
+
+      // --- Check 6: Delayed re-check (safety net) ---
       setTimeout(function() {
         if (window.__PC_BLOCKED__) return;
         try {
-          var tgPlatform = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.platform || '').toLowerCase();
-          if (['tdesktop','web','weba','webk','desktop','macos'].indexOf(tgPlatform) !== -1) {
-            var overlay2 = document.getElementById('pc-block-overlay');
-            if (overlay2) overlay2.style.display = 'flex';
-            var root2 = document.getElementById('root');
-            if (root2) root2.style.display = 'none';
-            window.__PC_BLOCKED__ = true;
+          var p = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.platform || '').toLowerCase();
+          if (['tdesktop','web','weba','webk','desktop','macos','unigram'].indexOf(p) !== -1) {
+            blockPC();
           }
         } catch(e) {}
-      }, 1500);
+      }, 500);
+
+      setTimeout(function() {
+        if (window.__PC_BLOCKED__) return;
+        try {
+          var p = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.platform || '').toLowerCase();
+          if (['tdesktop','web','weba','webk','desktop','macos','unigram'].indexOf(p) !== -1) {
+            blockPC();
+          }
+        } catch(e) {}
+      }, 2000);
     })();
   </script>
 
